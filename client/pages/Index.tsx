@@ -484,27 +484,28 @@ const DroneShop = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {DRONES.map(drone => (
-          <div key={drone.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
-            <div className="h-40 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative">
+          <div key={drone.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-1 hover:border-slate-400 transition-all group">
+            <div className="h-48 bg-white flex items-center justify-center relative">
               {drone.imageUrl ? (
                 <img
                   src={drone.imageUrl}
                   alt={`Drone agricolo ${drone.model}`}
-                  className="max-h-28 w-auto object-contain drop-shadow-md transition-transform duration-500 group-hover:scale-105"
+                  className="h-40 w-auto object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
                 />
               ) : (
-                <Plane size={56} className="text-slate-400 group-hover:scale-110 group-hover:text-emerald-500 transition duration-500" />
+                <Plane size={80} className="text-slate-300 group-hover:scale-105 transition duration-300" />
               )}
-              <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded text-xs font-bold shadow-sm">
-                ✓ Disponibile
-              </div>
             </div>
             <div className="p-5">
-              <div className="mb-2">
-                <h3 className="font-bold text-lg text-slate-800">{drone.model}</h3>
-                <p className="text-xs text-slate-500 font-medium">{drone.category}</p>
+              <div className="mb-3">
+                <h3 className="font-bold text-base text-slate-900 uppercase tracking-wide">{drone.model}</h3>
+                <p className="text-xs text-slate-500 font-medium mb-1">{drone.category}</p>
+                <div className="flex items-center gap-1.5 text-xs text-emerald-600">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                  <span className="font-semibold">Disponibile</span>
+                </div>
               </div>
-              <p className="text-xs text-slate-600 mb-3 h-8">{drone.tagline}</p>
+              <p className="text-xs text-slate-600 mb-4 h-8">{drone.tagline}</p>
               
               <div className="grid grid-cols-1 gap-1 text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg">
                 <div className="flex justify-between">
@@ -518,15 +519,15 @@ const DroneShop = () => {
                 </div>
               </div>
 
-              <div className="flex items-baseline justify-between mb-4">
-                 <div>
-                   <p className="text-xs text-slate-400 line-through">€ {(drone.price * 1.15).toFixed(0)}</p>
-                   <p className="text-xl font-bold text-emerald-600">€ {drone.price.toLocaleString()}</p>
+              <div className="mb-4">
+                 <p className="text-xs text-slate-400 line-through mb-1">€ {(drone.price * 1.15).toFixed(0)}</p>
+                 <div className="flex items-baseline gap-2">
+                   <p className="text-2xl font-bold text-slate-900">€ {drone.price.toLocaleString()}</p>
+                   <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">-13%</span>
                  </div>
-                 <Badge color="emerald">-13%</Badge>
               </div>
 
-              <Button onClick={() => openROI(drone)} className="w-full text-sm py-2">
+              <Button onClick={() => openROI(drone)} className="w-full text-sm py-2.5 bg-emerald-600 hover:bg-emerald-700 font-semibold uppercase tracking-wide">
                 <Calculator size={14}/> Calcola ROI
               </Button>
             </div>
