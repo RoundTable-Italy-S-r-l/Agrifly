@@ -807,83 +807,80 @@ export default function Index() {
       case 'service': return <ServiceConfigurator onBack={() => setView('home')} />;
       case 'admin': return <ResellerDashboard />;
       default: return (
-        <div className="text-center py-16 max-w-4xl mx-auto space-y-10">
-          <div className="mb-8">
-            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-4 leading-tight text-slate-900">
-              DJI <span className="font-semibold text-slate-500">Agriculture</span><br />
-              <span className="text-sm md:text-base font-semibold tracking-[0.35em] text-slate-500 uppercase">Partner Platform</span>
-            </h1>
-            <p className="text-sm md:text-base text-slate-600 max-w-2xl mx-auto uppercase tracking-[0.18em]">
-              Vendita droni Agras · Servizi conto terzi · Preventivatore GIS · Simulatore ROI
-            </p>
+        <div className="space-y-0">
+          {/* Hero con immagine di sfondo */}
+          <div
+            className="relative py-32 md:py-40 text-center bg-cover bg-center"
+            style={{ backgroundImage: `url('https://images.pexels.com/photos/2278543/pexels-photo-2278543.jpeg?auto=compress&cs=tinysrgb&w=1920')` }}
+          >
+            <div className="absolute inset-0 bg-slate-900/75"></div>
+            <div className="relative z-10 max-w-4xl mx-auto px-4">
+              <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight text-white">
+                DJI <span className="font-semibold text-white/80">Agriculture</span>
+              </h1>
+              <p className="text-base md:text-lg text-white/90 max-w-2xl mx-auto font-light">
+                Dalla vendita della flotta alla gestione operativa: la piattaforma completa per l'agricoltura di precisione.
+              </p>
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            <div 
+
+          <div className="max-w-5xl mx-auto px-4 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div
               onClick={() => setView('shop')}
-              className="group bg-white p-8 rounded-2xl shadow-sm border-2 border-slate-200 cursor-pointer hover:border-emerald-500 hover:shadow-xl transition-all text-left relative overflow-hidden"
+              className="group bg-white p-10 rounded-lg border border-slate-200 cursor-pointer hover:border-slate-400 hover:shadow-lg transition-all text-left relative overflow-hidden hover:-translate-y-1"
             >
-              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition">
-                <ShoppingBag size={140} />
-              </div>
-              <div className="bg-blue-100 w-14 h-14 rounded-xl flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition">
-                <ShoppingBag size={28} />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">Acquista Drone</h3>
-              <p className="text-slate-600 mb-4 text-sm leading-relaxed">
-                Catalogo DJI Enterprise con <strong>simulatore ROI dinamico</strong>. 
+              <h3 className="text-2xl font-bold text-slate-900 mb-3 uppercase tracking-wide">Acquista Drone</h3>
+              <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+                Catalogo DJI Enterprise con <strong>simulatore ROI dinamico</strong>.
                 Scopri in quanti mesi recuperi l'investimento.
               </p>
-              <span className="text-blue-600 font-bold flex items-center gap-2 group-hover:gap-3 transition-all">
-                Esplora Catalogo <ChevronRight size={18}/>
-              </span>
+              <button className="px-5 py-2.5 border-2 border-slate-900 text-slate-900 font-semibold text-sm uppercase tracking-wide rounded hover:bg-slate-900 hover:text-white transition">
+                Esplora Catalogo
+              </button>
             </div>
 
-            <div 
+            <div
               onClick={() => setView('service')}
-              className="group bg-white p-8 rounded-2xl shadow-sm border-2 border-slate-200 cursor-pointer hover:border-emerald-500 hover:shadow-xl transition-all text-left relative overflow-hidden"
+              className="group bg-white p-10 rounded-lg border border-slate-200 cursor-pointer hover:border-slate-400 hover:shadow-lg transition-all text-left relative overflow-hidden hover:-translate-y-1"
             >
-               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition">
-                <MapIcon size={140} />
-              </div>
-              <div className="bg-emerald-100 w-14 h-14 rounded-xl flex items-center justify-center text-emerald-600 mb-4 group-hover:scale-110 transition">
-                <MapIcon size={28} />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">Richiedi Servizio</h3>
-              <p className="text-slate-600 mb-4 text-sm leading-relaxed">
-                Non vuoi comprare? <strong>Disegna il tuo campo sulla mappa</strong> e ottieni un preventivo istantaneo. 
+              <h3 className="text-2xl font-bold text-slate-900 mb-3 uppercase tracking-wide">Richiedi Servizio</h3>
+              <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+                Non vuoi comprare? <strong>Disegna il tuo campo sulla mappa</strong> e ottieni un preventivo istantaneo.
                 Assegnazione pilota certificato automatica.
               </p>
-              <span className="text-emerald-600 font-bold flex items-center gap-2 group-hover:gap-3 transition-all">
-                Preventivo GIS <ChevronRight size={18}/>
-              </span>
+              <button className="px-5 py-2.5 bg-emerald-600 text-white font-semibold text-sm uppercase tracking-wide rounded hover:bg-emerald-700 transition">
+                Preventivo GIS
+              </button>
             </div>
           </div>
 
-          <div className="mt-16 pt-12 border-t border-slate-200">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-              <div className="p-6 bg-slate-50 rounded-xl">
-                <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 mb-3">
-                  <Target size={20}/>
+          <div className="mt-20 pt-12 border-t border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+              <div className="p-6 bg-white border-l-4 border-emerald-600 rounded-lg shadow-sm">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-5xl font-bold text-slate-900">4-5%</span>
                 </div>
-                <h4 className="font-bold text-slate-800 mb-2">Zero Calpestamento</h4>
-                <p className="text-slate-600 text-xs">Salva il 4-5% del raccolto che il trattore distruggerebbe passando.</p>
+                <h4 className="font-bold text-slate-800 mb-2 uppercase tracking-wide text-sm">Zero Calpestamento</h4>
+                <p className="text-slate-600 text-sm">Raccolto salvato che il trattore distruggerebbe passando.</p>
               </div>
-              <div className="p-6 bg-slate-50 rounded-xl">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-3">
-                  <Droplet size={20}/>
+              <div className="p-6 bg-white border-l-4 border-blue-600 rounded-lg shadow-sm">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-5xl font-bold text-slate-900">-90%</span>
                 </div>
-                <h4 className="font-bold text-slate-800 mb-2">-90% Acqua</h4>
-                <p className="text-slate-600 text-xs">Precisione millimetrica riduce drasticamente il consumo idrico.</p>
+                <h4 className="font-bold text-slate-800 mb-2 uppercase tracking-wide text-sm">Acqua</h4>
+                <p className="text-slate-600 text-sm">Riduzione consumo idrico grazie a precisione millimetrica.</p>
               </div>
-              <div className="p-6 bg-slate-50 rounded-xl">
-                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600 mb-3">
-                  <TrendingUp size={20}/>
+              <div className="p-6 bg-white border-l-4 border-amber-600 rounded-lg shadow-sm">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-5xl font-bold text-slate-900">6-8</span>
+                  <span className="text-lg text-slate-600">mesi</span>
                 </div>
-                <h4 className="font-bold text-slate-800 mb-2">ROI 6-8 Mesi</h4>
-                <p className="text-slate-600 text-xs">Break-even rapido grazie a risparmi operativi e nuove opportunità.</p>
+                <h4 className="font-bold text-slate-800 mb-2 uppercase tracking-wide text-sm">ROI</h4>
+                <p className="text-slate-600 text-sm">Break-even rapido con risparmi operativi e nuove opportunità.</p>
               </div>
             </div>
+          </div>
           </div>
         </div>
       );
@@ -938,8 +935,7 @@ export default function Index() {
               onClick={() => setView('admin')}
               className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
             >
-              <span className="text-xs">🔐</span>
-              <span>Area Rivenditore</span>
+              <span>Login Rivenditori</span>
             </button>
             <Button className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black">
               Contattaci
