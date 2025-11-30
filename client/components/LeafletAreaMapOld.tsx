@@ -1,15 +1,14 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { X, ChevronLeft, Layers } from 'lucide-react';
+import { X } from 'lucide-react';
 import { area as turfArea } from '@turf/area';
 import { polygon as turfPolygon } from '@turf/helpers';
 
 interface LeafletAreaMapProps {
   onComplete: (data: { area: string; points: L.LatLng[]; slope: number }) => void;
-  onBack: () => void;
 }
 
-export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
+export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [tempLine, setTempLine] = useState<L.Polyline | null>(null);
@@ -26,17 +25,18 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchSuggestions, setSearchSuggestions] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [mapLayer, setMapLayer] = useState<'satellite' | 'street' | 'terrain'>('satellite');
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
+    // Initialize map centered on Italy (agricultural area)
     const map = L.map(mapContainerRef.current, {
-      center: [44.5, 11.3],
+      center: [44.5, 11.3], // Emilia-Romagna region
       zoom: 15,
-      zoomControl: false
+      zoomControl: true
     });
 
+    // Add OpenStreetMap tile layer (free satellite-like imagery)
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles &copy; Esri',
       maxZoom: 19
@@ -133,41 +133,37 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
   };
 
   const handleMapClick = (e: L.LeafletMouseEvent) => {
-    if (!mapRef.current) return;
-    if (isClosed) return;
+    if (isClosed || !mapRef.current) return;
 
     const newPoint = e.latlng;
-    const pts = [...points, newPoint];
+    const newPoints = [...points, newPoint];
 
+    // Add marker
     const marker = L.circleMarker(newPoint, {
-      color: '#FFC107',
-      fillColor: '#FFC107',
-      fillOpacity: 0.8,
       radius: 6,
-      weight: 2
+      fillColor: '#10b981',
+      color: '#fff',
+      weight: 2,
+      fillOpacity: 1
     }).addTo(mapRef.current);
 
-    if (pts.length === 1) {
-      marker.on('click', () => {
-        if (pts.length >= 3) {
-          closePolygon(pts);
-        }
-      });
-    }
-
-    setPoints(pts);
-
-    if (pts.length > 1) {
-      updatePolyline(pts);
-    }
-
-    if (pts.length >= 3) {
-      marker.on('click', () => {
-        closePolygon(pts);
-      });
-    }
-
     setMarkers([...markers, marker]);
+    setPoints(newPoints);
+
+    // Check if user clicked near the first point to close polygon (min 3 points)
+    if (newPoints.length > 2) {
+      const firstPoint = newPoints[0];
+      const distance = mapRef.current.distance(newPoint, firstPoint);
+      
+      if (distance < 50) { // 50 meters threshold
+        closePolygon(newPoints);
+      } else {
+        // Draw temporary line
+        updatePolyline(newPoints);
+      }
+    } else if (newPoints.length > 1) {
+      updatePolyline(newPoints);
+    }
   };
 
   const updatePolyline = (pts: L.LatLng[]) => {
@@ -178,35 +174,38 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
     }
 
     const polyline = L.polyline(pts, {
-      color: '#FFFFFF',
+      color: '#10b981',
       weight: 3,
-      dashArray: '10, 10',
-      opacity: 0.9
+      dashArray: '10, 10'
     }).addTo(mapRef.current);
 
     setTempLine(polyline);
   };
 
+
   const closePolygon = (pts: L.LatLng[]) => {
     if (!mapRef.current || pts.length < 3) return;
 
+    // Remove temporary polyline
     if (tempLine) {
       tempLine.remove();
       setTempLine(null);
     }
 
+    // Create final polygon for this field
     const polygon = L.polygon(pts, {
-      color: '#FFC107',
+      color: '#10b981',
       weight: 3,
-      fillColor: '#FFC107',
-      fillOpacity: 0.25
+      fillColor: '#10b981',
+      fillOpacity: 0.3
     }).addTo(mapRef.current);
 
     setPolygons(prev => [...prev, polygon]);
     setIsClosed(true);
 
+    // Calculate area using Turf.js (geodesic calculation)
     const coords = pts.map(p => [p.lng, p.lat]);
-    coords.push([pts[0].lng, pts[0].lat]);
+    coords.push([pts[0].lng, pts[0].lat]); // Close the polygon
 
     const turfPoly = turfPolygon([coords]);
     const areaInSquareMeters = turfArea(turfPoly);
@@ -221,6 +220,7 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
     setArea(newTotalArea.toFixed(2));
     setSlope(newAverageSlope);
 
+    // Callback to parent with aggregated data (treating multi-appezzamento come unico intervento)
     onComplete({
       area: newTotalArea.toFixed(2),
       points: pts,
@@ -231,12 +231,15 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
   const resetMap = () => {
     if (!mapRef.current) return;
 
+    // Remove all markers
     markers.forEach(m => m.remove());
 
+    // Remove temporary line
     if (tempLine) {
       tempLine.remove();
     }
 
+    // Remove all polygons
     polygons.forEach(p => p.remove());
 
     setMarkers([]);
@@ -262,28 +265,7 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
     }
   };
 
-  const handleLayerSwitch = (layer: 'satellite' | 'street' | 'terrain') => {
-    if (!mapRef.current) return;
-    setMapLayer(layer);
-
-    mapRef.current.eachLayer((l) => {
-      if ((l as any)._url) {
-        mapRef.current?.removeLayer(l);
-      }
-    });
-
-    const tileUrls = {
-      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      terrain: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
-    };
-
-    L.tileLayer(tileUrls[layer], {
-      attribution: layer === 'street' ? '&copy; OpenStreetMap' : '&copy; Esri',
-      maxZoom: 19
-    }).addTo(mapRef.current);
-  };
-
+  // Attach click handler to map
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -297,40 +279,13 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
   }, [points, isClosed, markers, tempLine]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative">
       <div
         ref={mapContainerRef}
-        className="w-full h-full z-0"
+        className="w-full h-[520px] md:h-[600px] rounded-xl overflow-hidden border-2 border-slate-300 shadow-inner z-0"
         style={{ cursor: isClosed ? 'default' : 'crosshair' }}
       />
 
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="absolute top-4 left-4 z-30 bg-white/95 backdrop-blur p-2.5 rounded shadow-xl border border-slate-200 hover:bg-white transition flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-700"
-      >
-        <ChevronLeft size={18} />
-        <span className="hidden md:inline">Indietro</span>
-      </button>
-
-      {/* Floating HUD Panel */}
-      <div className="absolute top-4 left-4 md:left-20 right-4 md:right-auto md:w-[360px] z-20 mt-14">
-        <div className="bg-white/95 backdrop-blur rounded shadow-2xl border-l-4 border-slate-900 p-5">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900 mb-2">1. DEFINISCI AREA</h2>
-          <p className="text-xs text-slate-600 mb-3">Clicca i vertici del campo sulla mappa satellitare. Chiudi il poligono cliccando sul primo punto.</p>
-          {totalAreaHa > 0 && (
-            <div className="bg-slate-900 text-white p-3 rounded mt-2">
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold">{area}</span>
-                <span className="text-sm">ha</span>
-              </div>
-              <p className="text-[10px] text-slate-300 uppercase tracking-wide mt-1">{fieldCount} camp{fieldCount === 1 ? 'o' : 'i'} disegnat{fieldCount === 1 ? 'o' : 'i'}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Search Bar */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] md:w-[400px] z-20">
         <form
           onSubmit={handleSearchSubmit}
@@ -373,75 +328,42 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
         )}
       </div>
 
+
       {points.length > 0 && !isClosed && (
-        <div className="absolute top-32 left-4 md:left-20 bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-bold z-10 pointer-events-none md:w-[360px] text-center">
+        <div className="absolute top-16 left-4 bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-bold z-10 pointer-events-none">
           {points.length} punt{points.length === 1 ? 'o' : 'i'} • Clicca vicino al primo punto per chiudere
         </div>
       )}
 
-      {/* Custom Zoom Controls + Layer Switcher + Reset (bottom right) */}
-      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-2">
-        <button
-          onClick={() => mapRef.current?.zoomIn()}
-          className="w-10 h-10 bg-white rounded shadow-lg flex items-center justify-center text-slate-900 hover:bg-slate-100 font-bold text-lg transition"
-          title="Zoom in"
-        >
-          +
-        </button>
-        <button
-          onClick={() => mapRef.current?.zoomOut()}
-          className="w-10 h-10 bg-white rounded shadow-lg flex items-center justify-center text-slate-900 hover:bg-slate-100 font-bold text-lg transition"
-          title="Zoom out"
-        >
-          −
-        </button>
-        <div className="h-px bg-slate-300 my-1"></div>
-        <button
-          onClick={() => handleLayerSwitch('satellite')}
-          className={`w-10 h-10 rounded shadow-lg flex items-center justify-center transition ${
-            mapLayer === 'satellite' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
-          }`}
-          title="Satellite"
-        >
-          <Layers size={18} />
-        </button>
-        <button
-          onClick={() => handleLayerSwitch('street')}
-          className={`w-10 h-10 rounded shadow-lg flex items-center justify-center text-xs font-bold transition ${
-            mapLayer === 'street' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
-          }`}
-          title="Stradale"
-        >
-          <span>🗺️</span>
-        </button>
-        <button
-          onClick={() => handleLayerSwitch('terrain')}
-          className={`w-10 h-10 rounded shadow-lg flex items-center justify-center text-xs font-bold transition ${
-            mapLayer === 'terrain' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
-          }`}
-          title="Terreno"
-        >
-          <span>⛰️</span>
-        </button>
-        <div className="h-px bg-slate-300 my-1"></div>
-        <button
-          onClick={resetMap}
-          className="w-10 h-10 bg-white rounded shadow-lg flex items-center justify-center text-slate-600 hover:text-red-500 hover:bg-red-50 transition"
+      <div className="absolute top-4 right-4 z-10">
+        <button 
+          onClick={resetMap} 
+          className="bg-white p-2 rounded-lg shadow-lg text-slate-600 hover:text-red-500 hover:bg-red-50 transition"
           title="Resetta disegno"
         >
           <X size={20} />
         </button>
       </div>
 
-      {/* Add Field Button (bottom left) */}
-      {isClosed && (
-        <button
-          type="button"
-          onClick={startNewField}
-          className="absolute bottom-6 left-6 z-20 px-4 py-2.5 rounded bg-emerald-600 text-white text-xs font-bold shadow-xl hover:bg-emerald-700 uppercase tracking-wide transition"
-        >
-          + Aggiungi campo
-        </button>
+      {totalAreaHa > 0 && (
+        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur p-4 rounded-xl shadow-xl border-l-4 border-emerald-500 flex flex-wrap gap-4 justify-between items-center z-10">
+          <div>
+            <p className="text-xs text-slate-500 uppercase font-bold">Area Totale Intervento (Geodesica)</p>
+            <p className="text-2xl font-bold text-slate-800">{area} ha</p>
+            <p className="text-xs text-slate-500 mt-1">{fieldCount} camp{fieldCount === 1 ? 'o' : 'i'} disegnat{fieldCount === 1 ? 'o' : 'i'}</p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            {isClosed && (
+              <button
+                type="button"
+                onClick={startNewField}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow hover:bg-emerald-700"
+              >
+                + Aggiungi campo
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
