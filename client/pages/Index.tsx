@@ -105,6 +105,7 @@ const DRONES: Drone[] = [
     category: 'Standard Industry',
     tagline: 'Rapporto Q/P eccellente',
     targetUse: 'Soluzione collaudata per aziende medie.',
+    imageUrl: 'https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2Fd8d2c5c643ae4c44b415ab8d453b6b93?format=webp&width=800',
     specs: {
       tank: '30L',
       battery: 'N/A',
