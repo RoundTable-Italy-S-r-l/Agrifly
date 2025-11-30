@@ -141,40 +141,6 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
     setTempLine(polyline);
   };
 
-  const estimateElevation = (point: L.LatLng) => {
-    const base = ((point.lat * 1000) + (point.lng * 1000)) % 300;
-    return 50 + base;
-  };
-
-  const computeSlopeFromPoints = (pts: L.LatLng[]): number => {
-    if (!mapRef.current || pts.length < 2) return 0;
-
-    let minElevation = Infinity;
-    let maxElevation = -Infinity;
-    let minPoint = pts[0];
-    let maxPoint = pts[0];
-
-    pts.forEach((p) => {
-      const h = estimateElevation(p);
-      if (h < minElevation) {
-        minElevation = h;
-        minPoint = p;
-      }
-      if (h > maxElevation) {
-        maxElevation = h;
-        maxPoint = p;
-      }
-    });
-
-    const distance = mapRef.current.distance(minPoint, maxPoint);
-    if (distance === 0) return 0;
-
-    const deltaH = maxElevation - minElevation;
-    const slopePercent = (deltaH / distance) * 100;
-    const clamped = Math.max(0, Math.min(60, slopePercent));
-
-    return Math.round(clamped);
-  };
 
   const closePolygon = (pts: L.LatLng[]) => {
     if (!mapRef.current || pts.length < 3) return;
@@ -204,13 +170,9 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
     const areaInSquareMeters = turfArea(turfPoly);
     const areaInHectaresNumber = areaInSquareMeters / 10000;
 
-    const fieldSlope = computeSlopeFromPoints(pts);
-
     const newTotalArea = totalAreaHa + areaInHectaresNumber;
     const newFieldCount = fieldCount + 1;
-    const newAverageSlope = newFieldCount === 1
-      ? fieldSlope
-      : Math.round(((slope * totalAreaHa) + (fieldSlope * areaInHectaresNumber)) / newTotalArea);
+    const newAverageSlope = 0;
 
     setTotalAreaHa(newTotalArea);
     setFieldCount(newFieldCount);
@@ -310,13 +272,6 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
         )}
       </div>
 
-      {!isClosed && points.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-          <div className="bg-white/90 px-4 py-2 rounded-lg shadow-lg text-slate-700 font-medium animate-bounce">
-            📍 Clicca sulla mappa per disegnare il perimetro del campo
-          </div>
-        </div>
-      )}
 
       {points.length > 0 && !isClosed && (
         <div className="absolute top-16 left-4 bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-bold z-10 pointer-events-none">
@@ -340,15 +295,6 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
             <p className="text-xs text-slate-500 uppercase font-bold">Area Totale Intervento (Geodesica)</p>
             <p className="text-2xl font-bold text-slate-800">{area} ha</p>
             <p className="text-xs text-slate-500 mt-1">{fieldCount} camp{fieldCount === 1 ? 'o' : 'i'} disegnat{fieldCount === 1 ? 'o' : 'i'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500 uppercase font-bold">Pendenza Media Stimata (DEM)</p>
-            <p className="text-lg font-bold text-slate-800 flex items-center gap-1">
-              {slope}%
-            </p>
-            <span className="mt-1 inline-block text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold">
-              {slope <= 10 ? 'T50/T30 Ottimale' : slope <= 20 ? 'T30 Consigliato' : 'Verifica operatività con pilota certificato'}
-            </span>
           </div>
           <div className="flex flex-col items-end gap-2">
             {isClosed && (
