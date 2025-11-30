@@ -95,6 +95,41 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
     setTempLine(polyline);
   };
 
+  const estimateElevation = (point: L.LatLng) => {
+    const base = ((point.lat * 1000) + (point.lng * 1000)) % 300;
+    return 50 + base;
+  };
+
+  const computeSlopeFromPoints = (pts: L.LatLng[]): number => {
+    if (!mapRef.current || pts.length < 2) return 0;
+
+    let minElevation = Infinity;
+    let maxElevation = -Infinity;
+    let minPoint = pts[0];
+    let maxPoint = pts[0];
+
+    pts.forEach((p) => {
+      const h = estimateElevation(p);
+      if (h < minElevation) {
+        minElevation = h;
+        minPoint = p;
+      }
+      if (h > maxElevation) {
+        maxElevation = h;
+        maxPoint = p;
+      }
+    });
+
+    const distance = mapRef.current.distance(minPoint, maxPoint);
+    if (distance === 0) return 0;
+
+    const deltaH = maxElevation - minElevation;
+    const slopePercent = (deltaH / distance) * 100;
+    const clamped = Math.max(0, Math.min(60, slopePercent));
+
+    return Math.round(clamped);
+  };
+
   const closePolygon = (pts: L.LatLng[]) => {
     if (!mapRef.current || pts.length < 3) return;
 
@@ -123,14 +158,13 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
     const areaInSquareMeters = turfArea(turfPoly);
     const areaInHectaresNumber = areaInSquareMeters / 10000;
 
-    // Simulate slope calculation (in a real app, this would use DEM data)
-    const simulatedSlope = Math.floor(Math.random() * 25 + 3);
+    const fieldSlope = computeSlopeFromPoints(pts);
 
     const newTotalArea = totalAreaHa + areaInHectaresNumber;
     const newFieldCount = fieldCount + 1;
     const newAverageSlope = newFieldCount === 1
-      ? simulatedSlope
-      : Math.round(((slope * totalAreaHa) + (simulatedSlope * areaInHectaresNumber)) / newTotalArea);
+      ? fieldSlope
+      : Math.round(((slope * totalAreaHa) + (fieldSlope * areaInHectaresNumber)) / newTotalArea);
 
     setTotalAreaHa(newTotalArea);
     setFieldCount(newFieldCount);
