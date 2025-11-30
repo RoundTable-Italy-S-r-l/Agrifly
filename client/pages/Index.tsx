@@ -223,11 +223,12 @@ const Badge = ({ children, color = 'emerald' }: { children: React.ReactNode; col
   );
 };
 
-const Button = ({ children, onClick, variant = 'primary', className = '' }: {
+const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false }: {
   children: React.ReactNode;
   onClick?: () => void;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   className?: string;
+  disabled?: boolean;
 }) => {
   const baseStyle = "px-4 py-2 rounded-lg font-bold transition flex items-center gap-2 justify-center";
   const variants = {
@@ -237,7 +238,7 @@ const Button = ({ children, onClick, variant = 'primary', className = '' }: {
     ghost: "text-slate-500 hover:bg-slate-100"
   };
   return (
-    <button onClick={onClick} className={`${baseStyle} ${variants[variant]} ${className}`}>
+    <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>
       {children}
     </button>
   );
