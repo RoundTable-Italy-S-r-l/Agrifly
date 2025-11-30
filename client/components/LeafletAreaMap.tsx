@@ -7,9 +7,12 @@ import { polygon as turfPolygon } from '@turf/helpers';
 interface LeafletAreaMapProps {
   onComplete: (data: { area: string; points: L.LatLng[]; slope: number }) => void;
   onBack: () => void;
+  gisData?: { area: string; points: L.LatLng[]; slope: number } | null;
+  pricing?: { recommendedDrone: string; total: number } | null;
+  onProceed?: () => void;
 }
 
-export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
+export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed }: LeafletAreaMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [tempLine, setTempLine] = useState<L.Polyline | null>(null);
@@ -442,6 +445,25 @@ export function LeafletAreaMap({ onComplete, onBack }: LeafletAreaMapProps) {
         >
           + Aggiungi campo
         </button>
+      )}
+
+      {/* Floating CTA Panel - Proceed to Quote */}
+      {gisData && pricing && onProceed && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 bg-white/95 backdrop-blur rounded-lg shadow-2xl border border-slate-200 p-4 flex flex-col sm:flex-row items-center gap-4">
+          <div className="text-xs text-slate-600 flex flex-wrap items-center gap-2">
+            <span>Area: <strong className="text-slate-900">{gisData.area} ha</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Drone: <strong className="text-slate-900">{pricing.recommendedDrone}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Stima: <strong className="text-emerald-600">€ {pricing.total.toFixed(0)}</strong></span>
+          </div>
+          <button
+            onClick={onProceed}
+            className="px-5 py-2.5 bg-slate-900 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-black transition shadow-lg flex items-center gap-2 whitespace-nowrap"
+          >
+            <span>→</span> Vai al Preventivo
+          </button>
+        </div>
       )}
     </div>
   );

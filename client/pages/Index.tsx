@@ -278,7 +278,13 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
   if (step === 1) {
     return (
       <div className="w-full" style={{ height: 'calc(100vh - 64px)' }}>
-        <LeafletAreaMap onComplete={handleGisComplete} onBack={onBack} />
+        <LeafletAreaMap
+          onComplete={handleGisComplete}
+          onBack={onBack}
+          gisData={gisData}
+          pricing={pricing}
+          onProceed={() => setStep(2)}
+        />
       </div>
     );
   }
