@@ -913,14 +913,9 @@ export default function Index() {
             onClick={() => setView('home')}
           >
             <img
-              src="https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2F414cb17f2d764d35b6c6328f6f445ec0?format=webp&width=800"
-              alt="DJI Agriculture"
-              className="h-8 md:h-9 w-auto object-contain"
-            />
-            <img
               src="https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2Fab87517a72b04105b416c2482c4ec60b?format=webp&width=800"
               alt="DJI Agriculture app icon"
-              className="hidden sm:inline h-7 w-7 rounded-xl object-cover"
+              className="h-8 md:h-9 w-9 md:w-9 rounded-2xl object-cover shadow-sm"
             />
           </button>
 
