@@ -275,41 +275,27 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
     setSavedFields(savedFields.filter(f => f.id !== id));
   };
 
+  if (step === 1) {
+    return (
+      <div className="w-full" style={{ height: 'calc(100vh - 64px)' }}>
+        <LeafletAreaMap onComplete={handleGisComplete} onBack={onBack} />
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto pt-6">
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full"><ChevronRight className="rotate-180"/></button>
+        <button onClick={() => setStep(1)} className="p-2 hover:bg-slate-100 rounded-full"><ChevronRight className="rotate-180"/></button>
         <h2 className="text-2xl font-bold text-slate-800">Preventivatore Servizi GIS</h2>
       </div>
 
       <div className="space-y-6">
         <div className="space-y-6">
-          {step === 1 && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <MapIcon className="text-emerald-600"/> 1. Definisci Area Intervento
-              </h3>
-              <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente la superficie con calcolo geodesico reale.</p>
-              <LeafletAreaMap onComplete={handleGisComplete} onBack={onBack} />
-
-              {gisData && pricing && (
-                <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                  <div className="flex flex-wrap gap-3">
-                    <span>Area totale: <strong>{gisData.area} ha</strong></span>
-                    <span>·</span>
-                    <span>Drone suggerito: <strong>{pricing.recommendedDrone}</strong></span>
-                  </div>
-                  <Button
-                    onClick={() => setStep(2)}
-                    className="text-xs sm:text-sm px-4 py-2 flex items-center gap-2"
-                  >
-                    <CheckCircle size={14} /> Vai al preventivo
-                  </Button>
-                </div>
-              )}
 
               {showSaveForm && gisData && (
-                <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
                   <h4 className="font-bold text-emerald-900 mb-3 flex items-center gap-2">
                     <Save size={18}/> Salva Area Cliente
                   </h4>
@@ -352,9 +338,8 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
                     </Button>
                   </div>
                 </div>
+                </div>
               )}
-            </div>
-          )}
 
           {step === 2 && gisData && pricing && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
