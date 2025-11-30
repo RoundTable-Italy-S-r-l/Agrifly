@@ -121,6 +121,7 @@ const DRONES: Drone[] = [
     category: 'Heavy Lift (Next Gen)',
     tagline: 'Sostituisce trattori di grandi dimensioni',
     targetUse: 'Trattamenti massivi su pianura.',
+    imageUrl: 'https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2Fbc07e146eb984c448fb3fe46a05699c8?format=webp&width=800',
     specs: {
       tank: 'Alta Capacità (70L+)',
       battery: 'N/A',
