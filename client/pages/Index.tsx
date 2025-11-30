@@ -506,6 +506,51 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
         </div>
 
         <div className="space-y-6">
+          {savedFields.length > 0 && (
+            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+              <h4 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <FolderOpen size={18}/> Campi Salvati ({savedFields.length})
+              </h4>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {savedFields.map(field => (
+                  <div key={field.id} className="bg-white p-3 rounded-lg border border-slate-200 hover:border-emerald-400 transition group">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <p className="font-bold text-sm text-slate-800">{field.clientName}</p>
+                        <p className="text-xs text-slate-500">{field.fieldName}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteField(field.id)}
+                        className="p-1 text-slate-400 hover:text-red-500 transition opacity-0 group-hover:opacity-100"
+                        title="Elimina"
+                      >
+                        <Trash2 size={14}/>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                      <div className="bg-slate-50 p-2 rounded">
+                        <span className="text-slate-500">Area:</span>
+                        <strong className="ml-1">{field.gisData.area} ha</strong>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded">
+                        <span className="text-slate-500">Pendenza:</span>
+                        <strong className="ml-1">{field.gisData.slope}%</strong>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 mb-2">Salvato: {field.savedAt}</p>
+                    <Button
+                      onClick={() => handleLoadField(field)}
+                      variant="outline"
+                      className="w-full text-xs py-1.5"
+                    >
+                      <ChevronRight size={12}/> Carica Preventivo
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
             <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
               <Target size={20}/> Perché il Drone?
