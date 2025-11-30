@@ -905,32 +905,39 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 selection:bg-emerald-200">
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-lg border-b border-slate-200 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div 
-            className="flex items-center gap-2 font-bold text-xl cursor-pointer group"
+          <button
+            type="button"
+            className="flex items-center gap-3 cursor-pointer group"
             onClick={() => setView('home')}
           >
-            <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center text-white group-hover:bg-emerald-700 transition shadow-md">
-              <Plane size={22} />
-            </div>
-            <span>Agri<span className="text-emerald-600">Tech</span> Solutions</span>
-          </div>
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2Fe97a859f2bff4bf4b902a76a8194a453?format=webp&width=800"
+              alt="DJI Agriculture"
+              className="h-7 w-auto object-contain"
+            />
+            <span className="hidden sm:inline text-[10px] md:text-xs font-semibold tracking-[0.35em] uppercase text-slate-500 group-hover:text-slate-900 transition">
+              Partner Platform
+            </span>
+          </button>
 
-          <nav className="hidden md:flex items-center gap-8 font-medium text-sm text-slate-600">
-            <button onClick={() => setView('home')} className="hover:text-emerald-600 transition">Home</button>
-            <button onClick={() => setView('shop')} className="hover:text-emerald-600 transition">Catalogo Droni</button>
-            <button onClick={() => setView('service')} className="hover:text-emerald-600 transition">Servizi GIS</button>
+          <nav className="hidden md:flex items-center gap-8 font-medium text-xs tracking-[0.18em] uppercase text-slate-600">
+            <button onClick={() => setView('home')} className={`pb-0.5 border-b-2 transition ${view === 'home' ? 'border-slate-900 text-slate-900' : 'border-transparent hover:text-slate-900'}`}>Home</button>
+            <button onClick={() => setView('shop')} className={`pb-0.5 border-b-2 transition ${view === 'shop' ? 'border-slate-900 text-slate-900' : 'border-transparent hover:text-slate-900'}`}>Catalogo Droni</button>
+            <button onClick={() => setView('service')} className={`pb-0.5 border-b-2 transition ${view === 'service' ? 'border-slate-900 text-slate-900' : 'border-transparent hover:text-slate-900'}`}>Servizi GIS</button>
           </nav>
 
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => setView('admin')}
-              className="text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+              className="text-[10px] md:text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
             >
               🔐 Area Rivenditore
             </button>
-            <Button className="hidden md:flex text-sm py-2 px-5">Contattaci</Button>
+            <Button className="hidden md:flex text-sm py-2 px-5 font-semibold tracking-wide">
+              Contattaci
+            </Button>
           </div>
         </div>
       </header>
@@ -941,7 +948,7 @@ export default function Index() {
 
       <footer className="border-t border-slate-200 bg-white mt-20">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-slate-500">
-          <p>© 2024 AgriTech Solutions - Piattaforma White-Label per Rivenditori DJI Enterprise</p>
+          <p>© 2024 DJI Agriculture Partner Platform – soluzione white‑label per rivenditori autorizzati.</p>
           <p className="text-xs mt-2">Dati ROI basati su medie di mercato reali. Consulta il tuo commerciale per dettagli.</p>
         </div>
       </footer>
