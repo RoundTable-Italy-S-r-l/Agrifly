@@ -42,6 +42,7 @@ interface Drone {
   category: string;
   tagline: string;
   targetUse: string;
+  imageUrl?: string;
   specs: {
     tank: string;
     battery: string;
@@ -70,6 +71,7 @@ const DRONES: Drone[] = [
     category: 'Flagship (Top Gamma)',
     tagline: 'Efficienza massima per grandi estensioni',
     targetUse: 'Grandi estensioni, Cerealicoltura intensiva. Efficienza massima.',
+    imageUrl: 'https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2F58d74d38d1fb4075a2b3a226cc229907?format=webp&width=800',
     specs: {
       tank: '40L (Liq) / 50kg (Sol)',
       battery: 'N/A',
@@ -86,6 +88,7 @@ const DRONES: Drone[] = [
     category: 'Compact Precision',
     tagline: 'La versione agile del T50',
     targetUse: 'Vigneti, Frutteti, Terreni complessi.',
+    imageUrl: 'https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2F430495cfa83b4880ba3ee7c359b3d4ba?format=webp&width=800',
     specs: {
       tank: '20L (Liq) / 25kg (Sol)',
       battery: 'N/A',
@@ -510,7 +513,15 @@ const DroneShop = () => {
         {DRONES.map(drone => (
           <div key={drone.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
             <div className="h-40 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative">
-              <Plane size={56} className="text-slate-400 group-hover:scale-110 group-hover:text-emerald-500 transition duration-500" />
+              {drone.imageUrl ? (
+                <img
+                  src={drone.imageUrl}
+                  alt={`Drone agricolo ${drone.model}`}
+                  className="max-h-28 w-auto object-contain drop-shadow-md transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <Plane size={56} className="text-slate-400 group-hover:scale-110 group-hover:text-emerald-500 transition duration-500" />
+              )}
               <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded text-xs font-bold shadow-sm">
                 ✓ Disponibile
               </div>
