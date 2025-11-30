@@ -399,6 +399,52 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               </h3>
               <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente superficie e pendenza tramite dati DEM.</p>
               <GisMapSimulator onComplete={handleGisComplete} />
+
+              {showSaveForm && gisData && (
+                <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <h4 className="font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                    <Save size={18}/> Salva Area Cliente
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-800 mb-1">Nome Cliente</label>
+                      <input
+                        type="text"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        placeholder="es. Azienda Rossi"
+                        className="w-full px-3 py-2 rounded-lg border border-emerald-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-800 mb-1">Nome Campo</label>
+                      <input
+                        type="text"
+                        value={fieldName}
+                        onChange={(e) => setFieldName(e.target.value)}
+                        placeholder="es. Campo Nord"
+                        className="w-full px-3 py-2 rounded-lg border border-emerald-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSaveField}
+                      disabled={!clientName || !fieldName}
+                      className="text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Save size={14}/> Salva Perimetro
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setShowSaveForm(false)}
+                      className="text-sm"
+                    >
+                      Annulla
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
