@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import L from 'leaflet';
 import {
   ShoppingBag,
   Map as MapIcon,
@@ -18,15 +19,11 @@ import {
   FolderOpen,
   Trash2
 } from 'lucide-react';
-
-interface Point {
-  x: number;
-  y: number;
-}
+import { LeafletAreaMap } from '@/components/LeafletAreaMap';
 
 interface GisData {
   area: string;
-  points: Point[];
+  points: L.LatLng[];
   slope: number;
 }
 
