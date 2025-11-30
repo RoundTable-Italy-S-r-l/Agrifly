@@ -23,6 +23,8 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchSuggestions, setSearchSuggestions] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -57,6 +59,7 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
 
     setIsSearching(true);
     setSearchError(null);
+    setShowSuggestions(false);
 
     try {
       const response = await fetch(
@@ -88,6 +91,44 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
       setSearchError('Impossibile cercare questo luogo al momento');
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handleSearchInputChange = async (value: string) => {
+    setSearchQuery(value);
+    setSearchError(null);
+
+    if (value.trim().length < 3) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value.trim())}&limit=5&addressdetails=1`,
+      );
+
+      if (!response.ok) return;
+
+      const results: { lat: string; lon: string; display_name: string }[] = await response.json();
+      setSearchSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    } catch {
+      // Silently fail autocomplete
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: { lat: string; lon: string; display_name: string }) => {
+    if (!mapRef.current) return;
+
+    const latNum = parseFloat(suggestion.lat);
+    const lonNum = parseFloat(suggestion.lon);
+
+    if (!Number.isNaN(latNum) && !Number.isNaN(lonNum)) {
+      mapRef.current.setView([latNum, lonNum], 16);
+      setSearchQuery(suggestion.display_name);
+      setShowSuggestions(false);
     }
   };
 
@@ -245,7 +286,7 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
         style={{ cursor: isClosed ? 'default' : 'crosshair' }}
       />
 
-      <div className="absolute top-4 left-4 right-16 md:right-auto md:w-[320px] z-20">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] md:w-[400px] z-20">
         <form
           onSubmit={handleSearchSubmit}
           className="flex items-center gap-2 bg-white/95 backdrop-blur px-3 py-2 rounded-full shadow-lg border border-slate-200"
@@ -253,7 +294,8 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
           <input
             type="text"
             value={searchQuery}
-            onChange={event => setSearchQuery(event.target.value)}
+            onChange={event => handleSearchInputChange(event.target.value)}
+            onFocus={() => searchSuggestions.length > 0 && setShowSuggestions(true)}
             placeholder="Cerca località, comune o indirizzo..."
             className="flex-1 bg-transparent border-none text-xs md:text-[11px] text-slate-800 placeholder:text-slate-400 outline-none"
           />
@@ -268,6 +310,20 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
         {searchError && (
           <div className="mt-1 text-[10px] text-red-600 bg-white/90 rounded-md px-2 py-1 shadow-sm border border-red-100">
             {searchError}
+          </div>
+        )}
+        {showSuggestions && searchSuggestions.length > 0 && (
+          <div className="mt-1 bg-white/95 backdrop-blur rounded-lg shadow-xl border border-slate-200 max-h-48 overflow-y-auto">
+            {searchSuggestions.map((suggestion, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-100 transition border-b border-slate-100 last:border-b-0"
+              >
+                {suggestion.display_name}
+              </button>
+            ))}
           </div>
         )}
       </div>
