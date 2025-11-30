@@ -11,12 +11,15 @@ interface LeafletAreaMapProps {
 export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [drawnLayer, setDrawnLayer] = useState<L.Polygon | null>(null);
+  const [tempLine, setTempLine] = useState<L.Polyline | null>(null);
+  const [polygons, setPolygons] = useState<L.Polygon[]>([]);
   const [markers, setMarkers] = useState<L.CircleMarker[]>([]);
   const [points, setPoints] = useState<L.LatLng[]>([]);
   const [isClosed, setIsClosed] = useState(false);
   const [area, setArea] = useState('0');
   const [slope, setSlope] = useState(0);
+  const [totalAreaHa, setTotalAreaHa] = useState(0);
+  const [fieldCount, setFieldCount] = useState(0);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -78,9 +81,9 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
 
   const updatePolyline = (pts: L.LatLng[]) => {
     if (!mapRef.current) return;
-    
-    if (drawnLayer) {
-      drawnLayer.remove();
+
+    if (tempLine) {
+      tempLine.remove();
     }
 
     const polyline = L.polyline(pts, {
@@ -89,18 +92,19 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
       dashArray: '10, 10'
     }).addTo(mapRef.current);
 
-    setDrawnLayer(polyline as any);
+    setTempLine(polyline);
   };
 
   const closePolygon = (pts: L.LatLng[]) => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || pts.length < 3) return;
 
     // Remove temporary polyline
-    if (drawnLayer) {
-      drawnLayer.remove();
+    if (tempLine) {
+      tempLine.remove();
+      setTempLine(null);
     }
 
-    // Create final polygon
+    // Create final polygon for this field
     const polygon = L.polygon(pts, {
       color: '#10b981',
       weight: 3,
@@ -108,28 +112,36 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
       fillOpacity: 0.3
     }).addTo(mapRef.current);
 
-    setDrawnLayer(polygon);
+    setPolygons(prev => [...prev, polygon]);
     setIsClosed(true);
 
     // Calculate area using Turf.js (geodesic calculation)
     const coords = pts.map(p => [p.lng, p.lat]);
     coords.push([pts[0].lng, pts[0].lat]); // Close the polygon
-    
+
     const turfPoly = turfPolygon([coords]);
     const areaInSquareMeters = turfArea(turfPoly);
-    const areaInHectares = (areaInSquareMeters / 10000).toFixed(2);
+    const areaInHectaresNumber = areaInSquareMeters / 10000;
 
     // Simulate slope calculation (in a real app, this would use DEM data)
     const simulatedSlope = Math.floor(Math.random() * 25 + 3);
 
-    setArea(areaInHectares);
-    setSlope(simulatedSlope);
+    const newTotalArea = totalAreaHa + areaInHectaresNumber;
+    const newFieldCount = fieldCount + 1;
+    const newAverageSlope = newFieldCount === 1
+      ? simulatedSlope
+      : Math.round(((slope * totalAreaHa) + (simulatedSlope * areaInHectaresNumber)) / newTotalArea);
 
-    // Callback to parent
+    setTotalAreaHa(newTotalArea);
+    setFieldCount(newFieldCount);
+    setArea(newTotalArea.toFixed(2));
+    setSlope(newAverageSlope);
+
+    // Callback to parent with aggregated data (treating multi-appezzamento come unico intervento)
     onComplete({
-      area: areaInHectares,
+      area: newTotalArea.toFixed(2),
       points: pts,
-      slope: simulatedSlope
+      slope: newAverageSlope
     });
   };
 
@@ -138,18 +150,36 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
 
     // Remove all markers
     markers.forEach(m => m.remove());
-    
-    // Remove drawn layer
-    if (drawnLayer) {
-      drawnLayer.remove();
+
+    // Remove temporary line
+    if (tempLine) {
+      tempLine.remove();
     }
+
+    // Remove all polygons
+    polygons.forEach(p => p.remove());
 
     setMarkers([]);
     setPoints([]);
-    setDrawnLayer(null);
+    setTempLine(null);
+    setPolygons([]);
     setIsClosed(false);
     setArea('0');
     setSlope(0);
+    setTotalAreaHa(0);
+    setFieldCount(0);
+  };
+
+  const startNewField = () => {
+    if (!mapRef.current) return;
+
+    setPoints([]);
+    setIsClosed(false);
+
+    if (tempLine) {
+      tempLine.remove();
+      setTempLine(null);
+    }
   };
 
   // Attach click handler to map
@@ -163,13 +193,13 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
         mapRef.current.off('click', handleMapClick);
       }
     };
-  }, [points, isClosed, markers, drawnLayer]);
+  }, [points, isClosed, markers, tempLine]);
 
   return (
     <div className="relative">
-      <div 
-        ref={mapContainerRef} 
-        className="w-full h-96 rounded-xl overflow-hidden border-2 border-slate-300 shadow-inner z-0"
+      <div
+        ref={mapContainerRef}
+        className="w-full h-[520px] md:h-[600px] rounded-xl overflow-hidden border-2 border-slate-300 shadow-inner z-0"
         style={{ cursor: isClosed ? 'default' : 'crosshair' }}
       />
       
@@ -197,22 +227,32 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
         </button>
       </div>
 
-      {isClosed && (
+      {totalAreaHa > 0 && (
         <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur p-4 rounded-xl shadow-xl border-l-4 border-emerald-500 flex flex-wrap gap-4 justify-between items-center z-10">
           <div>
-            <p className="text-xs text-slate-500 uppercase font-bold">Area Calcolata (Geodesica)</p>
+            <p className="text-xs text-slate-500 uppercase font-bold">Area Totale Intervento (Geodesica)</p>
             <p className="text-2xl font-bold text-slate-800">{area} ha</p>
+            <p className="text-xs text-slate-500 mt-1">{fieldCount} camp{fieldCount === 1 ? 'o' : 'i'} disegnat{fieldCount === 1 ? 'o' : 'i'}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-500 uppercase font-bold">Pendenza Media (DEM)</p>
+            <p className="text-xs text-slate-500 uppercase font-bold">Pendenza Media Stimata (DEM)</p>
             <p className="text-lg font-bold text-slate-800 flex items-center gap-1">
               {slope}%
             </p>
-          </div>
-          <div className="text-right">
-            <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold">
+            <span className="mt-1 inline-block text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold">
               {slope <= 10 ? 'T50/T30 Ottimale' : slope <= 20 ? 'T30 Consigliato' : 'T25 Necessario'}
             </span>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            {isClosed && (
+              <button
+                type="button"
+                onClick={startNewField}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow hover:bg-emerald-700"
+              >
+                + Aggiungi campo
+              </button>
+            )}
           </div>
         </div>
       )}
