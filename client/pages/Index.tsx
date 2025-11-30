@@ -282,22 +282,20 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
         <h2 className="text-2xl font-bold text-slate-800">Preventivatore Servizi GIS</h2>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
+        <div className="space-y-6">
           {step === 1 && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <MapIcon className="text-emerald-600"/> 1. Definisci Area Intervento
               </h3>
-              <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente superficie (calcolo geodesico reale) e pendenza tramite dati DEM.</p>
+              <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente la superficie con calcolo geodesico reale.</p>
               <LeafletAreaMap onComplete={handleGisComplete} />
 
               {gisData && pricing && (
                 <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
                   <div className="flex flex-wrap gap-3">
                     <span>Area totale: <strong>{gisData.area} ha</strong></span>
-                    <span>·</span>
-                    <span>Pendenza media: <strong>{gisData.slope}%</strong></span>
                     <span>·</span>
                     <span>Drone suggerito: <strong>{pricing.recommendedDrone}</strong></span>
                   </div>
