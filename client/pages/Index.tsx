@@ -367,11 +367,7 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
                   <span className="text-xs text-slate-500 uppercase">Superficie</span>
                   <div className="font-bold text-xl">{gisData.area} ha</div>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <span className="text-xs text-slate-500 uppercase">Pendenza</span>
-                  <div className="font-bold text-xl text-amber-600">{gisData.slope}%</div>
-                </div>
-                <div className="p-4 bg-emerald-50 rounded-lg col-span-2">
+                <div className="p-4 bg-emerald-50 rounded-lg">
                   <span className="text-xs text-emerald-700 uppercase font-bold">Drone Ottimale</span>
                   <div className="font-bold text-xl text-emerald-700">{pricing.recommendedDrone}</div>
                 </div>
