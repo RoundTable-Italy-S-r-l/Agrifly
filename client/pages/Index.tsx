@@ -342,12 +342,45 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
   const [step, setStep] = useState(1);
   const [gisData, setGisData] = useState<GisData | null>(null);
   const [pricing, setPricing] = useState<ReturnType<typeof calculatePricing> | null>(null);
+  const [savedFields, setSavedFields] = useState<SavedField[]>([]);
+  const [clientName, setClientName] = useState('');
+  const [fieldName, setFieldName] = useState('');
+  const [showSaveForm, setShowSaveForm] = useState(false);
 
   const handleGisComplete = (data: GisData) => {
     setGisData(data);
     const calculatedPricing = calculatePricing(parseFloat(data.area), data.slope);
     setPricing(calculatedPricing);
+    setShowSaveForm(true);
     setTimeout(() => setStep(2), 1500);
+  };
+
+  const handleSaveField = () => {
+    if (!gisData || !clientName || !fieldName) return;
+
+    const newField: SavedField = {
+      id: Date.now().toString(),
+      clientName,
+      fieldName,
+      gisData,
+      savedAt: new Date().toLocaleString('it-IT')
+    };
+
+    setSavedFields([...savedFields, newField]);
+    setClientName('');
+    setFieldName('');
+    setShowSaveForm(false);
+  };
+
+  const handleLoadField = (field: SavedField) => {
+    setGisData(field.gisData);
+    const calculatedPricing = calculatePricing(parseFloat(field.gisData.area), field.gisData.slope);
+    setPricing(calculatedPricing);
+    setStep(2);
+  };
+
+  const handleDeleteField = (id: string) => {
+    setSavedFields(savedFields.filter(f => f.id !== id));
   };
 
   return (
