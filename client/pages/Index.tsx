@@ -56,68 +56,84 @@ interface Affiliate {
 
 const DRONES: Drone[] = [
   {
-    id: 't40',
-    model: 'DJI Agras T40',
-    price: 26500,
-    category: 'Irrorazione (Heavy)',
-    tagline: 'Il gigante per grandi estensioni',
-    targetUse: 'Grandi estensioni pianeggianti (>20ha), Cerealicoltura',
-    specs: { 
-      tank: '40L', 
-      battery: '30Ah', 
-      efficiency: '21 ha/h',
-      feature: 'Radar Omnidirezionale'
+    id: 't50',
+    model: 'DJI Agras T50',
+    price: 28500,
+    category: 'Flagship (Top Gamma)',
+    tagline: 'Efficienza massima per grandi estensioni',
+    targetUse: 'Grandi estensioni, Cerealicoltura intensiva. Efficienza massima.',
+    specs: {
+      tank: '40L (Liq) / 50kg (Sol)',
+      battery: 'N/A',
+      efficiency: '25 ha/h',
+      feature: 'Radar Phased Array + Doppia nebulizzazione centrifuga'
     },
     roi_months: 8,
-    efficiency_ha_per_hour: 21
+    efficiency_ha_per_hour: 25
+  },
+  {
+    id: 't25',
+    model: 'DJI Agras T25',
+    price: 14200,
+    category: 'Compact Precision',
+    tagline: 'La versione agile del T50',
+    targetUse: 'Vigneti, Frutteti, Terreni complessi.',
+    specs: {
+      tank: '20L (Liq) / 25kg (Sol)',
+      battery: 'N/A',
+      efficiency: '12 ha/h',
+      feature: 'Dimensioni ridotte + Manovrabilità estrema'
+    },
+    roi_months: 6,
+    efficiency_ha_per_hour: 12
   },
   {
     id: 't30',
     model: 'DJI Agras T30',
-    price: 18500,
-    category: 'Irrorazione (Medium)',
-    tagline: 'Polivalente per aziende medie',
-    targetUse: 'Aziende medie, polivalente',
-    specs: { 
-      tank: '30L', 
-      battery: '20Ah', 
+    price: 16500,
+    category: 'Standard Industry',
+    tagline: 'Rapporto Q/P eccellente',
+    targetUse: 'Soluzione collaudata per aziende medie.',
+    specs: {
+      tank: '30L',
+      battery: 'N/A',
       efficiency: '16 ha/h',
-      feature: 'Branch Targeting Technology'
+      feature: 'Branch Targeting Tech + Radar Sferico'
     },
     roi_months: 7,
     efficiency_ha_per_hour: 16
   },
   {
-    id: 't10',
-    model: 'DJI Agras T10',
-    price: 11200,
-    category: 'Irrorazione (Light)',
-    tagline: 'Agile e compatto per colline',
-    targetUse: 'Vigneti, Frutteti, Forti pendenze',
-    specs: { 
-      tank: '8L', 
-      battery: '9.5Ah', 
-      efficiency: '6 ha/h',
-      feature: 'Pieghevole e trasportabile a mano'
+    id: 't70p',
+    model: 'DJI Agras T70P',
+    price: 32000,
+    category: 'Heavy Lift (Next Gen)',
+    tagline: 'Sostituisce trattori di grandi dimensioni',
+    targetUse: 'Trattamenti massivi su pianura.',
+    specs: {
+      tank: 'Alta Capacità (70L+)',
+      battery: 'N/A',
+      efficiency: '30 ha/h',
+      feature: 'Aggiornamento recente + Power System potenziato'
     },
-    roi_months: 6,
-    efficiency_ha_per_hour: 6
+    roi_months: 9,
+    efficiency_ha_per_hour: 30
   },
   {
-    id: 'm3m',
-    model: 'Mavic 3 Multispectral',
-    price: 4600,
-    category: 'Analisi (GIS)',
-    tagline: 'Mappatura di precisione NDVI',
-    targetUse: 'Mappatura NDVI, Prescrizione rateo variabile',
-    specs: { 
-      tank: 'N/A', 
-      battery: 'N/A', 
-      efficiency: '200 ha/volo',
-      feature: 'Camera RGB + 4 Bande Multispettrali + RTK'
+    id: 't100',
+    model: 'DJI Agras T100',
+    price: 45000,
+    category: 'Ultra Heavy / Custom',
+    tagline: 'Creazione rivoluzionaria',
+    targetUse: 'Applicazioni industriali e vaste superfici.',
+    specs: {
+      tank: 'Capacità Record (100L stima)',
+      battery: 'N/A',
+      efficiency: '40 ha/h',
+      feature: 'Autonomia estesa + Mappatura Cloud integrata'
     },
-    roi_months: 3,
-    efficiency_ha_per_hour: 200
+    roi_months: 10,
+    efficiency_ha_per_hour: 40
   }
 ];
 
