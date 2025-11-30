@@ -244,7 +244,7 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
     const calculatedPricing = calculatePricing(parseFloat(data.area), data.slope);
     setPricing(calculatedPricing);
     setShowSaveForm(true);
-    setTimeout(() => setStep(2), 1500);
+    setStep(1);
   };
 
   const handleSaveField = () => {
@@ -291,6 +291,24 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               </h3>
               <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente superficie (calcolo geodesico reale) e pendenza tramite dati DEM.</p>
               <LeafletAreaMap onComplete={handleGisComplete} />
+
+              {gisData && pricing && (
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                  <div className="flex flex-wrap gap-3">
+                    <span>Area totale: <strong>{gisData.area} ha</strong></span>
+                    <span>·</span>
+                    <span>Pendenza media: <strong>{gisData.slope}%</strong></span>
+                    <span>·</span>
+                    <span>Drone suggerito: <strong>{pricing.recommendedDrone}</strong></span>
+                  </div>
+                  <Button
+                    onClick={() => setStep(2)}
+                    className="text-xs sm:text-sm px-4 py-2 flex items-center gap-2"
+                  >
+                    <CheckCircle size={14} /> Vai al preventivo
+                  </Button>
+                </div>
+              )}
 
               {showSaveForm && gisData && (
                 <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
@@ -442,31 +460,6 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               </div>
             </div>
           )}
-
-          <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
-            <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
-              <Target size={20}/> Perché il Drone?
-            </h4>
-            <ul className="space-y-2 text-sm text-blue-800">
-              <li className="flex gap-2">
-                <CheckCircle size={16} className="mt-0.5 flex-shrink-0"/> 
-                <span><strong>Zero calpestamento:</strong> Salvi il 4-5% del raccolto</span>
-              </li>
-              <li className="flex gap-2">
-                <CheckCircle size={16} className="mt-0.5 flex-shrink-0"/> 
-                <span><strong>-20% fitofarmaci:</strong> Effetto Downwash ottimale</span>
-              </li>
-              <li className="flex gap-2">
-                <CheckCircle size={16} className="mt-0.5 flex-shrink-0"/> 
-                <span><strong>-90% acqua:</strong> Precisione millimetrica</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100">
-            <h4 className="font-bold text-emerald-900 mb-2">Garanzia Qualità</h4>
-            <p className="text-sm text-emerald-700">Operatori certificati DJI con copertura assicurativa inclusa.</p>
-          </div>
         </div>
       </div>
     </div>
