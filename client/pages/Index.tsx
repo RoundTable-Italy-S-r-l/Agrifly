@@ -300,8 +300,8 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <MapIcon className="text-emerald-600"/> 1. Definisci Area Intervento
               </h3>
-              <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente superficie e pendenza tramite dati DEM.</p>
-              <GisMapSimulator onComplete={handleGisComplete} />
+              <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente superficie (calcolo geodesico reale) e pendenza tramite dati DEM.</p>
+              <LeafletAreaMap onComplete={handleGisComplete} />
 
               {showSaveForm && gisData && (
                 <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
