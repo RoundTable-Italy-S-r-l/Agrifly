@@ -151,17 +151,17 @@ const KM_RATE = 0.50;
 
 const calculatePricing = (area: number, slope: number, distance_km: number = 20) => {
   let slopeMultiplier = 1.0;
-  let recommendedDrone = 'DJI Agras T40';
-  
+  let recommendedDrone = 'DJI Agras T50';
+
   if (slope <= 10) {
     slopeMultiplier = 1.0;
-    recommendedDrone = area > 20 ? 'DJI Agras T40' : 'DJI Agras T30';
+    recommendedDrone = area > 20 ? 'DJI Agras T50' : 'DJI Agras T30';
   } else if (slope <= 20) {
     slopeMultiplier = 1.2;
     recommendedDrone = 'DJI Agras T30';
   } else {
     slopeMultiplier = 1.5;
-    recommendedDrone = 'DJI Agras T10';
+    recommendedDrone = 'DJI Agras T25';
   }
 
   const serviceBase = area * BASE_RATE_PER_HA * slopeMultiplier;
