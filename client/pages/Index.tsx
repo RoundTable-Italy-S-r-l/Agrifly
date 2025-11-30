@@ -913,7 +913,7 @@ export default function Index() {
             onClick={() => setView('home')}
           >
             <img
-              src="https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2Fe97a859f2bff4bf4b902a76a8194a453?format=webp&width=800"
+              src="https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2F414cb17f2d764d35b6c6328f6f445ec0?format=webp&width=800"
               alt="DJI Agriculture"
               className="h-8 md:h-9 w-auto object-contain"
             />
