@@ -190,7 +190,56 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     setTempLine(polyline);
   };
 
-  const closePolygon = (pts: L.LatLng[]) => {
+  const calculateSlope = async (pts: L.LatLng[]): Promise<number> => {
+    try {
+      // Get elevations from Open-Elevation API
+      const locations = pts.map(p => ({ latitude: p.lat, longitude: p.lng }));
+
+      const response = await fetch('https://api.open-elevation.com/api/v1/lookup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ locations }),
+      });
+
+      if (!response.ok) {
+        console.warn('Elevation API error');
+        return 0;
+      }
+
+      const data = await response.json();
+      const elevations: number[] = data.results.map((r: { elevation: number }) => r.elevation);
+
+      if (elevations.length < 2) return 0;
+
+      // Calculate slope as max elevation difference over horizontal distance
+      const minElevation = Math.min(...elevations);
+      const maxElevation = Math.max(...elevations);
+      const elevationDiff = maxElevation - minElevation;
+
+      // Find the two points with min and max elevation
+      const minIdx = elevations.indexOf(minElevation);
+      const maxIdx = elevations.indexOf(maxElevation);
+
+      if (!mapRef.current) return 0;
+
+      // Calculate horizontal distance between these points
+      const distance = mapRef.current.distance(pts[minIdx], pts[maxIdx]);
+
+      if (distance === 0) return 0;
+
+      // Slope = (elevation difference / horizontal distance) * 100
+      const slopePercent = (elevationDiff / distance) * 100;
+
+      return Math.round(slopePercent * 10) / 10; // Round to 1 decimal
+    } catch (error) {
+      console.error('Error calculating slope:', error);
+      return 0;
+    }
+  };
+
+  const closePolygon = async (pts: L.LatLng[]) => {
     if (!mapRef.current || pts.length < 3) return;
 
     if (tempLine) {
@@ -217,17 +266,19 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
 
     const newTotalArea = totalAreaHa + areaInHectaresNumber;
     const newFieldCount = fieldCount + 1;
-    const newAverageSlope = 0;
+
+    // Calculate real slope using elevation API
+    const calculatedSlope = await calculateSlope(pts);
 
     setTotalAreaHa(newTotalArea);
     setFieldCount(newFieldCount);
     setArea(newTotalArea.toFixed(2));
-    setSlope(newAverageSlope);
+    setSlope(calculatedSlope);
 
     onComplete({
       area: newTotalArea.toFixed(2),
       points: pts,
-      slope: newAverageSlope
+      slope: calculatedSlope
     });
   };
 
