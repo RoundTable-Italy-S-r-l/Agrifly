@@ -274,7 +274,7 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
               {slope}%
             </p>
             <span className="mt-1 inline-block text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold">
-              {slope <= 10 ? 'T50/T30 Ottimale' : slope <= 20 ? 'T30 Consigliato' : 'T25 Necessario'}
+              {slope <= 10 ? 'T50/T30 Ottimale' : slope <= 20 ? 'T30 Consigliato' : 'Verifica operatività con pilota certificato'}
             </span>
           </div>
           <div className="flex flex-col items-end gap-2">

@@ -82,23 +82,6 @@ const DRONES: Drone[] = [
     efficiency_ha_per_hour: 25
   },
   {
-    id: 't25',
-    model: 'DJI Agras T25',
-    price: 14200,
-    category: 'Compact Precision',
-    tagline: 'La versione agile del T50',
-    targetUse: 'Vigneti, Frutteti, Terreni complessi.',
-    imageUrl: 'https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2F430495cfa83b4880ba3ee7c359b3d4ba?format=webp&width=800',
-    specs: {
-      tank: '20L (Liq) / 25kg (Sol)',
-      battery: 'N/A',
-      efficiency: '12 ha/h',
-      feature: 'Dimensioni ridotte + Manovrabilità estrema'
-    },
-    roi_months: 6,
-    efficiency_ha_per_hour: 12
-  },
-  {
     id: 't30',
     model: 'DJI Agras T30',
     price: 16500,
@@ -175,7 +158,7 @@ const calculatePricing = (area: number, slope: number, distance_km: number = 20)
     recommendedDrone = 'DJI Agras T30';
   } else {
     slopeMultiplier = 1.5;
-    recommendedDrone = 'DJI Agras T25';
+    recommendedDrone = 'DJI Agras T30';
   }
 
   const serviceBase = area * BASE_RATE_PER_HA * slopeMultiplier;
