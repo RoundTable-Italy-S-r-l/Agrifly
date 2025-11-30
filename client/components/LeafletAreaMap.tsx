@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { X } from 'lucide-react';
 import { area as turfArea } from '@turf/area';
@@ -20,6 +20,9 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
   const [slope, setSlope] = useState(0);
   const [totalAreaHa, setTotalAreaHa] = useState(0);
   const [fieldCount, setFieldCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -44,6 +47,49 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
       mapRef.current = null;
     };
   }, []);
+
+  const handleSearchSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!mapRef.current) return;
+
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`,
+      );
+
+      if (!response.ok) {
+        throw new Error('Geocoding error');
+      }
+
+      const results: { lat: string; lon: string; display_name: string }[] = await response.json();
+
+      if (!results.length) {
+        setSearchError('Nessun risultato per questo luogo');
+        return;
+      }
+
+      const { lat, lon } = results[0];
+      const latNum = parseFloat(lat);
+      const lonNum = parseFloat(lon);
+
+      if (Number.isNaN(latNum) || Number.isNaN(lonNum)) {
+        setSearchError('Risultato non valido per questo luogo');
+        return;
+      }
+
+      mapRef.current.setView([latNum, lonNum], 16);
+    } catch {
+      setSearchError('Impossibile cercare questo luogo al momento');
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleMapClick = (e: L.LeafletMouseEvent) => {
     if (isClosed || !mapRef.current) return;
@@ -236,7 +282,34 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
         className="w-full h-[520px] md:h-[600px] rounded-xl overflow-hidden border-2 border-slate-300 shadow-inner z-0"
         style={{ cursor: isClosed ? 'default' : 'crosshair' }}
       />
-      
+
+      <div className="absolute top-4 left-4 right-16 md:right-auto md:w-[320px] z-20">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex items-center gap-2 bg-white/95 backdrop-blur px-3 py-2 rounded-full shadow-lg border border-slate-200"
+        >
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={event => setSearchQuery(event.target.value)}
+            placeholder="Cerca località, comune o indirizzo..."
+            className="flex-1 bg-transparent border-none text-xs md:text-[11px] text-slate-800 placeholder:text-slate-400 outline-none"
+          />
+          <button
+            type="submit"
+            disabled={isSearching}
+            className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 disabled:opacity-50"
+          >
+            {isSearching ? '...' : 'Vai'}
+          </button>
+        </form>
+        {searchError && (
+          <div className="mt-1 text-[10px] text-red-600 bg-white/90 rounded-md px-2 py-1 shadow-sm border border-red-100">
+            {searchError}
+          </div>
+        )}
+      </div>
+
       {!isClosed && points.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
           <div className="bg-white/90 px-4 py-2 rounded-lg shadow-lg text-slate-700 font-medium animate-bounce">
@@ -246,7 +319,7 @@ export function LeafletAreaMap({ onComplete }: LeafletAreaMapProps) {
       )}
 
       {points.length > 0 && !isClosed && (
-        <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-bold z-10 pointer-events-none">
+        <div className="absolute top-16 left-4 bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-bold z-10 pointer-events-none">
           {points.length} punt{points.length === 1 ? 'o' : 'i'} • Clicca vicino al primo punto per chiudere
         </div>
       )}
