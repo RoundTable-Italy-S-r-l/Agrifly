@@ -917,9 +917,11 @@ export default function Index() {
               alt="DJI Agriculture"
               className="h-8 md:h-9 w-auto object-contain"
             />
-            <span className="hidden sm:inline text-[10px] md:text-xs font-semibold tracking-[0.35em] uppercase text-slate-500 group-hover:text-slate-900 transition">
-              Partner Platform
-            </span>
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2Fab87517a72b04105b416c2482c4ec60b?format=webp&width=800"
+              alt="DJI Agriculture app icon"
+              className="hidden sm:inline h-7 w-7 rounded-xl object-cover"
+            />
           </button>
 
           <nav className="hidden md:flex items-center gap-8 font-medium text-xs tracking-[0.18em] uppercase text-slate-600">
