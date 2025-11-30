@@ -822,12 +822,12 @@ export default function Index() {
       default: return (
         <div className="text-center py-16 max-w-4xl mx-auto space-y-10">
           <div className="mb-8">
-            <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-6 leading-tight">
-              Il Futuro dell'<span className="text-emerald-600">Agricoltura</span><br/>È Già Qui
+            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-4 leading-tight text-slate-900">
+              DJI <span className="font-semibold text-slate-500">Agriculture</span><br />
+              <span className="text-sm md:text-base font-semibold tracking-[0.35em] text-slate-500 uppercase">Partner Platform</span>
             </h1>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Piattaforma integrata per <strong>acquisto droni professionali</strong> e <strong>noleggio servizi</strong> di agricoltura di precisione. 
-              Simulatore ROI e preventivatore GIS intelligente inclusi.
+            <p className="text-sm md:text-base text-slate-600 max-w-2xl mx-auto uppercase tracking-[0.18em]">
+              Vendita droni Agras · Servizi conto terzi · Preventivatore GIS · Simulatore ROI
             </p>
           </div>
           
@@ -904,7 +904,7 @@ export default function Index() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 selection:bg-emerald-200">
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-200">
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <button
@@ -915,7 +915,7 @@ export default function Index() {
             <img
               src="https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2Fe97a859f2bff4bf4b902a76a8194a453?format=webp&width=800"
               alt="DJI Agriculture"
-              className="h-7 w-auto object-contain"
+              className="h-8 md:h-9 w-auto object-contain"
             />
             <span className="hidden sm:inline text-[10px] md:text-xs font-semibold tracking-[0.35em] uppercase text-slate-500 group-hover:text-slate-900 transition">
               Partner Platform
