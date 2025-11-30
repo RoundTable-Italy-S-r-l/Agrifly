@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { 
-  ShoppingBag, 
-  Map as MapIcon, 
-  ChevronRight, 
-  Calculator, 
-  Plane, 
+import {
+  ShoppingBag,
+  Map as MapIcon,
+  ChevronRight,
+  Calculator,
+  Plane,
   X,
   ArrowRight,
   Wind,
@@ -13,7 +13,10 @@ import {
   Droplet,
   DollarSign,
   Target,
-  Users
+  Users,
+  Save,
+  FolderOpen,
+  Trash2
 } from 'lucide-react';
 
 interface Point {
@@ -25,6 +28,14 @@ interface GisData {
   area: string;
   points: Point[];
   slope: number;
+}
+
+interface SavedField {
+  id: string;
+  clientName: string;
+  fieldName: string;
+  gisData: GisData;
+  savedAt: string;
 }
 
 interface Drone {
