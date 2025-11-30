@@ -318,7 +318,7 @@ const GisMapSimulator = ({ onComplete }: { onComplete: (data: GisData) => void }
           </div>
           <div className="text-right">
              <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold">
-               {slope <= 10 ? 'T40/T30' : slope <= 20 ? 'T30 Consigliato' : 'T10 Necessario'}
+               {slope <= 10 ? 'T50/T30' : slope <= 20 ? 'T30 Consigliato' : 'T25 Necessario'}
              </span>
           </div>
         </div>
