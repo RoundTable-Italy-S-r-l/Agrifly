@@ -290,7 +290,7 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
                 <MapIcon className="text-emerald-600"/> 1. Definisci Area Intervento
               </h3>
               <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente la superficie con calcolo geodesico reale.</p>
-              <LeafletAreaMap onComplete={handleGisComplete} />
+              <LeafletAreaMap onComplete={handleGisComplete} onBack={onBack} />
 
               {gisData && pricing && (
                 <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
