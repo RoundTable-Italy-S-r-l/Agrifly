@@ -137,6 +137,7 @@ const DRONES: Drone[] = [
     category: 'Ultra Heavy / Custom',
     tagline: 'Creazione rivoluzionaria',
     targetUse: 'Applicazioni industriali e vaste superfici.',
+    imageUrl: 'https://cdn.builder.io/api/v1/image/assets%2F2465e073f7c94097be8616ce134014fe%2Fd5ca49f288ac47d8932ade07a9b066ae?format=webp&width=800',
     specs: {
       tank: 'Capacità Record (100L stima)',
       battery: 'N/A',
