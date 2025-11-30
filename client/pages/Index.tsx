@@ -8,7 +8,12 @@ import {
   X,
   ArrowRight,
   Wind,
-  CheckCircle
+  CheckCircle,
+  TrendingUp,
+  Droplet,
+  DollarSign,
+  Target,
+  Users
 } from 'lucide-react';
 
 interface Point {
@@ -19,6 +24,7 @@ interface Point {
 interface GisData {
   area: string;
   points: Point[];
+  slope: number;
 }
 
 interface Drone {
@@ -26,23 +32,26 @@ interface Drone {
   model: string;
   price: number;
   category: string;
-  image: string;
   tagline: string;
+  targetUse: string;
   specs: {
     tank: string;
     battery: string;
     efficiency: string;
+    feature: string;
   };
   roi_months: number;
+  efficiency_ha_per_hour: number;
 }
 
 interface Affiliate {
   id: number;
   name: string;
   region: string;
-  status: 'active' | 'busy';
+  status: 'active' | 'busy' | 'offline';
   jobs_done: number;
   rating: number;
+  zone: string;
 }
 
 const DRONES: Drone[] = [
@@ -50,45 +59,142 @@ const DRONES: Drone[] = [
     id: 't40',
     model: 'DJI Agras T40',
     price: 26500,
-    category: 'Spraying',
-    image: 'T40',
+    category: 'Irrorazione (Heavy)',
     tagline: 'Il gigante per grandi estensioni',
-    specs: { tank: '40L', battery: '30Ah', efficiency: '21 ha/h' },
-    roi_months: 8
+    targetUse: 'Grandi estensioni pianeggianti (>20ha), Cerealicoltura',
+    specs: { 
+      tank: '40L', 
+      battery: '30Ah', 
+      efficiency: '21 ha/h',
+      feature: 'Radar Omnidirezionale'
+    },
+    roi_months: 8,
+    efficiency_ha_per_hour: 21
+  },
+  {
+    id: 't30',
+    model: 'DJI Agras T30',
+    price: 18500,
+    category: 'Irrorazione (Medium)',
+    tagline: 'Polivalente per aziende medie',
+    targetUse: 'Aziende medie, polivalente',
+    specs: { 
+      tank: '30L', 
+      battery: '20Ah', 
+      efficiency: '16 ha/h',
+      feature: 'Branch Targeting Technology'
+    },
+    roi_months: 7,
+    efficiency_ha_per_hour: 16
   },
   {
     id: 't10',
     model: 'DJI Agras T10',
     price: 11200,
-    category: 'Spraying',
-    image: 'T10',
+    category: 'Irrorazione (Light)',
     tagline: 'Agile e compatto per colline',
-    specs: { tank: '8L', battery: '9.5Ah', efficiency: '6 ha/h' },
-    roi_months: 6
+    targetUse: 'Vigneti, Frutteti, Forti pendenze',
+    specs: { 
+      tank: '8L', 
+      battery: '9.5Ah', 
+      efficiency: '6 ha/h',
+      feature: 'Pieghevole e trasportabile a mano'
+    },
+    roi_months: 6,
+    efficiency_ha_per_hour: 6
   },
   {
     id: 'm3m',
     model: 'Mavic 3 Multispectral',
     price: 4600,
-    category: 'Analysis',
-    image: 'M3M',
+    category: 'Analisi (GIS)',
     tagline: 'Mappatura di precisione NDVI',
-    specs: { tank: 'N/A', battery: 'N/A', efficiency: '200 ha/volo' },
-    roi_months: 3
+    targetUse: 'Mappatura NDVI, Prescrizione rateo variabile',
+    specs: { 
+      tank: 'N/A', 
+      battery: 'N/A', 
+      efficiency: '200 ha/volo',
+      feature: 'Camera RGB + 4 Bande Multispettrali + RTK'
+    },
+    roi_months: 3,
+    efficiency_ha_per_hour: 200
   }
 ];
 
 const AFFILIATES: Affiliate[] = [
-  { id: 1, name: 'AgriFly Veneto', region: 'Veneto', status: 'active', jobs_done: 124, rating: 4.9 },
-  { id: 2, name: 'Droni Toscana Srl', region: 'Toscana', status: 'busy', jobs_done: 89, rating: 4.7 },
-  { id: 3, name: 'Sud Tech', region: 'Puglia', status: 'active', jobs_done: 45, rating: 4.5 },
+  { id: 1, name: 'AgriFly Veneto', region: 'Veneto', zone: 'Nord-Est', status: 'active', jobs_done: 124, rating: 4.9 },
+  { id: 2, name: 'Droni Toscana Srl', region: 'Toscana', zone: 'Centro', status: 'busy', jobs_done: 89, rating: 4.7 },
+  { id: 3, name: 'Sud Tech', region: 'Puglia', zone: 'Sud', status: 'active', jobs_done: 45, rating: 4.5 },
+  { id: 4, name: 'Piemonte Agri Drones', region: 'Piemonte', zone: 'Nord-Ovest', status: 'active', jobs_done: 67, rating: 4.8 },
+  { id: 5, name: 'Emilia Precision', region: 'Emilia-Romagna', zone: 'Nord', status: 'offline', jobs_done: 112, rating: 4.9 },
 ];
 
-const Badge = ({ children, color = 'emerald' }: { children: React.ReactNode; color?: string }) => (
-  <span className={`px-2 py-1 rounded-full text-xs font-bold ${color === 'emerald' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-    {children}
-  </span>
-);
+const BASE_RATE_PER_HA = 45;
+const LOGISTICS_FIXED = 100;
+const KM_RATE = 0.50;
+
+const calculatePricing = (area: number, slope: number, distance_km: number = 20) => {
+  let slopeMultiplier = 1.0;
+  let recommendedDrone = 'DJI Agras T40';
+  
+  if (slope <= 10) {
+    slopeMultiplier = 1.0;
+    recommendedDrone = area > 20 ? 'DJI Agras T40' : 'DJI Agras T30';
+  } else if (slope <= 20) {
+    slopeMultiplier = 1.2;
+    recommendedDrone = 'DJI Agras T30';
+  } else {
+    slopeMultiplier = 1.5;
+    recommendedDrone = 'DJI Agras T10';
+  }
+
+  const serviceBase = area * BASE_RATE_PER_HA * slopeMultiplier;
+  const logistics = LOGISTICS_FIXED + (distance_km * KM_RATE);
+  const total = serviceBase + logistics;
+
+  return {
+    serviceBase,
+    slopeMultiplier,
+    logistics,
+    total,
+    recommendedDrone
+  };
+};
+
+const calculateROI = (drone: Drone, hectaresPerYear: number = 500) => {
+  const croppingDamageSaved = hectaresPerYear * 2000 * 0.045;
+  const chemicalSavings = hectaresPerYear * 150 * 0.18;
+  const waterSavings = hectaresPerYear * 50;
+  
+  const totalAnnualSavings = croppingDamageSaved + chemicalSavings + waterSavings;
+  const serviceRevenue = hectaresPerYear * BASE_RATE_PER_HA;
+  
+  const breakEvenMonths = Math.ceil((drone.price / (totalAnnualSavings + serviceRevenue)) * 12);
+
+  return {
+    croppingDamageSaved,
+    chemicalSavings,
+    waterSavings,
+    totalAnnualSavings,
+    serviceRevenue,
+    breakEvenMonths,
+    firstYearProfit: (totalAnnualSavings + serviceRevenue) - drone.price
+  };
+};
+
+const Badge = ({ children, color = 'emerald' }: { children: React.ReactNode; color?: string }) => {
+  const colors = {
+    emerald: 'bg-emerald-100 text-emerald-800',
+    amber: 'bg-amber-100 text-amber-800',
+    slate: 'bg-slate-100 text-slate-600',
+    red: 'bg-red-100 text-red-600'
+  };
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-bold ${colors[color as keyof typeof colors] || colors.emerald}`}>
+      {children}
+    </span>
+  );
+};
 
 const Button = ({ children, onClick, variant = 'primary', className = '' }: {
   children: React.ReactNode;
@@ -114,6 +220,7 @@ const GisMapSimulator = ({ onComplete }: { onComplete: (data: GisData) => void }
   const [points, setPoints] = useState<Point[]>([]);
   const [isClosed, setIsClosed] = useState(false);
   const [area, setArea] = useState('0');
+  const [slope, setSlope] = useState(0);
 
   const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isClosed) return;
@@ -124,9 +231,11 @@ const GisMapSimulator = ({ onComplete }: { onComplete: (data: GisData) => void }
     
     if (points.length > 2 && Math.abs(x - points[0].x) < 20 && Math.abs(y - points[0].y) < 20) {
       setIsClosed(true);
-      const simulatedArea = (Math.random() * 10 + 5).toFixed(2); 
+      const simulatedArea = (Math.random() * 15 + 8).toFixed(2);
+      const simulatedSlope = Math.floor(Math.random() * 25 + 3);
       setArea(simulatedArea);
-      onComplete({ area: simulatedArea, points: points });
+      setSlope(simulatedSlope);
+      onComplete({ area: simulatedArea, points: points, slope: simulatedSlope });
     } else {
       setPoints([...points, { x, y }]);
     }
@@ -136,6 +245,7 @@ const GisMapSimulator = ({ onComplete }: { onComplete: (data: GisData) => void }
     setPoints([]);
     setIsClosed(false);
     setArea('0');
+    setSlope(0);
   };
 
   return (
@@ -148,7 +258,7 @@ const GisMapSimulator = ({ onComplete }: { onComplete: (data: GisData) => void }
         {!isClosed && points.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="bg-white/90 px-4 py-2 rounded-lg shadow-lg text-slate-700 font-medium animate-bounce">
-              📍 Clicca sulla mappa per disegnare il perimetro
+              📍 Clicca sulla mappa per disegnare il perimetro del campo
             </div>
           </div>
         )}
@@ -179,19 +289,21 @@ const GisMapSimulator = ({ onComplete }: { onComplete: (data: GisData) => void }
       </div>
 
       {isClosed && (
-        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur p-4 rounded-xl shadow-xl border-l-4 border-emerald-500 flex justify-between items-center">
+        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur p-4 rounded-xl shadow-xl border-l-4 border-emerald-500 flex flex-wrap gap-4 justify-between items-center">
           <div>
             <p className="text-xs text-slate-500 uppercase font-bold">Area Rilevata</p>
-            <p className="text-2xl font-bold text-slate-800">{area} Ettari</p>
+            <p className="text-2xl font-bold text-slate-800">{area} ha</p>
           </div>
           <div>
             <p className="text-xs text-slate-500 uppercase font-bold">Pendenza Media (DEM)</p>
             <p className="text-lg font-bold text-slate-800 flex items-center gap-1">
-              <Wind size={16} className="text-amber-500"/> ~8%
+              <Wind size={16} className={slope > 15 ? "text-amber-500" : "text-emerald-500"}/> {slope}%
             </p>
           </div>
           <div className="text-right">
-             <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold">Ottimo per DJI T40</span>
+             <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold">
+               {slope <= 10 ? 'T40/T30' : slope <= 20 ? 'T30 Consigliato' : 'T10 Necessario'}
+             </span>
           </div>
         </div>
       )}
@@ -202,12 +314,20 @@ const GisMapSimulator = ({ onComplete }: { onComplete: (data: GisData) => void }
 const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
   const [step, setStep] = useState(1);
   const [gisData, setGisData] = useState<GisData | null>(null);
+  const [pricing, setPricing] = useState<ReturnType<typeof calculatePricing> | null>(null);
+
+  const handleGisComplete = (data: GisData) => {
+    setGisData(data);
+    const calculatedPricing = calculatePricing(parseFloat(data.area), data.slope);
+    setPricing(calculatedPricing);
+    setTimeout(() => setStep(2), 1500);
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center gap-4 mb-6">
         <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full"><ChevronRight className="rotate-180"/></button>
-        <h2 className="text-2xl font-bold text-slate-800">Preventivatore Servizi</h2>
+        <h2 className="text-2xl font-bold text-slate-800">Preventivatore Servizi GIS</h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -217,18 +337,15 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <MapIcon className="text-emerald-600"/> 1. Definisci Area Intervento
               </h3>
-              <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare per un calcolo preciso.</p>
-              <GisMapSimulator onComplete={(data) => {
-                setGisData(data);
-                setTimeout(() => setStep(2), 1500);
-              }} />
+              <p className="text-slate-500 mb-4 text-sm">Disegna il perimetro del campo direttamente sulla mappa satellitare. Il sistema calcolerà automaticamente superficie e pendenza tramite dati DEM.</p>
+              <GisMapSimulator onComplete={handleGisComplete} />
             </div>
           )}
 
-          {step === 2 && gisData && (
+          {step === 2 && gisData && pricing && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <CheckCircle className="text-emerald-600"/> 2. Analisi & Costi
+                <CheckCircle className="text-emerald-600"/> 2. Preventivo Personalizzato
               </h3>
               
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -237,33 +354,46 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
                   <div className="font-bold text-xl">{gisData.area} ha</div>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-lg">
-                  <span className="text-xs text-slate-500 uppercase">Drone Consigliato</span>
-                  <div className="font-bold text-xl text-emerald-600">DJI Agras T40</div>
+                  <span className="text-xs text-slate-500 uppercase">Pendenza</span>
+                  <div className="font-bold text-xl text-amber-600">{gisData.slope}%</div>
+                </div>
+                <div className="p-4 bg-emerald-50 rounded-lg col-span-2">
+                  <span className="text-xs text-emerald-700 uppercase font-bold">Drone Ottimale</span>
+                  <div className="font-bold text-xl text-emerald-700">{pricing.recommendedDrone}</div>
                 </div>
               </div>
 
               <div className="space-y-3 border-t border-slate-100 pt-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Servizio Base (€45/ha)</span>
-                  <span className="font-medium">€ {(parseFloat(gisData.area) * 45).toFixed(0)}</span>
+                  <span className="text-slate-600">Servizio Base ({gisData.area} ha × €{BASE_RATE_PER_HA}/ha)</span>
+                  <span className="font-medium">€ {(parseFloat(gisData.area) * BASE_RATE_PER_HA).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Supplemento Pendenza (8%)</span>
-                  <span className="font-medium text-emerald-600">Incluso</span>
+                  <span className="text-slate-600">Adeguamento Pendenza ({gisData.slope}% → ×{pricing.slopeMultiplier.toFixed(1)})</span>
+                  <span className="font-medium text-amber-600">
+                    {pricing.slopeMultiplier > 1 ? `+ € ${(pricing.serviceBase - (parseFloat(gisData.area) * BASE_RATE_PER_HA)).toFixed(2)}` : 'Incluso'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Logistica & Setup</span>
-                  <span className="font-medium">€ 120</span>
+                  <span className="text-slate-600">Logistica (Uscita + ~20km)</span>
+                  <span className="font-medium">€ {pricing.logistics.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold pt-2 border-t border-slate-200">
                   <span>Totale Stimato</span>
-                  <span className="text-emerald-700">€ {(parseFloat(gisData.area) * 45 + 120).toFixed(2)}</span>
+                  <span className="text-emerald-700">€ {pricing.total.toFixed(2)}</span>
                 </div>
               </div>
 
+              <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <p className="text-xs text-blue-700 mb-2">💡 <strong>Algoritmo Intelligente:</strong></p>
+                <p className="text-xs text-blue-600">Il prezzo si adatta automaticamente alla difficoltà del terreno per proteggere il margine dell'operatore e garantire un servizio di qualità.</p>
+              </div>
+
               <div className="mt-6 flex gap-3">
-                <Button className="w-full">Prenota Affiliato</Button>
-                <Button variant="outline" className="w-full" onClick={() => setStep(1)}>Modifica Area</Button>
+                <Button className="w-full">
+                  <Users size={16}/> Prenota Affiliato Disponibile
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => setStep(1)}>Ridisegna</Button>
               </div>
             </div>
           )}
@@ -271,12 +401,28 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
 
         <div className="space-y-6">
           <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
-            <h4 className="font-bold text-blue-900 mb-2">Perché usare il drone?</h4>
+            <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+              <Target size={20}/> Perché il Drone?
+            </h4>
             <ul className="space-y-2 text-sm text-blue-800">
-              <li className="flex gap-2"><CheckCircle size={16}/> Zero calpestamento (Salvi il 5%)</li>
-              <li className="flex gap-2"><CheckCircle size={16}/> Precisione centimetrica</li>
-              <li className="flex gap-2"><CheckCircle size={16}/> Risparmio acqua fino al 90%</li>
+              <li className="flex gap-2">
+                <CheckCircle size={16} className="mt-0.5 flex-shrink-0"/> 
+                <span><strong>Zero calpestamento:</strong> Salvi il 4-5% del raccolto</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle size={16} className="mt-0.5 flex-shrink-0"/> 
+                <span><strong>-20% fitofarmaci:</strong> Effetto Downwash ottimale</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle size={16} className="mt-0.5 flex-shrink-0"/> 
+                <span><strong>-90% acqua:</strong> Precisione millimetrica</span>
+              </li>
             </ul>
+          </div>
+
+          <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100">
+            <h4 className="font-bold text-emerald-900 mb-2">Garanzia Qualità</h4>
+            <p className="text-sm text-emerald-700">Operatori certificati DJI con copertura assicurativa inclusa.</p>
           </div>
         </div>
       </div>
@@ -286,80 +432,168 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
 
 const DroneShop = () => {
   const [selectedDrone, setSelectedDrone] = useState<Drone | null>(null);
+  const [roiData, setRoiData] = useState<ReturnType<typeof calculateROI> | null>(null);
+  const [hectaresInput, setHectaresInput] = useState(500);
+
+  const openROI = (drone: Drone) => {
+    setSelectedDrone(drone);
+    setRoiData(calculateROI(drone, hectaresInput));
+  };
+
+  const updateROI = (hectares: number) => {
+    setHectaresInput(hectares);
+    if (selectedDrone) {
+      setRoiData(calculateROI(selectedDrone, hectares));
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h2 className="text-3xl font-bold text-slate-900 mb-2">Vendita Droni Agricoli</h2>
-      <p className="text-slate-500 mb-8">Soluzioni professionali con supporto tecnico incluso.</p>
+      <h2 className="text-3xl font-bold text-slate-900 mb-2">Catalogo Droni Agricoli DJI</h2>
+      <p className="text-slate-500 mb-8">Prezzi IVA esclusa, kit completo con batterie e accessori. Supporto tecnico certificato incluso.</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {DRONES.map(drone => (
           <div key={drone.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
-            <div className="h-48 bg-slate-100 flex items-center justify-center relative">
-              <Plane size={64} className="text-slate-300 group-hover:scale-110 transition duration-500" />
-              <div className="absolute top-4 right-4 bg-white px-2 py-1 rounded text-xs font-bold shadow-sm">
-                Disponibile
+            <div className="h-40 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative">
+              <Plane size={56} className="text-slate-400 group-hover:scale-110 group-hover:text-emerald-500 transition duration-500" />
+              <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded text-xs font-bold shadow-sm">
+                ✓ Disponibile
               </div>
             </div>
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-xl text-slate-800">{drone.model}</h3>
+            <div className="p-5">
+              <div className="mb-2">
+                <h3 className="font-bold text-lg text-slate-800">{drone.model}</h3>
+                <p className="text-xs text-slate-500 font-medium">{drone.category}</p>
               </div>
-              <p className="text-sm text-slate-500 mb-4 h-10">{drone.tagline}</p>
+              <p className="text-xs text-slate-600 mb-3 h-8">{drone.tagline}</p>
               
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-6 bg-slate-50 p-3 rounded-lg">
-                <div>Capacità: <strong>{drone.specs.tank}</strong></div>
-                <div>Batteria: <strong>{drone.specs.battery}</strong></div>
-                <div className="col-span-2">Efficienza: <strong>{drone.specs.efficiency}</strong></div>
+              <div className="grid grid-cols-1 gap-1 text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg">
+                <div className="flex justify-between">
+                  <span>Capacità:</span> <strong>{drone.specs.tank}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Efficienza:</span> <strong>{drone.specs.efficiency}</strong>
+                </div>
+                <div className="col-span-2 text-emerald-700 font-bold text-center mt-1 pt-2 border-t border-slate-200">
+                  {drone.specs.feature}
+                </div>
               </div>
 
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-baseline justify-between mb-4">
                  <div>
-                   <p className="text-xs text-slate-400 line-through">Listino € {(drone.price * 1.1).toFixed(0)}</p>
-                   <p className="text-2xl font-bold text-emerald-600">€ {drone.price.toLocaleString()}</p>
+                   <p className="text-xs text-slate-400 line-through">€ {(drone.price * 1.15).toFixed(0)}</p>
+                   <p className="text-xl font-bold text-emerald-600">€ {drone.price.toLocaleString()}</p>
                  </div>
+                 <Badge color="emerald">-13%</Badge>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <Button onClick={() => setSelectedDrone(drone)}>Vedi ROI & Dettagli</Button>
-                <button className="text-xs text-center text-slate-500 hover:text-emerald-600 underline">Scarica Scheda Tecnica</button>
-              </div>
+              <Button onClick={() => openROI(drone)} className="w-full text-sm py-2">
+                <Calculator size={14}/> Calcola ROI
+              </Button>
             </div>
           </div>
         ))}
       </div>
 
-      {selectedDrone && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-8 relative">
+      {selectedDrone && roiData && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-8 relative my-8">
             <button onClick={() => setSelectedDrone(null)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full"><X size={20}/></button>
             
             <div className="flex items-center gap-3 mb-6">
-              <Calculator className="text-emerald-600" />
-              <h3 className="text-2xl font-bold">Analisi Redditività: {selectedDrone.model}</h3>
+              <Calculator className="text-emerald-600" size={28} />
+              <div>
+                <h3 className="text-2xl font-bold">Simulatore ROI: {selectedDrone.model}</h3>
+                <p className="text-sm text-slate-500">Ritorno sull'Investimento Personalizzato</p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-slate-50 p-4 rounded-xl mb-6">
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                Ettari da Trattare Annualmente
+              </label>
+              <input 
+                type="range" 
+                min="100" 
+                max="1000" 
+                step="50"
+                value={hectaresInput}
+                onChange={(e) => updateROI(parseInt(e.target.value))}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-slate-500 mt-1">
+                <span>100 ha</span>
+                <span className="font-bold text-emerald-700 text-lg">{hectaresInput} ha/anno</span>
+                <span>1000 ha</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="space-y-4">
-                <p className="text-slate-600">Investimento Iniziale: <strong>€ {selectedDrone.price.toLocaleString()}</strong></p>
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                  <h4 className="font-bold text-blue-900 mb-2">Risparmio vs Trattore</h4>
-                  <ul className="space-y-2 text-sm text-blue-800">
-                    <li>• Nessun danno da calpestamento</li>
-                    <li>• -20% uso fitofarmaci</li>
-                    <li>• -90% consumo acqua</li>
-                  </ul>
+                <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                  <DollarSign size={18} className="text-emerald-600"/> Investimento
+                </h4>
+                <div className="bg-slate-100 p-4 rounded-lg">
+                  <p className="text-sm text-slate-600">Costo Acquisto (Kit Completo)</p>
+                  <p className="text-3xl font-bold text-slate-900">€ {selectedDrone.price.toLocaleString()}</p>
+                </div>
+
+                <h4 className="font-bold text-slate-800 flex items-center gap-2 mt-6">
+                  <TrendingUp size={18} className="text-blue-600"/> Risparmi Annui
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between p-2 bg-blue-50 rounded">
+                    <span className="text-blue-700">Zero Calpestamento (4.5%)</span>
+                    <strong className="text-blue-900">€ {roiData.croppingDamageSaved.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                  </div>
+                  <div className="flex justify-between p-2 bg-emerald-50 rounded">
+                    <span className="text-emerald-700">Fitofarmaci (-18%)</span>
+                    <strong className="text-emerald-900">€ {roiData.chemicalSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                  </div>
+                  <div className="flex justify-between p-2 bg-cyan-50 rounded">
+                    <span className="text-cyan-700 flex items-center gap-1"><Droplet size={14}/> Acqua (-90%)</span>
+                    <strong className="text-cyan-900">€ {roiData.waterSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                  </div>
+                  <div className="flex justify-between p-3 bg-slate-800 text-white rounded font-bold border-t-2 border-slate-600 mt-2">
+                    <span>Totale Risparmi</span>
+                    <span>€ {roiData.totalAnnualSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-slate-900 text-white p-6 rounded-xl flex flex-col justify-between">
+              <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-6 rounded-xl flex flex-col justify-between">
                 <div>
-                   <p className="text-slate-400 text-sm uppercase font-bold">Break Even Point</p>
-                   <p className="text-4xl font-bold text-emerald-400 mt-2">{selectedDrone.roi_months} Mesi</p>
-                   <p className="text-sm text-slate-400 mt-2">Stimato su 500ha/anno</p>
+                   <p className="text-emerald-100 text-sm uppercase font-bold mb-2">Break Even Point</p>
+                   <p className="text-5xl font-extrabold mb-3">{roiData.breakEvenMonths}</p>
+                   <p className="text-2xl font-bold mb-1">Mesi</p>
+                   <p className="text-sm text-emerald-100">Basato su {hectaresInput} ha/anno</p>
+
+                   <div className="mt-6 p-4 bg-white/10 backdrop-blur rounded-lg border border-white/20">
+                     <p className="text-xs text-emerald-100 uppercase font-bold mb-1">Profitto Primo Anno</p>
+                     <p className="text-2xl font-bold">
+                       {roiData.firstYearProfit > 0 ? '+' : ''}€ {roiData.firstYearProfit.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                     </p>
+                   </div>
+
+                   <div className="mt-4 p-4 bg-white/10 backdrop-blur rounded-lg border border-white/20">
+                     <p className="text-xs text-emerald-100 uppercase font-bold mb-1">Ricavi Conto Terzi Potenziali</p>
+                     <p className="text-2xl font-bold">€ {roiData.serviceRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}/anno</p>
+                     <p className="text-xs text-emerald-100 mt-1">@ €{BASE_RATE_PER_HA}/ha medio mercato</p>
+                   </div>
                 </div>
-                <Button className="w-full mt-6 bg-white text-slate-900 hover:bg-slate-200">Contatta Commerciale</Button>
+
+                <Button className="w-full mt-6 bg-white text-emerald-700 hover:bg-emerald-50 shadow-lg">
+                  <CheckCircle size={16}/> Richiedi Preventivo
+                </Button>
               </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-xs text-amber-800">
+                <strong>📊 Metodologia:</strong> I calcoli si basano su medie di mercato reali. Zero calpestamento stimato su mais a €2.000/ha. 
+                Risparmio fitofarmaci calcolato su €150/ha con riduzione 18% (effetto Downwash). Risparmio acqua su consumo medio €50/ha.
+              </p>
             </div>
           </div>
         </div>
@@ -368,72 +602,163 @@ const DroneShop = () => {
   );
 };
 
-const ResellerDashboard = () => (
-  <div className="max-w-6xl mx-auto">
-    <div className="flex justify-between items-center mb-8">
-      <h2 className="text-2xl font-bold text-slate-900">Dashboard Partner</h2>
-      <div className="text-sm text-slate-500">Ultimo aggiornamento: Oggi, 10:30</div>
-    </div>
+const ResellerDashboard = () => {
+  const [selectedAffiliate, setSelectedAffiliate] = useState<Affiliate | null>(null);
 
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <p className="text-slate-500 text-xs font-bold uppercase">Fatturato Mese</p>
-        <p className="text-2xl font-bold text-slate-800 mt-1">€ 45.200</p>
-        <span className="text-xs text-emerald-600 flex items-center mt-2"><ArrowRight size={12} className="-rotate-45"/> +12% vs scorso mese</span>
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Dashboard Rivenditore</h2>
+          <p className="text-sm text-slate-500">Area di gestione rete affiliati e monitoraggio business</p>
+        </div>
+        <div className="text-sm text-slate-500">Ultimo aggiornamento: Oggi, 10:30</div>
       </div>
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <p className="text-slate-500 text-xs font-bold uppercase">Commissioni Noleggio</p>
-        <p className="text-2xl font-bold text-slate-800 mt-1">€ 3.450</p>
-        <span className="text-xs text-slate-400 mt-2">15% fee su servizi</span>
-      </div>
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <p className="text-slate-500 text-xs font-bold uppercase">Affiliati Attivi</p>
-        <p className="text-2xl font-bold text-slate-800 mt-1">8</p>
-        <span className="text-xs text-emerald-600 mt-2">2 nuovi in attesa</span>
-      </div>
-       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <p className="text-slate-500 text-xs font-bold uppercase">Richieste Aperte</p>
-        <p className="text-2xl font-bold text-slate-800 mt-1">14</p>
-        <span className="text-xs text-amber-500 mt-2">4 urgenti</span>
-      </div>
-    </div>
 
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-        <h3 className="font-bold text-slate-800">Rete Affiliati</h3>
-        <Button variant="outline" className="text-xs py-1 px-3">Aggiungi Nuovo</Button>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <p className="text-slate-500 text-xs font-bold uppercase">Vendita Hardware</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">€ 78.400</p>
+          <span className="text-xs text-emerald-600 flex items-center mt-2">
+            <TrendingUp size={12}/> +24% vs mese scorso
+          </span>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <p className="text-slate-500 text-xs font-bold uppercase">Commissioni Servizi</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">€ 4.320</p>
+          <span className="text-xs text-slate-400 mt-2">12% su fatturato affiliati</span>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <p className="text-slate-500 text-xs font-bold uppercase">Affiliati Attivi</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{AFFILIATES.filter(a => a.status !== 'offline').length}/{AFFILIATES.length}</p>
+          <span className="text-xs text-emerald-600 mt-2">Rating medio: 4.76★</span>
+        </div>
+         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <p className="text-slate-500 text-xs font-bold uppercase">Richieste Aperte</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">18</p>
+          <span className="text-xs text-amber-500 mt-2">6 necessitano dispatching</span>
+        </div>
       </div>
-      <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 text-slate-500">
-          <tr>
-            <th className="p-4 font-medium">Nome Azienda</th>
-            <th className="p-4 font-medium">Regione</th>
-            <th className="p-4 font-medium">Rating</th>
-            <th className="p-4 font-medium">Stato</th>
-            <th className="p-4 font-medium text-right">Azioni</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {AFFILIATES.map(aff => (
-            <tr key={aff.id} className="hover:bg-slate-50">
-              <td className="p-4 font-medium text-slate-800">{aff.name}</td>
-              <td className="p-4 text-slate-600">{aff.region}</td>
-              <td className="p-4 text-amber-500 font-bold">{aff.rating} ★</td>
-              <td className="p-4">
-                <Badge color={aff.status === 'active' ? 'emerald' : 'amber'}>
-                  {aff.status === 'active' ? 'Disponibile' : 'Occupato'}
-                </Badge>
-              </td>
-              <td className="p-4 text-right">
-                <button className="text-blue-600 font-medium hover:underline">Gestisci</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+            <div>
+              <h3 className="font-bold text-slate-800">Rete Affiliati & Dispatching</h3>
+              <p className="text-xs text-slate-500 mt-1">Gestione piloti certificati e assegnazione automatica lavori</p>
+            </div>
+            <Button variant="outline" className="text-xs py-1.5 px-3">
+              <Users size={14}/> Aggiungi Affiliato
+            </Button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="p-4 font-medium">Affiliato</th>
+                  <th className="p-4 font-medium">Zona</th>
+                  <th className="p-4 font-medium">Rating</th>
+                  <th className="p-4 font-medium">Lavori</th>
+                  <th className="p-4 font-medium">Stato</th>
+                  <th className="p-4 font-medium text-right">Azioni</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {AFFILIATES.map(aff => (
+                  <tr key={aff.id} className="hover:bg-slate-50 transition">
+                    <td className="p-4">
+                      <div className="font-medium text-slate-800">{aff.name}</div>
+                      <div className="text-xs text-slate-500">{aff.region}</div>
+                    </td>
+                    <td className="p-4 text-slate-600 text-xs">{aff.zone}</td>
+                    <td className="p-4 text-amber-500 font-bold">{aff.rating} ★</td>
+                    <td className="p-4 text-slate-700 font-medium">{aff.jobs_done}</td>
+                    <td className="p-4">
+                      <Badge color={aff.status === 'active' ? 'emerald' : aff.status === 'busy' ? 'amber' : 'slate'}>
+                        {aff.status === 'active' ? '✓ Disponibile' : aff.status === 'busy' ? '⏱ Occupato' : '⚫ Offline'}
+                      </Badge>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button 
+                        onClick={() => setSelectedAffiliate(aff)}
+                        className="text-blue-600 font-medium hover:underline text-xs"
+                      >
+                        Dettagli →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+            <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+              <CheckCircle size={18}/> Modello White-Label
+            </h4>
+            <p className="text-sm text-blue-800 mb-3">
+              Questa piattaforma è personalizzabile con il tuo logo e brand aziendale.
+            </p>
+            <Button variant="outline" className="text-xs w-full">Configura Branding</Button>
+          </div>
+
+          <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200">
+            <h4 className="font-bold text-emerald-900 mb-2">3 Flussi di Cassa</h4>
+            <ul className="text-xs text-emerald-800 space-y-2">
+              <li className="flex gap-2">
+                <span className="font-bold">1.</span> Margine vendita hardware
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold">2.</span> Commissioni servizi (10-15%)
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold">3.</span> Ricambi & manutenzione post-vendita
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {selectedAffiliate && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-8 relative">
+            <button onClick={() => setSelectedAffiliate(null)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full">
+              <X size={20}/>
+            </button>
+            
+            <h3 className="text-2xl font-bold mb-6">{selectedAffiliate.name}</h3>
+            
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-4 bg-slate-50 rounded-lg">
+                <span className="text-xs text-slate-500 uppercase">Regione Operativa</span>
+                <div className="font-bold text-lg">{selectedAffiliate.region}</div>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-lg">
+                <span className="text-xs text-slate-500 uppercase">Zona</span>
+                <div className="font-bold text-lg">{selectedAffiliate.zone}</div>
+              </div>
+              <div className="p-4 bg-amber-50 rounded-lg">
+                <span className="text-xs text-amber-700 uppercase">Rating Clienti</span>
+                <div className="font-bold text-2xl text-amber-600">{selectedAffiliate.rating} ★</div>
+              </div>
+              <div className="p-4 bg-emerald-50 rounded-lg">
+                <span className="text-xs text-emerald-700 uppercase">Lavori Completati</span>
+                <div className="font-bold text-2xl text-emerald-600">{selectedAffiliate.jobs_done}</div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Button className="w-full">Assegna Nuovo Lavoro</Button>
+              <Button variant="outline" className="w-full">Visualizza Storico</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 export default function Index() {
   const [view, setView] = useState<'home' | 'shop' | 'service' | 'admin'>('home');
@@ -444,43 +769,82 @@ export default function Index() {
       case 'service': return <ServiceConfigurator onBack={() => setView('home')} />;
       case 'admin': return <ResellerDashboard />;
       default: return (
-        <div className="text-center py-12 max-w-3xl mx-auto space-y-8">
-          <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-4">
-            Il Futuro dell'<span className="text-emerald-600">Agricoltura</span>
-          </h1>
-          <p className="text-xl text-slate-600">
-            Piattaforma integrata per acquisto droni professionali e noleggio servizi di agricoltura di precisione.
-          </p>
+        <div className="text-center py-16 max-w-4xl mx-auto space-y-10">
+          <div className="mb-8">
+            <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-6 leading-tight">
+              Il Futuro dell'<span className="text-emerald-600">Agricoltura</span><br/>È Già Qui
+            </h1>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              Piattaforma integrata per <strong>acquisto droni professionali</strong> e <strong>noleggio servizi</strong> di agricoltura di precisione. 
+              Simulatore ROI e preventivatore GIS intelligente inclusi.
+            </p>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             <div 
               onClick={() => setView('shop')}
-              className="group bg-white p-8 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 hover:shadow-md transition text-left relative overflow-hidden"
+              className="group bg-white p-8 rounded-2xl shadow-sm border-2 border-slate-200 cursor-pointer hover:border-emerald-500 hover:shadow-xl transition-all text-left relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition">
-                <ShoppingBag size={120} />
+              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition">
+                <ShoppingBag size={140} />
               </div>
-              <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center text-blue-600 mb-4">
-                <ShoppingBag size={24} />
+              <div className="bg-blue-100 w-14 h-14 rounded-xl flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition">
+                <ShoppingBag size={28} />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Acquista Drone</h3>
-              <p className="text-slate-500 mb-4">Sfoglia il catalogo DJI Enterprise. Include simulazione ROI e finanziamenti.</p>
-              <span className="text-blue-600 font-bold flex items-center gap-1">Vai allo Shop <ChevronRight size={16}/></span>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Acquista Drone</h3>
+              <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                Catalogo DJI Enterprise con <strong>simulatore ROI dinamico</strong>. 
+                Scopri in quanti mesi recuperi l'investimento.
+              </p>
+              <span className="text-blue-600 font-bold flex items-center gap-2 group-hover:gap-3 transition-all">
+                Esplora Catalogo <ChevronRight size={18}/>
+              </span>
             </div>
 
             <div 
               onClick={() => setView('service')}
-              className="group bg-white p-8 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 hover:shadow-md transition text-left relative overflow-hidden"
+              className="group bg-white p-8 rounded-2xl shadow-sm border-2 border-slate-200 cursor-pointer hover:border-emerald-500 hover:shadow-xl transition-all text-left relative overflow-hidden"
             >
-               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition">
-                <MapIcon size={120} />
+               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition">
+                <MapIcon size={140} />
               </div>
-              <div className="bg-emerald-100 w-12 h-12 rounded-lg flex items-center justify-center text-emerald-600 mb-4">
-                <MapIcon size={24} />
+              <div className="bg-emerald-100 w-14 h-14 rounded-xl flex items-center justify-center text-emerald-600 mb-4 group-hover:scale-110 transition">
+                <MapIcon size={28} />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Richiedi Servizio</h3>
-              <p className="text-slate-500 mb-4">Non vuoi comprare? Noleggia un pilota certificato per trattamenti o mappature.</p>
-              <span className="text-emerald-600 font-bold flex items-center gap-1">Calcola Preventivo <ChevronRight size={16}/></span>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Richiedi Servizio</h3>
+              <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                Non vuoi comprare? <strong>Disegna il tuo campo sulla mappa</strong> e ottieni un preventivo istantaneo. 
+                Assegnazione pilota certificato automatica.
+              </p>
+              <span className="text-emerald-600 font-bold flex items-center gap-2 group-hover:gap-3 transition-all">
+                Preventivo GIS <ChevronRight size={18}/>
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-16 pt-12 border-t border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+              <div className="p-6 bg-slate-50 rounded-xl">
+                <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 mb-3">
+                  <Target size={20}/>
+                </div>
+                <h4 className="font-bold text-slate-800 mb-2">Zero Calpestamento</h4>
+                <p className="text-slate-600 text-xs">Salva il 4-5% del raccolto che il trattore distruggerebbe passando.</p>
+              </div>
+              <div className="p-6 bg-slate-50 rounded-xl">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-3">
+                  <Droplet size={20}/>
+                </div>
+                <h4 className="font-bold text-slate-800 mb-2">-90% Acqua</h4>
+                <p className="text-slate-600 text-xs">Precisione millimetrica riduce drasticamente il consumo idrico.</p>
+              </div>
+              <div className="p-6 bg-slate-50 rounded-xl">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600 mb-3">
+                  <TrendingUp size={20}/>
+                </div>
+                <h4 className="font-bold text-slate-800 mb-2">ROI 6-8 Mesi</h4>
+                <p className="text-slate-600 text-xs">Break-even rapido grazie a risparmi operativi e nuove opportunità.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -490,39 +854,46 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 selection:bg-emerald-200">
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-lg border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div 
-            className="flex items-center gap-2 font-bold text-xl cursor-pointer"
+            className="flex items-center gap-2 font-bold text-xl cursor-pointer group"
             onClick={() => setView('home')}
           >
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white">
-              <Plane size={20} />
+            <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center text-white group-hover:bg-emerald-700 transition shadow-md">
+              <Plane size={22} />
             </div>
             <span>Agri<span className="text-emerald-600">Tech</span> Solutions</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-8 font-medium text-sm text-slate-600">
             <button onClick={() => setView('home')} className="hover:text-emerald-600 transition">Home</button>
-            <button onClick={() => setView('shop')} className="hover:text-emerald-600 transition">Droni</button>
-            <button onClick={() => setView('service')} className="hover:text-emerald-600 transition">Servizi</button>
+            <button onClick={() => setView('shop')} className="hover:text-emerald-600 transition">Catalogo Droni</button>
+            <button onClick={() => setView('service')} className="hover:text-emerald-600 transition">Servizi GIS</button>
           </nav>
 
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setView('admin')}
-              className="text-xs font-bold uppercase tracking-wide text-slate-400 hover:text-slate-800 border border-slate-200 px-3 py-1 rounded hover:bg-slate-50 transition"
+              className="text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
             >
-              Area Rivenditore
+              🔐 Area Rivenditore
             </button>
-            <Button className="hidden md:flex text-sm py-1.5 px-4">Contattaci</Button>
+            <Button className="hidden md:flex text-sm py-2 px-5">Contattaci</Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 py-12">
         {renderView()}
       </main>
+
+      <footer className="border-t border-slate-200 bg-white mt-20">
+        <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-slate-500">
+          <p>© 2024 AgriTech Solutions - Piattaforma White-Label per Rivenditori DJI Enterprise</p>
+          <p className="text-xs mt-2">Dati ROI basati su medie di mercato reali. Consulta il tuo commerciale per dettagli.</p>
+        </div>
+      </footer>
     </div>
   );
 }
