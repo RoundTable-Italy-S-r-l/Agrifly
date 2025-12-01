@@ -665,6 +665,141 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
                 </div>
               )}
 
+          {/* GIS Service Configuration - Drill-Down UI */}
+          {gisData && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+              <h3 className="font-bold text-lg mb-4 text-slate-800">Configurazione Servizio</h3>
+
+              {/* Step 1: Category Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-3">1. Seleziona Coltura</label>
+                <div className="grid grid-cols-3 gap-4">
+                  {GIS_CATEGORIES.map(category => (
+                    <button
+                      key={category.id}
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        setSelectedTreatment(null); // Reset treatment when changing category
+                      }}
+                      className={`p-4 rounded-xl border-2 transition-all hover:shadow-lg ${
+                        selectedCategory?.id === category.id
+                          ? 'border-emerald-500 bg-emerald-50'
+                          : 'border-slate-200 bg-white hover:border-emerald-300'
+                      }`}
+                    >
+                      <div className="text-4xl mb-2">{category.icon}</div>
+                      <div className="font-bold text-sm text-slate-900 mb-1">{category.name}</div>
+                      <div className="text-xs text-slate-500">{category.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 2: Treatment Selection (Dynamic based on category) */}
+              {selectedCategory && (
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-slate-700 mb-3">2. Tipo di Intervento</label>
+                  <select
+                    value={selectedTreatment?.id || ''}
+                    onChange={(e) => {
+                      const treatment = GIS_TREATMENTS.find(t => t.id === e.target.value) || null;
+                      setSelectedTreatment(treatment);
+                      recalculatePricing();
+                    }}
+                    className="w-full p-3 rounded-lg border-2 border-slate-300 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                  >
+                    <option value="">Seleziona tipo di trattamento...</option>
+                    {GIS_TREATMENTS.filter(t => t.categoryId === selectedCategory.id).map(treatment => (
+                      <option key={treatment.id} value={treatment.id}>
+                        {treatment.name} - €{treatment.basePrice}/ha ({treatment.type === 'liquid' ? '💧 Liquido' : '📦 Solido'})
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTreatment && (
+                    <p className="text-xs text-slate-600 mt-2 flex items-center gap-2">
+                      <span className="font-semibold">Velocità operativa:</span> ~{selectedTreatment.speed} ha/h • {selectedTreatment.description}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Step 3: Terrain Complexity Toggles */}
+              {selectedTreatment && (
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-slate-700 mb-3">3. Condizioni del Campo</label>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">⛰️</span>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">Terreno Collinare / Pendente</p>
+                          <p className="text-xs text-slate-500">+20% sul prezzo base</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setIsHillyTerrain(!isHillyTerrain);
+                          setTimeout(recalculatePricing, 0);
+                        }}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                          isHillyTerrain ? 'bg-emerald-600' : 'bg-slate-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                            isHillyTerrain ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🌳</span>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">Presenza Ostacoli (Alberi/Pali)</p>
+                          <p className="text-xs text-slate-500">+15% sul prezzo base</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setHasObstacles(!hasObstacles);
+                          setTimeout(recalculatePricing, 0);
+                        }}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                          hasObstacles ? 'bg-emerald-600' : 'bg-slate-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                            hasObstacles ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Price Preview */}
+              {selectedTreatment && pricing && (
+                <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-emerald-700 font-bold uppercase">Prezzo Base Trattamento</p>
+                      <p className="text-sm text-emerald-600 mt-1">
+                        {selectedTreatment.name} • {gisData.area} ha
+                      </p>
+                    </div>
+                    <p className="text-2xl font-bold font-mono text-emerald-700">
+                      €{pricing.basePricePerHa}/ha
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {step === 2 && gisData && pricing && (
             <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
               <div className="bg-slate-100 px-6 py-3 border-b border-slate-200">
