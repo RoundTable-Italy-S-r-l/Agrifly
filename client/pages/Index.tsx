@@ -856,23 +856,41 @@ const DroneShop = () => {
                 </div>
 
                 <h4 className="font-bold text-slate-800 flex items-center gap-2 mt-6">
-                  <TrendingUp size={18} className="text-blue-600"/> Risparmi Annui
+                  <TrendingUp size={18} className="text-blue-600"/> Analisi Economica
                 </h4>
                 <div className="space-y-0 text-sm">
                   <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
-                    <span className="text-slate-600">Zero Calpestamento (4.5%)</span>
-                    <strong className="text-slate-900 font-mono">€ {roiData.croppingDamageSaved.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                    <span className="text-slate-600">Costo Terzista Esterno</span>
+                    <strong className="text-red-600 font-mono">-€ {roiData.externalServiceCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
                   </div>
                   <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
-                    <span className="text-slate-600">Fitofarmaci (-18%)</span>
-                    <strong className="text-slate-900 font-mono">€ {roiData.chemicalSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                    <span className="text-slate-600">Costo Operativo Drone</span>
+                    <strong className="text-emerald-600 font-mono">+€ {roiData.droneOperatingCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
                   </div>
                   <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
-                    <span className="text-slate-600 flex items-center gap-1"><Droplet size={14}/> Acqua (-90%)</span>
-                    <strong className="text-slate-900 font-mono">€ {roiData.waterSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                    <span className="text-slate-600">Risparmio Servizio</span>
+                    <strong className="text-slate-900 font-mono">€ {roiData.serviceSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
                   </div>
+                  {selectedCrop.tramplingEnabled && roiData.croppingDamageSaved > 0 && (
+                    <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
+                      <span className="text-slate-600">Zero Calpestamento ({(selectedCrop.tramplingImpact * 100).toFixed(1)}%)</span>
+                      <strong className="text-slate-900 font-mono">€ {roiData.croppingDamageSaved.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                    </div>
+                  )}
+                  {selectedTreatment.type === 'liquid' && (
+                    <>
+                      <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
+                        <span className="text-slate-600">Fitofarmaci (-18%)</span>
+                        <strong className="text-slate-900 font-mono">€ {roiData.chemicalSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                      </div>
+                      <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
+                        <span className="text-slate-600 flex items-center gap-1"><Droplet size={14}/> Acqua (-90%)</span>
+                        <strong className="text-slate-900 font-mono">€ {roiData.waterSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between p-3 bg-slate-900 text-white rounded font-bold mt-3">
-                    <span>Totale Risparmi</span>
+                    <span>Totale Risparmi Annui</span>
                     <span className="font-mono">€ {roiData.totalAnnualSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
                   </div>
                 </div>
