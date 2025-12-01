@@ -822,20 +822,46 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               <div className="px-6 py-6">
                 <div className="space-y-0">
                   <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
-                    <span className="text-slate-700">Servizio Base (Standard)</span>
-                    <span className="font-mono font-semibold text-slate-900">€ {(parseFloat(gisData.area) * BASE_RATE_PER_HA).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-700">Adeguamento Pendenza ({gisData.slope}%)</span>
-                      {gisData.slope > 10 && (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Terrain Follow ON</span>
-                      )}
-                    </div>
-                    <span className="font-mono font-semibold text-slate-900">
-                      {pricing.slopeMultiplier > 1 ? `€ ${(pricing.serviceBase - (parseFloat(gisData.area) * BASE_RATE_PER_HA)).toFixed(2)}` : 'INCLUSO'}
+                    <span className="text-slate-700">
+                      {selectedTreatment ? selectedTreatment.name : 'Servizio Base (Standard)'}
                     </span>
+                    <span className="font-mono font-semibold text-slate-900">€ {(parseFloat(gisData.area) * pricing.basePricePerHa).toFixed(2)}</span>
                   </div>
+                  {pricing.slopeMultiplier > 1 && (
+                    <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-700">Adeguamento Pendenza ({gisData.slope}%)</span>
+                        {gisData.slope > 10 && (
+                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Terrain Follow ON</span>
+                        )}
+                      </div>
+                      <span className="font-mono font-semibold text-slate-900">
+                        ×{pricing.slopeMultiplier.toFixed(1)}
+                      </span>
+                    </div>
+                  )}
+                  {isHillyTerrain && (
+                    <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-700">Terreno Collinare</span>
+                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Complessità Alta</span>
+                      </div>
+                      <span className="font-mono font-semibold text-slate-900">
+                        ×{pricing.terrainMultiplier.toFixed(1)}
+                      </span>
+                    </div>
+                  )}
+                  {hasObstacles && (
+                    <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-700">Presenza Ostacoli</span>
+                        <span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Rischio +</span>
+                      </div>
+                      <span className="font-mono font-semibold text-slate-900">
+                        ×{pricing.obstacleMultiplier.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
                     <span className="text-slate-700">Logistica (Uscita + ~20km)</span>
                     <span className="font-mono font-semibold text-slate-900">€ {pricing.logistics.toFixed(2)}</span>
