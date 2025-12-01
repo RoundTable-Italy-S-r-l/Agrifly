@@ -616,16 +616,26 @@ const DroneShop = () => {
   const [selectedDrone, setSelectedDrone] = useState<Drone | null>(null);
   const [roiData, setRoiData] = useState<ReturnType<typeof calculateROI> | null>(null);
   const [hectaresInput, setHectaresInput] = useState(500);
+  const [selectedCrop, setSelectedCrop] = useState<Crop>(CROPS[0]);
+  const [selectedTreatment, setSelectedTreatment] = useState<Treatment>(TREATMENTS[0]);
+  const [interventionsPerYear, setInterventionsPerYear] = useState(1);
+  const [isHilly, setIsHilly] = useState(false);
 
   const openROI = (drone: Drone) => {
     setSelectedDrone(drone);
-    setRoiData(calculateROI(drone, hectaresInput));
+    setRoiData(calculateROI(drone, hectaresInput, selectedCrop, selectedTreatment, interventionsPerYear, isHilly));
+  };
+
+  const recalculateROI = () => {
+    if (selectedDrone) {
+      setRoiData(calculateROI(selectedDrone, hectaresInput, selectedCrop, selectedTreatment, interventionsPerYear, isHilly));
+    }
   };
 
   const updateROI = (hectares: number) => {
     setHectaresInput(hectares);
     if (selectedDrone) {
-      setRoiData(calculateROI(selectedDrone, hectares));
+      setRoiData(calculateROI(selectedDrone, hectares, selectedCrop, selectedTreatment, interventionsPerYear, isHilly));
     }
   };
 
