@@ -15,6 +15,7 @@ interface LeafletAreaMapProps {
 export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed }: LeafletAreaMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const firstMarkerRef = useRef<L.CircleMarker | null>(null);
   const [tempLine, setTempLine] = useState<L.Polyline | null>(null);
   const [polygons, setPolygons] = useState<L.Polygon[]>([]);
   const [markers, setMarkers] = useState<L.CircleMarker[]>([]);
