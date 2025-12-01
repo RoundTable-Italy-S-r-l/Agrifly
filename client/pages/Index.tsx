@@ -461,101 +461,104 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
         <div className="space-y-6">
 
               {showSaveForm && gisData && (
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <h4 className="font-bold text-emerald-900 mb-3 flex items-center gap-2">
-                    <Save size={18}/> Salva Area Cliente
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="block text-xs font-bold text-emerald-800 mb-1">Nome Cliente</label>
-                      <input
-                        type="text"
-                        value={clientName}
-                        onChange={(e) => setClientName(e.target.value)}
-                        placeholder="es. Azienda Rossi"
-                        className="w-full px-3 py-2 rounded-lg border border-emerald-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-emerald-800 mb-1">Nome Campo</label>
-                      <input
-                        type="text"
-                        value={fieldName}
-                        onChange={(e) => setFieldName(e.target.value)}
-                        placeholder="es. Campo Nord"
-                        className="w-full px-3 py-2 rounded-lg border border-emerald-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
+                <div className="bg-[#f5f5f5] p-3 rounded-lg shadow-sm border border-slate-200 mb-6">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Nome Cliente (es. Azienda Rossi)"
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    />
+                    <input
+                      type="text"
+                      value={fieldName}
+                      onChange={(e) => setFieldName(e.target.value)}
+                      placeholder="Nome Campo (es. Campo Nord)"
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    />
+                    <button
                       onClick={handleSaveField}
                       disabled={!clientName || !fieldName}
-                      className="text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 text-sm font-medium"
                     >
-                      <Save size={14}/> Salva Perimetro
-                    </Button>
-                    <Button
-                      variant="ghost"
+                      <Save size={14}/>
+                    </button>
+                    <button
                       onClick={() => setShowSaveForm(false)}
-                      className="text-sm"
+                      className="px-3 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition text-sm"
                     >
-                      Annulla
-                    </Button>
+                      <X size={16}/>
+                    </button>
                   </div>
-                </div>
                 </div>
               )}
 
           {step === 2 && gisData && pricing && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <CheckCircle className="text-emerald-600"/> 2. Preventivo Personalizzato
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <span className="text-xs text-slate-500 uppercase">Superficie</span>
-                  <div className="font-bold text-xl">{gisData.area} ha</div>
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+              <div className="bg-slate-100 px-6 py-3 border-b border-slate-200">
+                <h3 className="font-bold text-sm uppercase tracking-wide text-slate-700 flex items-center gap-2">
+                  <CheckCircle className="text-emerald-600" size={18}/> Piano di Volo Commerciale
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-2 gap-0.5 bg-[#141414]">
+                <div className="p-6 bg-[#141414] text-white">
+                  <span className="block text-xs text-slate-400 uppercase tracking-wider mb-2">Superficie Rilevata</span>
+                  <div className="font-bold text-4xl font-mono">{gisData.area} <span className="text-lg text-slate-400">ha</span></div>
                 </div>
-                <div className="p-4 bg-emerald-50 rounded-lg">
-                  <span className="text-xs text-emerald-700 uppercase font-bold">Drone Ottimale</span>
-                  <div className="font-bold text-xl text-emerald-700">{pricing.recommendedDrone}</div>
+                <div className="p-6 bg-[#141414] text-white border-l-4 border-emerald-500">
+                  <span className="block text-xs text-slate-400 uppercase tracking-wider mb-2">Piattaforma Assegnata</span>
+                  <div className="font-bold text-2xl text-emerald-500">{pricing.recommendedDrone}</div>
                 </div>
               </div>
 
-              <div className="space-y-3 border-t border-slate-100 pt-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Servizio Base ({gisData.area} ha × €{BASE_RATE_PER_HA}/ha)</span>
-                  <span className="font-medium">€ {(parseFloat(gisData.area) * BASE_RATE_PER_HA).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Adeguamento Pendenza ({gisData.slope}% → ×{pricing.slopeMultiplier.toFixed(1)})</span>
-                  <span className="font-medium text-amber-600">
-                    {pricing.slopeMultiplier > 1 ? `+ € ${(pricing.serviceBase - (parseFloat(gisData.area) * BASE_RATE_PER_HA)).toFixed(2)}` : 'Incluso'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Logistica (Uscita + ~20km)</span>
-                  <span className="font-medium">€ {pricing.logistics.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold pt-2 border-t border-slate-200">
-                  <span>Totale Stimato</span>
-                  <span className="text-emerald-700">€ {pricing.total.toFixed(2)}</span>
+              <div className="px-6 py-6">
+                <div className="space-y-0">
+                  <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
+                    <span className="text-slate-700">Servizio Base (Standard)</span>
+                    <span className="font-mono font-semibold text-slate-900">€ {(parseFloat(gisData.area) * BASE_RATE_PER_HA).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-700">Adeguamento Pendenza ({gisData.slope}%)</span>
+                      {gisData.slope > 10 && (
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Terrain Follow ON</span>
+                      )}
+                    </div>
+                    <span className="font-mono font-semibold text-slate-900">
+                      {pricing.slopeMultiplier > 1 ? `€ ${(pricing.serviceBase - (parseFloat(gisData.area) * BASE_RATE_PER_HA)).toFixed(2)}` : 'INCLUSO'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-3 border-b border-slate-100 text-sm">
+                    <span className="text-slate-700">Logistica (Uscita + ~20km)</span>
+                    <span className="font-mono font-semibold text-slate-900">€ {pricing.logistics.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <p className="text-xs text-blue-700 mb-2">💡 <strong>Algoritmo Intelligente:</strong></p>
-                <p className="text-xs text-blue-600">Il prezzo si adatta automaticamente alla difficoltà del terreno per proteggere il margine dell'operatore e garantire un servizio di qualità.</p>
+              <div className="bg-slate-900 px-6 py-5 flex justify-between items-center">
+                <span className="text-xs uppercase tracking-widest text-slate-400 font-bold">Stima Totale Intervento</span>
+                <span className="text-4xl font-bold font-mono text-emerald-500">€ {pricing.total.toFixed(2)}</span>
               </div>
 
-              <div className="mt-6 flex gap-3">
-                <Button className="w-full">
-                  <Users size={16}/> Prenota Affiliato Disponibile
-                </Button>
-                <Button variant="outline" className="w-full" onClick={() => setStep(1)}>Ridisegna</Button>
+              <div className="p-6">
+                <button className="w-full bg-[#141414] text-white py-4 rounded-lg font-bold uppercase tracking-wider text-sm hover:bg-emerald-600 transition-all shadow-lg flex items-center justify-center gap-2">
+                  <Users size={18}/> Prenota Flotta Ora
+                </button>
+                <button
+                  onClick={() => setStep(1)}
+                  className="w-full mt-3 text-slate-600 py-2 text-sm font-medium hover:text-emerald-600 transition"
+                >
+                  ← Ricalcola Parametri
+                </button>
+              </div>
+
+              <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-start gap-3">
+                <span className="text-slate-400 text-lg">ℹ️</span>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  <strong className="text-slate-700">Algoritmo Intelligente:</strong> Il prezzo si adatta automaticamente alla complessità del terreno (pendenza {gisData.slope}%) per garantire un servizio di qualità e proteggere il margine operativo.
+                </p>
               </div>
             </div>
           )}
