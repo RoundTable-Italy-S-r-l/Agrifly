@@ -543,9 +543,37 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
   const [fieldName, setFieldName] = useState('');
   const [showSaveForm, setShowSaveForm] = useState(false);
 
+  // GIS drill-down configuration states
+  const [selectedCategory, setSelectedCategory] = useState<GISCategory | null>(null);
+  const [selectedTreatment, setSelectedTreatment] = useState<GISTreatment | null>(null);
+  const [isHillyTerrain, setIsHillyTerrain] = useState(false);
+  const [hasObstacles, setHasObstacles] = useState(false);
+
+  // Recalculate pricing when treatment or terrain changes
+  const recalculatePricing = () => {
+    if (gisData) {
+      const calculatedPricing = calculatePricing(
+        parseFloat(gisData.area),
+        gisData.slope,
+        20,
+        selectedTreatment,
+        isHillyTerrain,
+        hasObstacles
+      );
+      setPricing(calculatedPricing);
+    }
+  };
+
   const handleGisComplete = (data: GisData) => {
     setGisData(data);
-    const calculatedPricing = calculatePricing(parseFloat(data.area), data.slope);
+    const calculatedPricing = calculatePricing(
+      parseFloat(data.area),
+      data.slope,
+      20,
+      selectedTreatment,
+      isHillyTerrain,
+      hasObstacles
+    );
     setPricing(calculatedPricing);
     setShowSaveForm(true);
     setStep(1);
