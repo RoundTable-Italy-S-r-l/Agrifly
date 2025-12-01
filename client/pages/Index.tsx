@@ -63,6 +63,131 @@ interface Affiliate {
   zone: string;
 }
 
+interface GISCategory {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+}
+
+interface GISTreatment {
+  id: string;
+  name: string;
+  categoryId: string;
+  basePrice: number;
+  speed: number;
+  type: 'liquid' | 'solid';
+  description: string;
+}
+
+const GIS_CATEGORIES: GISCategory[] = [
+  {
+    id: 'estensive',
+    name: 'Seminativi',
+    icon: '🌾',
+    description: 'Mais, Riso, Grano, Soia'
+  },
+  {
+    id: 'vigna',
+    name: 'Vigneto & Frutteto',
+    icon: '🍇',
+    description: 'Vite, Ulivo, Frutteto'
+  },
+  {
+    id: 'orto',
+    name: 'Orticole',
+    icon: '🍅',
+    description: 'Pomodoro, Serre, Patata'
+  }
+];
+
+const GIS_TREATMENTS: GISTreatment[] = [
+  // Estensive
+  {
+    id: 'bio',
+    name: 'Lotta Biologica (Capsule/Granuli)',
+    categoryId: 'estensive',
+    basePrice: 22,
+    speed: 30,
+    type: 'solid',
+    description: 'Volo veloce, distribuzione solidi'
+  },
+  {
+    id: 'diserbo',
+    name: 'Diserbo / Fitosanitario Liquido',
+    categoryId: 'estensive',
+    basePrice: 40,
+    speed: 15,
+    type: 'liquid',
+    description: 'Volo medio, spray liquido'
+  },
+  {
+    id: 'concime',
+    name: 'Concimazione Granulare',
+    categoryId: 'estensive',
+    basePrice: 35,
+    speed: 15,
+    type: 'solid',
+    description: 'Carico pesante, distribuzione uniforme'
+  },
+  {
+    id: 'desiccante',
+    name: 'Disseccante (Pre-Raccolta)',
+    categoryId: 'estensive',
+    basePrice: 38,
+    speed: 18,
+    type: 'liquid',
+    description: 'Preparazione raccolta'
+  },
+  // Vigneto
+  {
+    id: 'fito-vigna',
+    name: 'Trattamento Fitosanitario Standard',
+    categoryId: 'vigna',
+    basePrice: 90,
+    speed: 5,
+    type: 'liquid',
+    description: 'Volo lento, precisione radar'
+  },
+  {
+    id: 'eroico',
+    name: 'Trattamento Eroico (Alta Pendenza)',
+    categoryId: 'vigna',
+    basePrice: 130,
+    speed: 4,
+    type: 'liquid',
+    description: 'Terreni impervi, alto rischio'
+  },
+  {
+    id: 'impollinazione',
+    name: 'Impollinazione Assistita',
+    categoryId: 'vigna',
+    basePrice: 80,
+    speed: 10,
+    type: 'solid',
+    description: 'Distribuzione polline'
+  },
+  // Orticole
+  {
+    id: 'fungicida-orto',
+    name: 'Fungicida / Antiparassitario',
+    categoryId: 'orto',
+    basePrice: 60,
+    speed: 12,
+    type: 'liquid',
+    description: 'Alto volume acqua'
+  },
+  {
+    id: 'whitewash',
+    name: 'Ombreggiamento (Serre)',
+    categoryId: 'orto',
+    basePrice: 150,
+    speed: 8,
+    type: 'liquid',
+    description: 'Volo precisione, vernice speciale'
+  }
+];
+
 interface Crop {
   id: string;
   name: string;
