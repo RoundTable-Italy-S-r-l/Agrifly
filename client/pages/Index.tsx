@@ -729,6 +729,99 @@ const DroneShop = () => {
               </div>
             </div>
 
+            {/* 3-Step Configuration */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Step 1: Coltura */}
+              <div className="bg-slate-50 p-4 rounded-xl">
+                <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
+                  Step 1: Coltura
+                </label>
+                <select
+                  value={selectedCrop.id}
+                  onChange={(e) => {
+                    const crop = CROPS.find(c => c.id === e.target.value) || CROPS[0];
+                    setSelectedCrop(crop);
+                    recalculateROI();
+                  }}
+                  className="w-full p-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {CROPS.map(crop => (
+                    <option key={crop.id} value={crop.id}>{crop.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-2">Ricavo: <strong>€ {selectedCrop.grossRevenue.toLocaleString()}/ha</strong></p>
+              </div>
+
+              {/* Step 2: Trattamento */}
+              <div className="bg-slate-50 p-4 rounded-xl">
+                <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
+                  Step 2: Trattamento
+                </label>
+                <select
+                  value={selectedTreatment.id}
+                  onChange={(e) => {
+                    const treatment = TREATMENTS.find(t => t.id === e.target.value) || TREATMENTS[0];
+                    setSelectedTreatment(treatment);
+                    recalculateROI();
+                  }}
+                  className="w-full p-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {TREATMENTS.map(treatment => (
+                    <option key={treatment.id} value={treatment.id}>{treatment.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-2">
+                  {selectedTreatment.type === 'liquid' ? '💧' : '📦'} {selectedTreatment.dosage} • {selectedTreatment.operatingSpeed} ha/h
+                </p>
+              </div>
+
+              {/* Step 3: Interventi */}
+              <div className="bg-slate-50 p-4 rounded-xl">
+                <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
+                  Step 3: Interventi/Anno
+                </label>
+                <select
+                  value={interventionsPerYear}
+                  onChange={(e) => {
+                    setInterventionsPerYear(parseInt(e.target.value));
+                    recalculateROI();
+                  }}
+                  className="w-full p-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {[1, 2, 3, 4, 5, 6].map(num => (
+                    <option key={num} value={num}>{num} volt{num > 1 ? 'e' : 'a'}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-2">Ore volo: <strong>{roiData.operatingHoursPerYear.toFixed(1)}h/anno</strong></p>
+              </div>
+            </div>
+
+            {/* Terrain Toggle */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⛰️</span>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Terreno Collinare / Complesso</p>
+                  <p className="text-xs text-slate-600">+40% prezzo terzista, -30% velocità operativa</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsHilly(!isHilly);
+                  recalculateROI();
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                  isHilly ? 'bg-emerald-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                    isHilly ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
             <div className="bg-slate-50 p-4 rounded-xl mb-6">
               <label className="block text-sm font-bold text-slate-700 mb-2">
                 Ettari da Trattare Annualmente
