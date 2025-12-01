@@ -63,6 +63,140 @@ interface Affiliate {
   zone: string;
 }
 
+interface Crop {
+  id: string;
+  name: string;
+  yieldPerHa: number;
+  marketPrice: number;
+  grossRevenue: number;
+  tramplingImpact: number;
+  tramplingEnabled: boolean;
+}
+
+interface Treatment {
+  id: string;
+  name: string;
+  type: 'liquid' | 'solid';
+  targetCrops: string[];
+  dosage: string;
+  operatingSpeed: number;
+  marketPrice: { min: number; max: number };
+}
+
+const CROPS: Crop[] = [
+  {
+    id: 'mais-granella',
+    name: 'Mais (Granella)',
+    yieldPerHa: 13.0,
+    marketPrice: 220,
+    grossRevenue: 2860,
+    tramplingImpact: 0.045,
+    tramplingEnabled: true
+  },
+  {
+    id: 'mais-trinciato',
+    name: 'Mais (Trinciato)',
+    yieldPerHa: 60.0,
+    marketPrice: 55,
+    grossRevenue: 3300,
+    tramplingImpact: 0.045,
+    tramplingEnabled: true
+  },
+  {
+    id: 'riso',
+    name: 'Riso',
+    yieldPerHa: 7.0,
+    marketPrice: 450,
+    grossRevenue: 3150,
+    tramplingImpact: 0.025,
+    tramplingEnabled: true
+  },
+  {
+    id: 'grano-tenero',
+    name: 'Grano Tenero',
+    yieldPerHa: 7.5,
+    marketPrice: 230,
+    grossRevenue: 1725,
+    tramplingImpact: 0.03,
+    tramplingEnabled: true
+  },
+  {
+    id: 'vigneto',
+    name: 'Vigneto (Collina)',
+    yieldPerHa: 10.0,
+    marketPrice: 600,
+    grossRevenue: 6000,
+    tramplingImpact: 0,
+    tramplingEnabled: false
+  },
+  {
+    id: 'pomodoro',
+    name: 'Pomodoro',
+    yieldPerHa: 80.0,
+    marketPrice: 110,
+    grossRevenue: 8800,
+    tramplingImpact: 0.05,
+    tramplingEnabled: true
+  }
+];
+
+const TREATMENTS: Treatment[] = [
+  {
+    id: 'diserbo-pre',
+    name: 'Diserbo Pre-Emergenza',
+    type: 'liquid',
+    targetCrops: ['mais-granella', 'mais-trinciato', 'riso'],
+    dosage: '30-40 L/ha',
+    operatingSpeed: 11,
+    marketPrice: { min: 45, max: 55 }
+  },
+  {
+    id: 'fungicida-insetticida',
+    name: 'Fungicida / Insetticida',
+    type: 'liquid',
+    targetCrops: ['grano-tenero', 'mais-granella'],
+    dosage: '15-20 L/ha',
+    operatingSpeed: 19,
+    marketPrice: { min: 35, max: 45 }
+  },
+  {
+    id: 'vigneto-peronospora',
+    name: 'Trattamento Vigneto (Peronospora)',
+    type: 'liquid',
+    targetCrops: ['vigneto'],
+    dosage: '40-60 L/ha',
+    operatingSpeed: 5,
+    marketPrice: { min: 80, max: 120 }
+  },
+  {
+    id: 'disseccante',
+    name: 'Disseccante',
+    type: 'liquid',
+    targetCrops: ['pomodoro'],
+    dosage: '20 L/ha',
+    operatingSpeed: 15,
+    marketPrice: { min: 40, max: 50 }
+  },
+  {
+    id: 'lotta-biologica',
+    name: 'Lotta Biologica (Capsule Piralide)',
+    type: 'solid',
+    targetCrops: ['mais-granella', 'mais-trinciato'],
+    dosage: '< 1 kg/ha',
+    operatingSpeed: 35,
+    marketPrice: { min: 20, max: 25 }
+  },
+  {
+    id: 'semina-cover',
+    name: 'Semina Cover Crops',
+    type: 'solid',
+    targetCrops: ['mais-granella', 'grano-tenero'],
+    dosage: '20-30 kg/ha',
+    operatingSpeed: 15,
+    marketPrice: { min: 30, max: 40 }
+  }
+];
+
 const DRONES: Drone[] = [
   {
     id: 't50',
