@@ -308,24 +308,51 @@ const calculatePricing = (area: number, slope: number, distance_km: number = 20)
   };
 };
 
-const calculateROI = (drone: Drone, hectaresPerYear: number = 500) => {
-  const croppingDamageSaved = hectaresPerYear * 2000 * 0.045;
-  const chemicalSavings = hectaresPerYear * 150 * 0.18;
-  const waterSavings = hectaresPerYear * 50;
-  
-  const totalAnnualSavings = croppingDamageSaved + chemicalSavings + waterSavings;
-  const serviceRevenue = hectaresPerYear * BASE_RATE_PER_HA;
-  
-  const breakEvenMonths = Math.ceil((drone.price / (totalAnnualSavings + serviceRevenue)) * 12);
+const calculateROI = (
+  drone: Drone,
+  hectaresPerYear: number = 500,
+  crop: Crop = CROPS[0],
+  treatment: Treatment = TREATMENTS[0],
+  interventionsPerYear: number = 1,
+  isHilly: boolean = false
+) => {
+  const terrainMultiplier = isHilly ? 1.4 : 1.0;
+  const speedReduction = isHilly ? 0.7 : 1.0;
+
+  const croppingDamageSaved = crop.tramplingEnabled
+    ? hectaresPerYear * crop.grossRevenue * crop.tramplingImpact * interventionsPerYear
+    : 0;
+
+  const avgTreatmentPrice = (treatment.marketPrice.min + treatment.marketPrice.max) / 2;
+  const externalServiceCost = hectaresPerYear * avgTreatmentPrice * terrainMultiplier * interventionsPerYear;
+
+  const droneOperatingCost = hectaresPerYear * 2.5 * interventionsPerYear;
+  const serviceSavings = externalServiceCost - droneOperatingCost;
+
+  const chemicalSavings = treatment.type === 'liquid' ? hectaresPerYear * 150 * 0.18 * interventionsPerYear : 0;
+  const waterSavings = treatment.type === 'liquid' ? hectaresPerYear * 50 * interventionsPerYear : 0;
+
+  const totalAnnualSavings = croppingDamageSaved + serviceSavings + chemicalSavings + waterSavings;
+
+  const operatingHoursPerYear = (hectaresPerYear / (treatment.operatingSpeed * speedReduction)) * interventionsPerYear;
+  const potentialServiceRevenue = hectaresPerYear * avgTreatmentPrice * interventionsPerYear;
+
+  const breakEvenMonths = totalAnnualSavings > 0
+    ? Math.ceil((drone.price / totalAnnualSavings) * 12)
+    : 999;
 
   return {
     croppingDamageSaved,
+    serviceSavings,
     chemicalSavings,
     waterSavings,
+    droneOperatingCost,
+    externalServiceCost,
     totalAnnualSavings,
-    serviceRevenue,
+    potentialServiceRevenue,
+    operatingHoursPerYear,
     breakEvenMonths,
-    firstYearProfit: (totalAnnualSavings + serviceRevenue) - drone.price
+    firstYearProfit: totalAnnualSavings - drone.price
   };
 };
 
