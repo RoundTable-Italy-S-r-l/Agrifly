@@ -912,8 +912,8 @@ const DroneShop = () => {
 
                    <div className="mt-4 p-4 bg-[#222] rounded-lg border-l-4 border-emerald-500">
                      <p className="text-xs text-slate-400 uppercase font-bold mb-2">Ricavi Conto Terzi Potenziali</p>
-                     <p className="text-3xl font-bold font-mono text-emerald-500">€ {roiData.serviceRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}<span className="text-lg text-slate-400">/anno</span></p>
-                     <p className="text-xs text-slate-500 mt-1">@ €{BASE_RATE_PER_HA}/ha medio mercato</p>
+                     <p className="text-3xl font-bold font-mono text-emerald-500">€ {roiData.potentialServiceRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}<span className="text-lg text-slate-400">/anno</span></p>
+                     <p className="text-xs text-slate-500 mt-1">Basato su {selectedTreatment.name}</p>
                    </div>
                 </div>
 
@@ -926,8 +926,12 @@ const DroneShop = () => {
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-start gap-3">
               <span className="text-slate-400 text-lg">ℹ️</span>
               <p className="text-xs text-slate-600 leading-relaxed">
-                <strong className="text-slate-700">Metodologia:</strong> I calcoli si basano su medie di mercato reali. Zero calpestamento stimato su mais a €2.000/ha.
-                Risparmio fitofarmaci calcolato su €150/ha con riduzione 18% (effetto Downwash). Risparmio acqua su consumo medio €50/ha.
+                <strong className="text-slate-700">Metodologia Scientifica:</strong> Calcoli basati su dati Italia Nord/Centro 2024-2025.
+                Coltura: {selectedCrop.name} (€{selectedCrop.grossRevenue.toLocaleString()}/ha).
+                Trattamento: {selectedTreatment.name} ({selectedTreatment.operatingSpeed} ha/h).
+                {selectedCrop.tramplingEnabled ? `Calpestamento: ${(selectedCrop.tramplingImpact * 100).toFixed(1)}%. ` : ''}
+                {isHilly ? 'Terreno collinare: +40% costo terzista, -30% velocità. ' : ''}
+                Costo operativo drone: €2.50/ha (energia + usura).
               </p>
             </div>
           </div>
