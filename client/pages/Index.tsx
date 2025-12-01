@@ -784,7 +784,7 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               {/* Price Preview */}
               {selectedTreatment && pricing && (
                 <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mb-4">
                     <div>
                       <p className="text-xs text-emerald-700 font-bold uppercase">Prezzo Base Trattamento</p>
                       <p className="text-sm text-emerald-600 mt-1">
@@ -795,6 +795,12 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
                       €{pricing.basePricePerHa}/ha
                     </p>
                   </div>
+                  <button
+                    onClick={() => setStep(2)}
+                    className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold uppercase tracking-wide text-sm hover:bg-emerald-700 transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle size={16}/> Procedi al Preventivo Completo
+                  </button>
                 </div>
               )}
             </div>
