@@ -141,6 +141,19 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     if (isClosed) return;
 
     const newPoint = e.latlng;
+
+    // Check if clicking near first point to close polygon
+    if (points.length >= 3 && firstMarkerRef.current) {
+      const firstPoint = points[0];
+      const distanceToFirst = mapRef.current.distance(newPoint, firstPoint);
+
+      // If click is within 20 meters of first point, close the polygon
+      if (distanceToFirst < 20) {
+        closePolygon(points);
+        return;
+      }
+    }
+
     const pts = [...points, newPoint];
 
     const marker = L.circleMarker(newPoint, {
@@ -151,10 +164,13 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       weight: 2
     }).addTo(mapRef.current);
 
+    // Save reference to first marker
     if (pts.length === 1) {
-      marker.on('click', () => {
-        if (pts.length >= 3) {
-          closePolygon(pts);
+      firstMarkerRef.current = marker;
+      marker.on('click', (evt: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(evt);
+        if (points.length >= 3) {
+          closePolygon(points);
         }
       });
     }
@@ -165,9 +181,14 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       updatePolyline(pts);
     }
 
-    if (pts.length >= 3) {
-      marker.on('click', () => {
-        closePolygon(pts);
+    // Make first marker larger and more visible when ready to close
+    if (pts.length >= 3 && firstMarkerRef.current) {
+      firstMarkerRef.current.setStyle({
+        radius: 10,
+        color: '#10B981',
+        fillColor: '#10B981',
+        fillOpacity: 1,
+        weight: 3
       });
     }
 
