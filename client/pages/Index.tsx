@@ -562,14 +562,17 @@ const DroneShop = () => {
               <label className="block text-sm font-bold text-slate-700 mb-2">
                 Ettari da Trattare Annualmente
               </label>
-              <input 
-                type="range" 
-                min="100" 
-                max="1000" 
+              <input
+                type="range"
+                min="100"
+                max="1000"
                 step="50"
                 value={hectaresInput}
                 onChange={(e) => updateROI(parseInt(e.target.value))}
-                className="w-full"
+                className="w-full h-2 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                style={{
+                  background: `linear-gradient(to right, #10b981 0%, #10b981 ${((hectaresInput - 100) / 900) * 100}%, #cbd5e1 ${((hectaresInput - 100) / 900) * 100}%, #cbd5e1 100%)`
+                }}
               />
               <div className="flex justify-between text-xs text-slate-500 mt-1">
                 <span>100 ha</span>
@@ -591,56 +594,57 @@ const DroneShop = () => {
                 <h4 className="font-bold text-slate-800 flex items-center gap-2 mt-6">
                   <TrendingUp size={18} className="text-blue-600"/> Risparmi Annui
                 </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between p-2 bg-blue-50 rounded">
-                    <span className="text-blue-700">Zero Calpestamento (4.5%)</span>
-                    <strong className="text-blue-900">€ {roiData.croppingDamageSaved.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                <div className="space-y-0 text-sm">
+                  <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
+                    <span className="text-slate-600">Zero Calpestamento (4.5%)</span>
+                    <strong className="text-slate-900 font-mono">€ {roiData.croppingDamageSaved.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
                   </div>
-                  <div className="flex justify-between p-2 bg-emerald-50 rounded">
-                    <span className="text-emerald-700">Fitofarmaci (-18%)</span>
-                    <strong className="text-emerald-900">€ {roiData.chemicalSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                  <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
+                    <span className="text-slate-600">Fitofarmaci (-18%)</span>
+                    <strong className="text-slate-900 font-mono">€ {roiData.chemicalSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
                   </div>
-                  <div className="flex justify-between p-2 bg-cyan-50 rounded">
-                    <span className="text-cyan-700 flex items-center gap-1"><Droplet size={14}/> Acqua (-90%)</span>
-                    <strong className="text-cyan-900">€ {roiData.waterSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
+                  <div className="flex justify-between py-3 border-b border-dashed border-slate-200">
+                    <span className="text-slate-600 flex items-center gap-1"><Droplet size={14}/> Acqua (-90%)</span>
+                    <strong className="text-slate-900 font-mono">€ {roiData.waterSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
                   </div>
-                  <div className="flex justify-between p-3 bg-slate-800 text-white rounded font-bold border-t-2 border-slate-600 mt-2">
+                  <div className="flex justify-between p-3 bg-slate-900 text-white rounded font-bold mt-3">
                     <span>Totale Risparmi</span>
-                    <span>€ {roiData.totalAnnualSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                    <span className="font-mono">€ {roiData.totalAnnualSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-6 rounded-xl flex flex-col justify-between">
+              <div className="bg-[#141414] text-white p-8 rounded-xl flex flex-col justify-between shadow-2xl">
                 <div>
-                   <p className="text-emerald-100 text-sm uppercase font-bold mb-2">Break Even Point</p>
-                   <p className="text-5xl font-extrabold mb-3">{roiData.breakEvenMonths}</p>
-                   <p className="text-2xl font-bold mb-1">Mesi</p>
-                   <p className="text-sm text-emerald-100">Basato su {hectaresInput} ha/anno</p>
+                   <p className="text-emerald-500 text-xs uppercase font-bold tracking-widest mb-3 letterspacing-2">Break Even Point</p>
+                   <p className="text-7xl font-extrabold mb-2 leading-none text-white">{roiData.breakEvenMonths}</p>
+                   <p className="text-2xl font-bold mb-1 text-white">Mesi</p>
+                   <p className="text-sm text-slate-400">Basato su {hectaresInput} ha/anno</p>
 
-                   <div className="mt-6 p-4 bg-white/10 backdrop-blur rounded-lg border border-white/20">
-                     <p className="text-xs text-emerald-100 uppercase font-bold mb-1">Profitto Primo Anno</p>
-                     <p className="text-2xl font-bold">
+                   <div className="mt-6 p-4 bg-[#222] rounded-lg border-l-4 border-emerald-500">
+                     <p className="text-xs text-slate-400 uppercase font-bold mb-2">Profitto Primo Anno</p>
+                     <p className="text-3xl font-bold font-mono text-emerald-500">
                        {roiData.firstYearProfit > 0 ? '+' : ''}€ {roiData.firstYearProfit.toLocaleString(undefined, {maximumFractionDigits: 0})}
                      </p>
                    </div>
 
-                   <div className="mt-4 p-4 bg-white/10 backdrop-blur rounded-lg border border-white/20">
-                     <p className="text-xs text-emerald-100 uppercase font-bold mb-1">Ricavi Conto Terzi Potenziali</p>
-                     <p className="text-2xl font-bold">€ {roiData.serviceRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}/anno</p>
-                     <p className="text-xs text-emerald-100 mt-1">@ €{BASE_RATE_PER_HA}/ha medio mercato</p>
+                   <div className="mt-4 p-4 bg-[#222] rounded-lg border-l-4 border-emerald-500">
+                     <p className="text-xs text-slate-400 uppercase font-bold mb-2">Ricavi Conto Terzi Potenziali</p>
+                     <p className="text-3xl font-bold font-mono text-emerald-500">€ {roiData.serviceRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}<span className="text-lg text-slate-400">/anno</span></p>
+                     <p className="text-xs text-slate-500 mt-1">@ €{BASE_RATE_PER_HA}/ha medio mercato</p>
                    </div>
                 </div>
 
-                <Button className="w-full mt-6 bg-white text-emerald-700 hover:bg-emerald-50 shadow-lg">
+                <Button className="w-full mt-6 bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg font-bold uppercase tracking-wide">
                   <CheckCircle size={16}/> Richiedi Preventivo
                 </Button>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <p className="text-xs text-amber-800">
-                <strong>📊 Metodologia:</strong> I calcoli si basano su medie di mercato reali. Zero calpestamento stimato su mais a €2.000/ha. 
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-start gap-3">
+              <span className="text-slate-400 text-lg">ℹ️</span>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                <strong className="text-slate-700">Metodologia:</strong> I calcoli si basano su medie di mercato reali. Zero calpestamento stimato su mais a €2.000/ha.
                 Risparmio fitofarmaci calcolato su €150/ha con riduzione 18% (effetto Downwash). Risparmio acqua su consumo medio €50/ha.
               </p>
             </div>
