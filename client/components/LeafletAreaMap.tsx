@@ -142,13 +142,13 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
 
     const newPoint = e.latlng;
 
-    // Check if clicking near first point to close polygon
+    // Check if clicking near first point to close polygon (increased to 50 meters)
     if (points.length >= 3 && firstMarkerRef.current) {
       const firstPoint = points[0];
       const distanceToFirst = mapRef.current.distance(newPoint, firstPoint);
 
-      // If click is within 20 meters of first point, close the polygon
-      if (distanceToFirst < 20) {
+      // If click is within 50 meters of first point, close the polygon
+      if (distanceToFirst < 50) {
         closePolygon(points);
         return;
       }
@@ -164,15 +164,22 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       weight: 2
     }).addTo(mapRef.current);
 
-    // Save reference to first marker
+    // Save reference to first marker and make it clickable
     if (pts.length === 1) {
       firstMarkerRef.current = marker;
-      marker.on('click', (evt: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(evt);
+      // Use current points state in closure
+      const checkAndClose = () => {
         if (points.length >= 3) {
           closePolygon(points);
         }
+      };
+      marker.on('click', (evt: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(evt);
+        L.DomEvent.preventDefault(evt);
+        checkAndClose();
       });
+      // Add extra click area
+      marker.bringToFront();
     }
 
     setPoints(pts);
@@ -184,11 +191,18 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     // Make first marker larger and more visible when ready to close
     if (pts.length >= 3 && firstMarkerRef.current) {
       firstMarkerRef.current.setStyle({
-        radius: 10,
+        radius: 12,
         color: '#10B981',
         fillColor: '#10B981',
         fillOpacity: 1,
-        weight: 3
+        weight: 4
+      });
+      // Re-attach click handler with updated points reference
+      firstMarkerRef.current.off('click');
+      firstMarkerRef.current.on('click', (evt: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(evt);
+        L.DomEvent.preventDefault(evt);
+        closePolygon(points);
       });
     }
 
