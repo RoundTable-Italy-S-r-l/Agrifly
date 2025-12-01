@@ -895,7 +895,11 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-start gap-3">
                 <span className="text-slate-400 text-lg">ℹ️</span>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-slate-700">Algoritmo Intelligente:</strong> Il prezzo si adatta automaticamente alla complessità del terreno (pendenza {gisData.slope}%) per garantire un servizio di qualità e proteggere il margine operativo.
+                  <strong className="text-slate-700">Algoritmo Intelligente:</strong> Prezzo base €{pricing.basePricePerHa}/ha per {selectedTreatment?.name || 'servizio standard'}.
+                  Moltiplicatori applicati: Pendenza {gisData.slope}% (×{pricing.slopeMultiplier.toFixed(1)})
+                  {isHillyTerrain && `, Terreno Collinare (×${pricing.terrainMultiplier.toFixed(1)})`}
+                  {hasObstacles && `, Ostacoli (×${pricing.obstacleMultiplier.toFixed(2)})`}.
+                  Sistema adattivo per garantire qualità e margine operativo.
                 </p>
               </div>
             </div>
