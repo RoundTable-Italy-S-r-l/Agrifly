@@ -405,10 +405,21 @@ const BASE_RATE_PER_HA = 45;
 const LOGISTICS_FIXED = 100;
 const KM_RATE = 0.50;
 
-const calculatePricing = (area: number, slope: number, distance_km: number = 20) => {
+const calculatePricing = (
+  area: number,
+  slope: number,
+  distance_km: number = 20,
+  treatment: GISTreatment | null = null,
+  isHilly: boolean = false,
+  hasObstacles: boolean = false
+) => {
   let slopeMultiplier = 1.0;
   let recommendedDrone = 'DJI Agras T50';
 
+  // Base price from treatment or default
+  const basePricePerHa = treatment?.basePrice || BASE_RATE_PER_HA;
+
+  // Slope multiplier from terrain data
   if (slope <= 10) {
     slopeMultiplier = 1.0;
     recommendedDrone = area > 20 ? 'DJI Agras T50' : 'DJI Agras T30';
@@ -420,13 +431,20 @@ const calculatePricing = (area: number, slope: number, distance_km: number = 20)
     recommendedDrone = 'DJI Agras T30';
   }
 
-  const serviceBase = area * BASE_RATE_PER_HA * slopeMultiplier;
+  // Additional complexity multipliers
+  const terrainMultiplier = isHilly ? 1.2 : 1.0;
+  const obstacleMultiplier = hasObstacles ? 1.15 : 1.0;
+
+  const serviceBase = area * basePricePerHa * slopeMultiplier * terrainMultiplier * obstacleMultiplier;
   const logistics = LOGISTICS_FIXED + (distance_km * KM_RATE);
   const total = serviceBase + logistics;
 
   return {
     serviceBase,
+    basePricePerHa,
     slopeMultiplier,
+    terrainMultiplier,
+    obstacleMultiplier,
     logistics,
     total,
     recommendedDrone
