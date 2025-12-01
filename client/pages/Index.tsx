@@ -475,16 +475,21 @@ const DroneShop = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {DRONES.map(drone => (
-          <div key={drone.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-1 hover:border-slate-400 transition-all group">
-            <div className="h-48 bg-white flex items-center justify-center relative">
+          <div key={drone.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-2xl hover:-translate-y-1 hover:border-emerald-400 transition-all group relative">
+            {/* Discount Badge */}
+            <span className="absolute top-3 left-3 z-10 text-[10px] font-bold text-white bg-emerald-600 px-2.5 py-1 rounded-full shadow-md">
+              -13%
+            </span>
+
+            <div className="h-56 bg-white flex items-center justify-center relative overflow-hidden">
               {drone.imageUrl ? (
                 <img
                   src={drone.imageUrl}
                   alt={`Drone agricolo ${drone.model}`}
-                  className="h-40 w-auto object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
+                  className="h-52 w-auto object-contain drop-shadow-2xl transition-transform duration-300 group-hover:scale-110"
                 />
               ) : (
-                <Plane size={80} className="text-slate-300 group-hover:scale-105 transition duration-300" />
+                <Plane size={100} className="text-slate-300 group-hover:scale-110 transition duration-300" />
               )}
             </div>
             <div className="p-5">
@@ -496,29 +501,43 @@ const DroneShop = () => {
                   <span className="font-semibold">Disponibile</span>
                 </div>
               </div>
-              <p className="text-xs text-slate-600 mb-4 h-8">{drone.tagline}</p>
-              
-              <div className="grid grid-cols-1 gap-1 text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg">
-                <div className="flex justify-between">
-                  <span>Capacità:</span> <strong>{drone.specs.tank}</strong>
+              <p className="text-xs text-slate-600 mb-4 min-h-[2rem]">{drone.tagline}</p>
+
+              {/* Specs with Icons - No Gray Background */}
+              <div className="mb-4 py-3 border-t border-b border-slate-200">
+                <div className="flex items-center justify-between text-xs mb-2">
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <Droplet size={14} className="text-slate-400" />
+                    <span>Serbatoio</span>
+                  </div>
+                  <strong className="text-slate-900 text-sm">{drone.specs.tank.split(' ')[0]}</strong>
                 </div>
-                <div className="flex justify-between">
-                  <span>Efficienza:</span> <strong>{drone.specs.efficiency}</strong>
-                </div>
-                <div className="col-span-2 text-emerald-700 font-bold text-center mt-1 pt-2 border-t border-slate-200">
-                  {drone.specs.feature}
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <Wind size={14} className="text-slate-400" />
+                    <span>Efficienza</span>
+                  </div>
+                  <strong className="text-slate-900 text-sm">{drone.specs.efficiency}</strong>
                 </div>
               </div>
 
+              {/* Tech Highlight */}
+              <div className="text-[10px] text-center text-slate-600 font-medium mb-4 px-1 leading-tight min-h-[2.5rem]">
+                {drone.specs.feature}
+              </div>
+
+              {/* Price - Bigger and Black */}
               <div className="mb-4">
-                 <p className="text-xs text-slate-400 line-through mb-1">€ {(drone.price * 1.15).toFixed(0)}</p>
-                 <div className="flex items-baseline gap-2">
-                   <p className="text-2xl font-bold text-slate-900">€ {drone.price.toLocaleString()}</p>
-                   <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">-13%</span>
-                 </div>
+                 <p className="text-[10px] text-slate-300 line-through mb-1">€ {(drone.price * 1.15).toFixed(0)}</p>
+                 <p className="text-3xl font-bold text-black">€ {drone.price.toLocaleString()}</p>
               </div>
 
-              <Button onClick={() => openROI(drone)} className="w-full text-sm py-2.5 bg-emerald-600 hover:bg-emerald-700 font-semibold uppercase tracking-wide">
+              {/* Outline Button */}
+              <Button
+                onClick={() => openROI(drone)}
+                variant="outline"
+                className="w-full text-sm py-2.5 border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white font-semibold uppercase tracking-wide transition-all"
+              >
                 <Calculator size={14}/> Calcola ROI
               </Button>
             </div>
