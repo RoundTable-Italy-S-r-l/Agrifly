@@ -324,6 +324,7 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     setSlope(0);
     setTotalAreaHa(0);
     setFieldCount(0);
+    firstMarkerRef.current = null;
   };
 
   const startNewField = () => {
@@ -331,6 +332,7 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
 
     setPoints([]);
     setIsClosed(false);
+    firstMarkerRef.current = null;
 
     if (tempLine) {
       tempLine.remove();
