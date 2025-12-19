@@ -23,7 +23,17 @@ dist-ssr
 *.sln
 *.sw?
 
-.config/
-!.env
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+.env.backup
+.env.supabase
+.env.*
 
+# Generated files
 /generated/prisma
+
+# Config
+.config/
