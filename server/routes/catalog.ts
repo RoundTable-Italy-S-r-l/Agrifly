@@ -655,42 +655,49 @@ export const initializeVendorCatalog: RequestHandler = async (req, res) => {
     });
 
     // Crea price list se non esiste
-    const priceList = await prisma.priceList.upsert({
+    let priceList = await prisma.priceList.findFirst({
       where: {
-        vendor_org_id_name: {
-          vendor_org_id: orgId,
-          name: 'Listino Standard'
-        }
-      },
-      update: {},
-      create: {
         vendor_org_id: orgId,
         name: 'Listino Standard',
-        currency: 'EUR',
-        status: 'ACTIVE',
-        valid_from: new Date(),
-        valid_to: new Date(new Date().getFullYear() + 1, 11, 31) // Fine anno prossimo
+        status: 'ACTIVE'
       }
     });
 
-    // Crea location se non esiste
-    const location = await prisma.location.upsert({
-      where: {
-        org_id_name: {
-          org_id: orgId,
-          name: 'Magazzino Principale'
+    if (!priceList) {
+      priceList = await prisma.priceList.create({
+        data: {
+          vendor_org_id: orgId,
+          name: 'Listino Standard',
+          currency: 'EUR',
+          status: 'ACTIVE',
+          valid_from: new Date(),
+          valid_to: new Date(new Date().getFullYear() + 1, 11, 31) // Fine anno prossimo
         }
-      },
-      update: {},
-      create: {
+      });
+    }
+
+    // Crea location se non esiste
+    let location = await prisma.location.findFirst({
+      where: {
         org_id: orgId,
-        name: 'Magazzino Principale',
-        address: 'Via del Magazzino 1',
-        city: 'Città',
-        province: 'XX',
-        country: 'IT'
+        name: 'Magazzino Principale'
       }
     });
+
+    if (!location) {
+      location = await prisma.location.create({
+        data: {
+          org_id: orgId,
+          name: 'Magazzino Principale',
+          address_json: {
+            address_line: 'Via del Magazzino 1',
+            city: 'Città',
+            province: 'XX',
+            country: 'IT'
+          }
+        }
+      });
+    }
 
     // Per ogni SKU, inizializza catalog item, price e inventory
     const results = [];
@@ -774,6 +781,60 @@ export const initializeVendorCatalog: RequestHandler = async (req, res) => {
     });
   } catch (error: any) {
     console.error('Errore nell\'inizializzazione catalogo:', error);
+    handlePrismaError(error, res, null);
+  }
+};
+
+// Endpoint semplice per creare solo le vendor_catalog_items mancanti
+export const createVendorCatalogItems: RequestHandler = async (req, res) => {
+  try {
+    const { orgId } = req.params;
+
+    if (!orgId) {
+      return res.status(400).json({ error: 'orgId richiesto' });
+    }
+
+    // Trova tutti gli SKU attivi
+    const allSkus = await prisma.sku.findMany({
+      where: { status: 'ACTIVE' },
+      include: { product: true }
+    });
+
+    const results = [];
+    for (const sku of allSkus) {
+      // Crea vendor_catalog_item se non esiste
+      const catalogItem = await prisma.vendorCatalogItem.upsert({
+        where: {
+          vendor_org_id_sku_id: {
+            vendor_org_id: orgId,
+            sku_id: sku.id
+          }
+        },
+        update: {},
+        create: {
+          vendor_org_id: orgId,
+          sku_id: sku.id,
+          is_for_sale: true,
+          is_for_rent: false,
+          lead_time_days: 7,
+          notes: `Prodotto ${sku.product.name} - ${sku.product.model}`
+        }
+      });
+
+      results.push({
+        sku: sku.sku_code,
+        product: sku.product.name,
+        catalogItem
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Creati ${results.length} catalog items`,
+      results
+    });
+  } catch (error: any) {
+    console.error('Errore nella creazione catalog items:', error);
     handlePrismaError(error, res, null);
   }
 };

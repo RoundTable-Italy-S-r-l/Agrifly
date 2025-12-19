@@ -15,7 +15,7 @@ import { getSavedFields, createSavedField, getSavedFieldById, deleteSavedField }
 import { getGisCategories, getGisCategoryById } from "./routes/gis-categories";
 import { getOrders, getOrderStats, createSampleOrder } from "./routes/orders";
 import { getActiveMissions, getMissionsStats } from "./routes/missions";
-import { getPublicCatalog, getVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, initializeLenziCatalog, setupTestData } from "./routes/catalog";
+import { getPublicCatalog, getVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, initializeLenziCatalog, setupTestData, createVendorCatalogItems } from "./routes/catalog";
 import * as authRoutes from "./routes/auth";
 import { requireAuth } from "./middleware/auth";
 
@@ -109,6 +109,7 @@ export function createServer() {
   app.post("/api/catalog/vendor/:orgId/toggle", toggleVendorProduct);
   app.put("/api/catalog/vendor/:orgId/product", updateVendorProduct);
   app.post("/api/catalog/vendor/:orgId/initialize", initializeVendorCatalog);
+  app.post("/api/catalog/vendor/:orgId/create-items", createVendorCatalogItems);
   app.post("/api/catalog/initialize/lenzi", initializeLenziCatalog);
   app.post("/api/setup-test-data", setupTestData);
 
@@ -128,13 +129,21 @@ export function createServer() {
   return app;
 }
 
-// Avvia il server standalone se chiamato direttamente
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const port = process.env.PORT || 3001;
-  const server = createServer();
+// Avvia il server standalone quando eseguito direttamente
+// Con tsx/esm, il file viene sempre eseguito come main module
+const port = process.env.PORT || 3001;
+const server = createServer();
 
-  server.listen(port, () => {
-    console.log(`🚀 Server Express running on http://localhost:${port}`);
-    console.log(`📡 API available at http://localhost:${port}/api/*`);
-  });
-}
+server.listen(port, () => {
+  console.log(`🚀 Server Express running on http://localhost:${port}`);
+  console.log(`📡 API available at http://localhost:${port}/api/*`);
+});
+
+server.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${port} is already in use`);
+  } else {
+    console.error('❌ Server error:', err);
+  }
+  process.exit(1);
+});
