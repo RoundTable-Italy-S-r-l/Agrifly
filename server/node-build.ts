@@ -3,22 +3,24 @@ import { createServer } from "./index";
 import * as express from "express";
 
 const app = createServer();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 4000;
 
 // In production, serve the built SPA files
-const __dirname = import.meta.dirname;
-const distPath = path.join(__dirname, "../spa");
+const __filename = import.meta.url;
+const __dirname = path.dirname(new URL(__filename).pathname);
+const distPath = path.join(__dirname, "../dist/spa");
 
 // Serve static files
 app.use(express.static(distPath));
 
 // Handle React Router - serve index.html for all non-API routes
-app.get("*", (req, res) => {
-  // Don't serve index.html for API routes
+app.use((req, res) => {
+  // For API routes, return 404
   if (req.path.startsWith("/api/") || req.path.startsWith("/health")) {
     return res.status(404).json({ error: "API endpoint not found" });
   }
 
+  // For all other routes, serve the React app
   res.sendFile(path.join(distPath, "index.html"));
 });
 
