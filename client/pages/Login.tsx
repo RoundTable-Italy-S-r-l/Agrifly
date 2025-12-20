@@ -24,6 +24,7 @@ export default function Login() {
   // REGISTRAZIONE (Supabase)
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
     try {
       setLoading(true);
       setError("");
@@ -56,16 +57,23 @@ export default function Login() {
   // LOGIN (Supabase)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
     try {
       setLoading(true);
       setError("");
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (signInError) throw signInError;
+
+      // Ponte per il tuo codice attuale (Layout/Dashboard leggono auth_token)
+      const token = data.session?.access_token;
+      if (token) {
+        localStorage.setItem("auth_token", token);
+      }
 
       await queryClient.invalidateQueries();
       navigate("/dashboard");
@@ -95,9 +103,14 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
+        <form
+          onSubmit={isLogin ? handleLogin : handleRegister}
+          className="space-y-4"
+        >
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Email
+            </label>
             <input
               type="email"
               value={email}
@@ -112,7 +125,9 @@ export default function Login() {
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Nome</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Nome
+                  </label>
                   <input
                     type="text"
                     value={firstName}
@@ -123,7 +138,9 @@ export default function Login() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Cognome</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Cognome
+                  </label>
                   <input
                     type="text"
                     value={lastName}
@@ -149,7 +166,9 @@ export default function Login() {
           )}
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Password
+            </label>
             <input
               type="password"
               value={password}
@@ -161,15 +180,20 @@ export default function Login() {
             />
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+          >
             {loading ? "Caricamento..." : isLogin ? "Accedi" : "Registrati"}
           </Button>
         </form>
 
         <div className="mt-6 text-center">
           <button
+            type="button"
             onClick={() => {
-              setIsLogin(!isLogin);
+              setIsLogin((v) => !v);
               setError("");
             }}
             className="text-sm text-emerald-600 hover:underline"
