@@ -1,37 +1,43 @@
-import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { Layout } from '@/components/Layout';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const [msg, setMsg] = useState("Completo accesso...");
 
   useEffect(() => {
-    if (token) {
-      // Salva token (il backend ha già fornito user e organization nel redirect)
-      localStorage.setItem('auth_token', token);
-      
-      // Prova a recuperare user e organization dal localStorage se disponibili
-      // (il backend potrebbe averli passati come query params o li recuperiamo con una chiamata)
-      
-      queryClient.invalidateQueries();
-      navigate('/dashboard');
-    } else {
-      // Nessun token, redirect a login
-      navigate('/login?error=oauth_failed');
-    }
-  }, [token, navigate, queryClient]);
+    const run = async () => {
+      try {
+        const url = window.location.href;
+
+        // se c'è code=..., scambia il code per una sessione
+        if (url.includes("code=")) {
+          const { error } = await supabase.auth.exchangeCodeForSession(url);
+          if (error) throw error;
+        }
+
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        if (data.session) {
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+
+        setMsg("Sessione non trovata. Riprova login.");
+      } catch (e: any) {
+        setMsg(e?.message || "Errore callback");
+      }
+    };
+
+    run();
+  }, [navigate]);
 
   return (
-    <Layout>
-      <div className="max-w-md mx-auto mt-12 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-        <p className="text-slate-600">Accesso in corso...</p>
-      </div>
-    </Layout>
+    <div style={{ padding: 24 }}>
+      <h1>Auth callback</h1>
+      <p>{msg}</p>
+    </div>
   );
 }
-

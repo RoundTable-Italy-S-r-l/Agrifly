@@ -56,85 +56,56 @@ export default function Login() {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      setError('');
+const handleRegister = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    setLoading(true);
+    setError("");
 
-      const response = await fetch(`/.netlify/functions/auth-register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
           first_name: firstName,
           last_name: lastName,
-          phone: phone || undefined,
-          verification_code: verificationCode || undefined,
-        }),
-      });
+          phone: phone || null,
+        },
+      },
+    });
 
-      const data = await parseJsonSafe(response);
+    if (error) throw error;
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Errore nella registrazione');
-      }
+    setError("Registrazione avviata. Controlla l'email e clicca il link di conferma.");
+  } catch (err: any) {
+    setError(err?.message || "Errore registrazione");
+  } finally {
+    setLoading(false);
+  }
+};
 
-      // Salva token e redirect
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('organization', JSON.stringify(data.organization));
-        queryClient.invalidateQueries();
-        navigate('/dashboard');
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      setError('');
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    setLoading(true);
+    setError("");
 
-      const response = await fetch(`/.netlify/functions/auth-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-      const data = await parseJsonSafe(response);
+    if (error) throw error;
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Errore nel login');
-      }
-
-      // Se richiede selezione organization
-      if (data.requiresOrgSelection) {
-        setRequiresOrgSelection(true);
-        setOrganizations(data.organizations);
-        return;
-      }
-
-      // Salva token e redirect
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('organization', JSON.stringify(data.organization));
-        queryClient.invalidateQueries();
-        navigate('/dashboard');
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    navigate("/dashboard");
+  } catch (err: any) {
+    setError(err?.message || "Errore login");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSelectOrganization = async (orgId: string) => {
     try {
