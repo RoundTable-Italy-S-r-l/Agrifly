@@ -1,189 +1,92 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { Layout } from '@/components/Layout';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { Layout } from "@/components/Layout";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
-
-
-// In sviluppo, usa percorso relativo (Vite fa proxy automatico)
 
 export default function Login() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [showVerificationCode, setShowVerificationCode] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [requiresOrgSelection, setRequiresOrgSelection] = useState(false);
-  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [error, setError] = useState("");
 
-  // Helper per fare parsing sicuro della risposta JSON
-  const parseJsonSafe = async (response: Response) => {
-    const text = await response.text();
-    if (!text) return {};
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error('Resposta non JSON dal server:', text);
-      throw new Error('Risposta non valida dal server');
-    }
-  };
-
-  const handleSendVerificationCode = async () => {
+  // REGISTRAZIONE (Supabase)
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
-      const { error: otpError } = await supabase.auth.signInWithOtp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone || null,
+          },
+        },
       });
 
-      if (otpError) throw otpError;
+      if (signUpError) throw signUpError;
 
-      setShowVerificationCode(true);
+      setError(
+        "Registrazione avviata. Controlla la mail e clicca il link di conferma, poi torna qui e fai login."
+      );
     } catch (err: any) {
-      setError(err?.message || 'Errore invio codice');
+      setError(err?.message || "Errore nella registrazione");
     } finally {
       setLoading(false);
     }
   };
 
-const handleRegister = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    setLoading(true);
-    setError("");
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          phone: phone || null,
-        },
-      },
-    });
-
-    if (error) throw error;
-
-    setError("Registrazione avviata. Controlla l'email e clicca il link di conferma.");
-  } catch (err: any) {
-    setError(err?.message || "Errore registrazione");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    setLoading(true);
-    setError("");
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-
-    navigate("/dashboard");
-  } catch (err: any) {
-    setError(err?.message || "Errore login");
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const handleSelectOrganization = async (orgId: string) => {
+  // LOGIN (Supabase)
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
-      const response = await fetch(`/.netlify/functions/auth-select-organization`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, organization_id: orgId }),
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await parseJsonSafe(response);
+      if (signInError) throw signInError;
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Errore nella selezione');
-      }
-
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('organization', JSON.stringify(data.organization));
-        queryClient.invalidateQueries();
-        navigate('/dashboard');
-      }
+      await queryClient.invalidateQueries();
+      navigate("/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || "Errore nel login");
     } finally {
       setLoading(false);
     }
   };
-
-  if (requiresOrgSelection) {
-    return (
-      <Layout>
-        <div className="max-w-md mx-auto mt-12">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Seleziona Organization</h1>
-          <p className="text-slate-600 mb-8">Hai accesso a più organizzazioni. Scegli con quale vuoi accedere:</p>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {organizations.map((org) => (
-              <button
-                key={org.id}
-                onClick={() => handleSelectOrganization(org.id)}
-                disabled={loading}
-                className="w-full p-4 bg-white border-2 border-slate-200 rounded-lg hover:border-emerald-500 hover:bg-emerald-50 transition-all text-left"
-              >
-                <div className="font-bold text-slate-900">{org.name}</div>
-                <div className="text-sm text-slate-600 mt-1">
-                  Ruolo: {org.role === 'VENDOR_ADMIN' ? 'Amministratore Venditore' : 
-                          org.role === 'BUYER_ADMIN' ? 'Amministratore Acquirente' :
-                          org.role === 'DISPATCHER' ? 'Dispatcher' :
-                          org.role === 'PILOT' ? 'Pilota' : org.role}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
       <div className="max-w-md mx-auto mt-12">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">
-          {isLogin ? 'Accedi' : 'Registrati'}
+          {isLogin ? "Accedi" : "Registrati"}
         </h1>
+
         <p className="text-slate-600 mb-8">
-          {isLogin 
-            ? 'Accedi al tuo account per gestire la dashboard' 
-            : 'Crea un nuovo account per iniziare'}
+          {isLogin
+            ? "Accedi al tuo account per gestire la dashboard"
+            : "Crea un nuovo account per iniziare"}
         </p>
 
         {error && (
@@ -218,6 +121,7 @@ const handleLogin = async (e: React.FormEvent) => {
                     className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Cognome</label>
                   <input
@@ -231,7 +135,9 @@ const handleLogin = async (e: React.FormEvent) => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Telefono (opzionale)</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Telefono (opzionale)
+                </label>
                 <input
                   type="tel"
                   value={phone}
@@ -239,34 +145,6 @@ const handleLogin = async (e: React.FormEvent) => {
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
-
-              {!showVerificationCode && (
-                <button
-                  type="button"
-                  onClick={handleSendVerificationCode}
-                  disabled={loading || !email}
-                  className="w-full px-4 py-2 text-sm text-emerald-600 border border-emerald-600 rounded-lg hover:bg-emerald-50 transition disabled:opacity-50"
-                >
-                  Invia codice verifica email
-                </button>
-              )}
-
-              {showVerificationCode && (
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Codice verifica (6 cifre)</label>
-                  <input
-                    type="text"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    maxLength={6}
-                    placeholder="123456"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center text-2xl tracking-widest"
-                  />
-                  <p className="text-xs text-slate-500 mt-2">
-                    Il codice è stato inviato a {email}. Valido per 10 minuti.
-                  </p>
-                </div>
-              )}
             </>
           )}
 
@@ -283,12 +161,8 @@ const handleLogin = async (e: React.FormEvent) => {
             />
           </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
-          >
-            {loading ? 'Caricamento...' : isLogin ? 'Accedi' : 'Registrati'}
+          <Button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
+            {loading ? "Caricamento..." : isLogin ? "Accedi" : "Registrati"}
           </Button>
         </form>
 
@@ -296,39 +170,14 @@ const handleLogin = async (e: React.FormEvent) => {
           <button
             onClick={() => {
               setIsLogin(!isLogin);
-              setError('');
-              setShowVerificationCode(false);
-              setVerificationCode('');
+              setError("");
             }}
             className="text-sm text-emerald-600 hover:underline"
           >
-            {isLogin 
-              ? 'Non hai un account? Registrati' 
-              : 'Hai già un account? Accedi'}
+            {isLogin ? "Non hai un account? Registrati" : "Hai già un account? Accedi"}
           </button>
-        </div>
-
-        <div className="mt-8 pt-8 border-t border-slate-200">
-          <p className="text-xs text-slate-500 text-center mb-4">Oppure accedi con</p>
-          <div className="grid grid-cols-2 gap-3">
-            <a
-              href="/.netlify/functions/auth-google"
-
-              className="px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition text-center text-sm font-medium"
-            >
-              Google
-            </a>
-            <a
-              href="/.netlify/functions/auth-microsoft"
-
-              className="px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition text-center text-sm font-medium"
-            >
-              Microsoft
-            </a>
-          </div>
         </div>
       </div>
     </Layout>
   );
 }
-
