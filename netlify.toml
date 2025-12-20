@@ -1,6 +1,12 @@
 [build]
   command = "npm run build:client"
   publish = "dist/spa"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/send-verification-code"
+  to = "/.netlify/functions/send-verification-code"
+  status = 200
 
 [[redirects]]
   from = "/*"
