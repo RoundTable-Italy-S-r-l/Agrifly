@@ -83,6 +83,137 @@ export const getActiveMissions: RequestHandler = async (req, res) => {
   }
 };
 
+// Ottieni tutte le missioni con filtri
+export const getMissions: RequestHandler = async (req, res) => {
+  try {
+    const { orgId, period, serviceType, operatorId, status, location } = req.query;
+
+    if (!orgId || typeof orgId !== 'string') {
+      return res.status(400).json({ error: 'orgId richiesto' });
+    }
+
+    // Costruisci filtri
+    const where: any = {
+      booking: {
+        OR: [
+          { seller_org_id: orgId },
+          { executor_org_id: orgId }
+        ]
+      }
+    };
+
+    if (serviceType) {
+      where.booking = {
+        ...where.booking,
+        service_type: serviceType
+      };
+    }
+
+    if (status) {
+      if (status === 'DONE') {
+        where.executed_end_at = { not: null };
+      } else if (status === 'CANCELLED') {
+        where.booking = {
+          ...where.booking,
+          status: 'CANCELLED'
+        };
+      }
+    }
+
+    // Filtro periodo
+    if (period) {
+      const now = new Date();
+      let startDate: Date;
+      switch (period) {
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'season':
+          startDate = new Date(now.getFullYear(), 2, 1); // Marzo
+          break;
+        default:
+          startDate = new Date(0);
+      }
+      where.executed_start_at = { gte: startDate };
+    }
+
+    const missions = await prisma.mission.findMany({
+      where,
+      include: {
+        booking: {
+          include: {
+            buyer_org: true,
+            service_site: true,
+            booking_slots: {
+              include: {
+                booking_assignments: {
+                  include: {
+                    asset: {
+                      include: {
+                        product: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        booking_slot: {
+          include: {
+            booking_assignments: {
+              include: {
+                asset: {
+                  include: {
+                    product: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { executed_start_at: 'desc' },
+      take: 100
+    });
+
+    // Trasforma per il frontend
+    const transformed = missions.map(mission => {
+      // Prova a ottenere l'assegnazione dal booking_slot della missione, altrimenti dal primo slot del booking
+      const assignment = mission.booking_slot?.booking_assignments[0] || 
+                         mission.booking.booking_slots[0]?.booking_assignments[0];
+      const asset = assignment?.asset;
+      const model = asset?.product?.model || 'N/A';
+      
+      return {
+        id: mission.id,
+        booking_id: mission.booking_id,
+        service_type: mission.booking.service_type,
+        executed_start_at: mission.executed_start_at,
+        executed_end_at: mission.executed_end_at,
+        actual_area_ha: mission.actual_area_ha ? Number(mission.actual_area_ha) : null,
+        actual_hours: mission.actual_hours ? Number(mission.actual_hours) : null,
+        notes: mission.notes,
+        buyer_org_name: mission.booking.buyer_org.legal_name,
+        location: mission.booking.service_site?.name || mission.booking.service_site?.address || 'N/A',
+        lat: mission.booking.service_site?.lat ? Number(mission.booking.service_site.lat) : null,
+        lon: mission.booking.service_site?.lon ? Number(mission.booking.service_site.lon) : null,
+        operator: 'Operatore', // TODO: ottenere da User tramite pilot_user_id
+        model,
+        status: mission.executed_end_at ? 'DONE' : mission.executed_start_at ? 'IN_PROGRESS' : 'SCHEDULED'
+      };
+    });
+
+    res.json(transformed);
+  } catch (error: any) {
+    console.error('Errore nel recupero missioni:', error);
+    handlePrismaError(error, res, []);
+  }
+};
+
 // Ottieni statistiche missioni per dashboard
 export const getMissionsStats: RequestHandler = async (req, res) => {
   try {

@@ -14,8 +14,14 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import AdminCatalog from "./pages/AdminCatalog";
+import Orders from "./pages/Orders";
+import Servizi from "./pages/Servizi";
+import Missioni from "./pages/Missioni";
+import Operatori from "./pages/Operatori";
+import Prenotazioni from "./pages/Prenotazioni";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
+import AdminSettingsPage from "./pages/AdminSettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +39,12 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<DashboardAdmin />} />
           <Route path="/admin/catalogo" element={<AdminCatalog />} />
+          <Route path="/admin/ordini" element={<Orders />} />
+          <Route path="/admin/servizi" element={<Servizi />} />
+          <Route path="/admin/prenotazioni" element={<Prenotazioni />} />
+          <Route path="/admin/missioni" element={<Missioni />} />
+          <Route path="/admin/operatori" element={<Operatori />} />
+          <Route path="/admin/impostazioni" element={<AdminSettingsPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/drones/:id" element={<DroneDetail />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

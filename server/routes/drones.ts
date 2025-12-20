@@ -108,10 +108,16 @@ export const getDroneById: RequestHandler = async (req, res) => {
                   status: 'ACTIVE'
                 }
               },
-              take: 1
+              include: {
+                price_list: true
+              }
+            },
+            inventories: {
+              include: {
+                location: true
+              }
             }
-          },
-          take: 1
+          }
         }
       }
     });
@@ -120,9 +126,26 @@ export const getDroneById: RequestHandler = async (req, res) => {
       return res.status(404).json({ error: 'Drone not found' });
     }
 
-    const sku = product.skus[0];
+    // Prendi il primo SKU con prezzo attivo
+    const sku = product.skus.find(s => s.price_list_items.length > 0) || product.skus[0];
     const priceListItem = sku.price_list_items[0];
+    
+    // Calcola stock totale da tutti gli inventari
+    const totalStock = sku.inventories.reduce((sum, inv) => sum + inv.qty_on_hand, 0);
+    
     const drone = mapProductToDrone(product, sku, priceListItem);
+    
+    // Aggiungi informazioni disponibilità
+    (drone as any).stock = totalStock;
+    (drone as any).skus = product.skus.map(s => ({
+      id: s.id,
+      skuCode: s.sku_code,
+      stock: s.inventories.reduce((sum, inv) => sum + inv.qty_on_hand, 0),
+      locations: s.inventories.map(inv => ({
+        name: inv.location?.name || 'N/D',
+        stock: inv.qty_on_hand
+      }))
+    }));
 
     res.json(drone);
   } catch (error) {

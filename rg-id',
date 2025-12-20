@@ -1,0 +1,48 @@
+                                 Table "public.organizations"
+    Column    |              Type              | Collation | Nullable |        Default        
+--------------+--------------------------------+-----------+----------+-----------------------
+ id           | text                           |           | not null | 
+ legal_name   | text                           |           | not null | 
+ vat_number   | text                           |           |          | 
+ tax_code     | text                           |           |          | 
+ org_type     | "OrgType"                      |           | not null | 
+ address_line | text                           |           | not null | 
+ city         | text                           |           | not null | 
+ province     | text                           |           | not null | 
+ region       | text                           |           | not null | 
+ country      | text                           |           | not null | 'IT'::text
+ status       | "OrgStatus"                    |           | not null | 'ACTIVE'::"OrgStatus"
+ created_at   | timestamp(3) without time zone |           | not null | CURRENT_TIMESTAMP
+Indexes:
+    "organizations_pkey" PRIMARY KEY, btree (id)
+Referenced by:
+    TABLE "assets" CONSTRAINT "assets_managed_by_org_id_fkey" FOREIGN KEY (managed_by_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "assets" CONSTRAINT "assets_owning_org_id_fkey" FOREIGN KEY (owning_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "bookings" CONSTRAINT "bookings_buyer_org_id_fkey" FOREIGN KEY (buyer_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "bookings" CONSTRAINT "bookings_executor_org_id_fkey" FOREIGN KEY (executor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "bookings" CONSTRAINT "bookings_seller_org_id_fkey" FOREIGN KEY (seller_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "inventories" CONSTRAINT "inventories_vendor_org_id_fkey" FOREIGN KEY (vendor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "locations" CONSTRAINT "locations_org_id_fkey" FOREIGN KEY (org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "offers" CONSTRAINT "offers_vendor_org_id_fkey" FOREIGN KEY (vendor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "operator_profiles" CONSTRAINT "operator_profiles_org_id_fkey" FOREIGN KEY (org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "orders" CONSTRAINT "orders_buyer_org_id_fkey" FOREIGN KEY (buyer_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "orders" CONSTRAINT "orders_seller_org_id_fkey" FOREIGN KEY (seller_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "org_billing_profiles" CONSTRAINT "org_billing_profiles_org_id_fkey" FOREIGN KEY (org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "org_memberships" CONSTRAINT "org_memberships_org_id_fkey" FOREIGN KEY (org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "org_payment_accounts" CONSTRAINT "org_payment_accounts_org_id_fkey" FOREIGN KEY (org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "org_service_policies" CONSTRAINT "org_service_policies_vendor_org_id_fkey" FOREIGN KEY (vendor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "organization_invitations" CONSTRAINT "organization_invitations_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "payments" CONSTRAINT "payments_payee_org_id_fkey" FOREIGN KEY (payee_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "payments" CONSTRAINT "payments_payer_org_id_fkey" FOREIGN KEY (payer_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "platform_fees" CONSTRAINT "platform_fees_vendor_org_id_fkey" FOREIGN KEY (vendor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "price_lists" CONSTRAINT "price_lists_vendor_org_id_fkey" FOREIGN KEY (vendor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "quote_requests" CONSTRAINT "quote_requests_buyer_org_id_fkey" FOREIGN KEY (buyer_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "quotes" CONSTRAINT "quotes_executor_org_id_fkey" FOREIGN KEY (executor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "quotes" CONSTRAINT "quotes_seller_org_id_fkey" FOREIGN KEY (seller_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "rate_cards" CONSTRAINT "rate_cards_seller_org_id_fkey" FOREIGN KEY (seller_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "service_area_sets" CONSTRAINT "service_area_sets_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE SET NULL
+    TABLE "service_sites" CONSTRAINT "service_sites_buyer_org_id_fkey" FOREIGN KEY (buyer_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "vendor_catalog_items" CONSTRAINT "vendor_catalog_items_vendor_org_id_fkey" FOREIGN KEY (vendor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "vendor_operator_links" CONSTRAINT "vendor_operator_links_operator_org_id_fkey" FOREIGN KEY (operator_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "vendor_operator_links" CONSTRAINT "vendor_operator_links_vendor_org_id_fkey" FOREIGN KEY (vendor_org_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE
+

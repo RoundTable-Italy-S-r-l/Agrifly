@@ -173,16 +173,38 @@ export default function Catalogo() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {vendor.products.map(product => (
                       <div key={product.id} className="bg-slate-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        {/* Immagine */}
-                        <div className="aspect-square bg-white rounded-lg mb-4 flex items-center justify-center">
-                          {product.imageUrl ? (
+                        {/* Modello 3D GLB o Immagine */}
+                        <div className={`aspect-square rounded-lg mb-4 overflow-hidden ${
+                          product.glbUrl 
+                            ? 'bg-gradient-to-br from-slate-50 to-slate-100' 
+                            : 'bg-white'
+                        }`}>
+                          {product.glbUrl ? (
+                            // @ts-ignore - model-viewer è un web component
+                            <model-viewer
+                              src={product.glbUrl}
+                              alt={`Modello 3D ${product.name}`}
+                              auto-rotate
+                              camera-controls
+                              interaction-policy="allow-when-focused"
+                              style={{ width: '100%', height: '100%' }}
+                              className="object-contain"
+                              loading="lazy"
+                              camera-orbit="45deg 55deg 3m"
+                              field-of-view="50deg"
+                              min-camera-orbit="auto auto 2.5m"
+                              max-camera-orbit="auto auto 5m"
+                            />
+                          ) : product.imageUrl ? (
                             <img
                               src={product.imageUrl}
                               alt={product.name}
-                              className="w-full h-full object-contain rounded-lg"
+                              className="w-full h-full object-contain p-4"
                             />
                           ) : (
-                            <Package className="w-16 h-16 text-slate-400" />
+                            <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                              <Package className="w-16 h-16 text-slate-400" />
+                            </div>
                           )}
                         </div>
 
@@ -232,7 +254,7 @@ export default function Catalogo() {
                             >
                               <Button variant="outline" className="w-full text-sm">
                                 <Star className="w-4 h-4 mr-2" />
-                                Visualizza 3D
+                                Visualizza prodotto
                               </Button>
                             </Link>
                           )}

@@ -251,6 +251,7 @@ export const updateVendorProduct = (orgId: string, skuId: string, updates: {
   price?: number;
   leadTimeDays?: number;
   notes?: string;
+  stock?: number;
 }): Promise<any> =>
   apiRequest<any>(`/catalog/vendor/${orgId}/product`, {
     method: 'PUT',
@@ -267,7 +268,167 @@ export const initializeLenziCatalog = (): Promise<any> =>
     method: 'POST'
   });
 
+// Offers API (Bundle e Offerte)
+export interface Offer {
+  id: string;
+  vendor_org_id: string;
+  offer_type: 'BUNDLE' | 'PROMO' | 'SEASON_PACKAGE';
+  name: string;
+  rules_json: any;
+  valid_from: string;
+  valid_to: string | null;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
+export const fetchOffers = (orgId: string): Promise<Offer[]> =>
+  apiRequest<Offer[]>(`/offers/${orgId}`);
+
+export const createOffer = (orgId: string, offer: {
+  offer_type: 'BUNDLE' | 'PROMO' | 'SEASON_PACKAGE';
+  name: string;
+  rules_json: any;
+  valid_from: string;
+  valid_to?: string | null;
+  status?: 'ACTIVE' | 'INACTIVE';
+}): Promise<Offer> =>
+  apiRequest<Offer>(`/offers/${orgId}`, {
+    method: 'POST',
+    body: JSON.stringify(offer)
+  });
+
+export const updateOffer = (orgId: string, offerId: string, updates: {
+  name?: string;
+  rules_json?: any;
+  valid_from?: string;
+  valid_to?: string | null;
+  status?: 'ACTIVE' | 'INACTIVE';
+}): Promise<Offer> =>
+  apiRequest<Offer>(`/offers/${orgId}/${offerId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  });
+
+export const deleteOffer = (orgId: string, offerId: string): Promise<void> =>
+  apiRequest<void>(`/offers/${orgId}/${offerId}`, {
+    method: 'DELETE'
+  });
+
 export const setupTestData = (): Promise<any> =>
   apiRequest<any>('/setup-test-data', {
     method: 'POST'
   });
+
+// Services API (Rate Cards)
+export interface RateCard {
+  id: string;
+  seller_org_id: string;
+  service_type: 'SPRAY' | 'SPREAD' | 'MAPPING';
+  base_rate_per_ha_cents: number;
+  min_charge_cents: number;
+  travel_rate_per_km_cents: number;
+  hourly_operator_rate_cents: number | null;
+  seasonal_multipliers_json: any;
+  risk_multipliers_json: any;
+}
+
+export const fetchRateCards = (orgId: string): Promise<RateCard[]> =>
+  apiRequest<RateCard[]>(`/services/${orgId}`);
+
+export const fetchRateCard = (orgId: string, serviceType: string): Promise<RateCard> =>
+  apiRequest<RateCard>(`/services/${orgId}/${serviceType}`);
+
+export const upsertRateCard = (orgId: string, rateCard: {
+  service_type: 'SPRAY' | 'SPREAD' | 'MAPPING';
+  base_rate_per_ha_cents: number;
+  min_charge_cents: number;
+  travel_rate_per_km_cents: number;
+  hourly_operator_rate_cents?: number | null;
+  seasonal_multipliers_json?: any;
+  risk_multipliers_json?: any;
+}): Promise<RateCard> =>
+  apiRequest<RateCard>(`/services/${orgId}`, {
+    method: 'POST',
+    body: JSON.stringify(rateCard)
+  });
+
+export const deleteRateCard = (orgId: string, serviceType: string): Promise<void> =>
+  apiRequest<void>(`/services/${orgId}/${serviceType}`, {
+    method: 'DELETE'
+  });
+
+// Missions API
+export interface Mission {
+  id: string;
+  booking_id: string;
+  service_type: 'SPRAY' | 'SPREAD' | 'MAPPING';
+  executed_start_at: string;
+  executed_end_at: string | null;
+  actual_area_ha: number | null;
+  actual_hours: number | null;
+  notes: string | null;
+  buyer_org_name: string;
+  location: string;
+  lat: number | null;
+  lon: number | null;
+  operator: string;
+  model: string;
+  status: 'DONE' | 'IN_PROGRESS' | 'SCHEDULED';
+}
+
+export const fetchMissions = (orgId: string, filters?: {
+  period?: string;
+  serviceType?: string;
+  status?: string;
+}): Promise<Mission[]> => {
+  const params = new URLSearchParams({ orgId, ...filters });
+  return apiRequest<Mission[]>(`/missions?${params}`);
+};
+
+
+// Operators API
+export interface Operator {
+  id: string;
+  user_id: string;
+  org_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  service_tags: string[];
+  max_hours_per_day: number | null;
+  max_ha_per_day: number | null;
+  home_location: string | null;
+  service_area_set_name: string | null;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
+export const fetchOperators = (orgId: string): Promise<Operator[]> =>
+  apiRequest<Operator[]>(`/operators/${orgId}`);
+
+export const fetchOperator = (orgId: string, operatorId: string): Promise<any> =>
+  apiRequest(`/operators/${orgId}/${operatorId}`);
+
+// Bookings API
+export interface Booking {
+  id: string;
+  service_type: 'SPRAY' | 'SPREAD' | 'MAPPING';
+  status: 'REQUESTED' | 'CONFIRMED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+  buyer_org_name: string;
+  location: string;
+  lat: number | null;
+  lon: number | null;
+  start_at: string | null;
+  end_at: string | null;
+  model: string;
+  created_at: string;
+}
+
+export const fetchBookings = (orgId: string, filters?: {
+  status?: string;
+  period?: string;
+}): Promise<Booking[]> => {
+  const params = new URLSearchParams();
+  if (filters?.status) params.append('status', filters.status);
+  if (filters?.period) params.append('period', filters.period);
+  const queryString = params.toString();
+  return apiRequest<Booking[]>(`/bookings/${orgId}${queryString ? `?${queryString}` : ''}`);
+};

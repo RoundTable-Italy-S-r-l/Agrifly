@@ -3,7 +3,7 @@
   "buildCommand": "npm run build:client",
   "outputDirectory": "dist/spa",
   "installCommand": "npm install",
-  "framework": null,
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/api/(.*)",

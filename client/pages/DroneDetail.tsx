@@ -239,12 +239,41 @@ const DroneDetail = () => {
             </div>
 
             {/* Disponibilità */}
-            <div className="bg-slate-50 rounded-xl p-4 flex items-center gap-3">
-              <CheckCircle size={20} className="text-emerald-600" />
-              <div>
-                <p className="font-semibold text-slate-900">Disponibile</p>
-                <p className="text-sm text-slate-600">Tempi di consegna: 7-10 giorni lavorativi</p>
+            <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle size={20} className="text-emerald-600" />
+                <div>
+                  <p className="font-semibold text-slate-900">
+                    {droneAny.stock > 0 ? 'Disponibile' : 'Non disponibile'}
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    {droneAny.stock > 0 
+                      ? `${droneAny.stock} unità disponibili`
+                      : 'Temporaneamente esaurito'
+                    }
+                  </p>
+                </div>
               </div>
+              {droneAny.skus && droneAny.skus.length > 0 && (
+                <div className="pt-2 border-t border-slate-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">Disponibilità per SKU:</p>
+                  <div className="space-y-1">
+                    {droneAny.skus.map((sku: any) => (
+                      <div key={sku.id} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">{sku.skuCode}</span>
+                        <span className={`font-medium ${
+                          sku.stock > 0 ? 'text-emerald-600' : 'text-red-600'
+                        }`}>
+                          {sku.stock} unità
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-slate-500 pt-2 border-t border-slate-200">
+                Tempi di consegna: 7-10 giorni lavorativi
+              </p>
             </div>
           </div>
         </div>

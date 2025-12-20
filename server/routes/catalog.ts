@@ -19,64 +19,165 @@ export const getPublicCatalog: RequestHandler = async (req, res) => {
 
     const { category, vendor, minPrice, maxPrice } = req.query;
 
+    console.log('[getPublicCatalog] Query params:', { category, vendor, minPrice, maxPrice });
+
     // Costruisci filtro base
+    // Prima trova le organizzazioni ACTIVE
+    const activeOrgs = await prisma.organization.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true }
+    });
+    const activeOrgIds = activeOrgs.map(org => org.id);
+
+    console.log(`[getPublicCatalog] Organizzazioni ACTIVE trovate: ${activeOrgIds.length}`, activeOrgIds);
+
+    if (activeOrgIds.length === 0) {
+      console.log('[getPublicCatalog] Nessuna organizzazione ACTIVE trovata');
+      return res.json({ vendors: [] });
+    }
+
+    // Filtro base: prodotti con vendor_catalog_items per organizzazioni attive
     const whereClause: any = {
       vendor_catalog_items: {
         some: {
           is_for_sale: true,
-          vendor_org: {
-            status: 'ACTIVE'
+          vendor_org_id: {
+            in: activeOrgIds
           }
         }
       }
     };
 
-    // Filtro per categoria
+    // Filtro per categoria (product_type è su product, non su sku)
     if (category && typeof category === 'string') {
-      whereClause.product_type = category.toUpperCase();
+      whereClause.product = {
+        product_type: category.toUpperCase()
+      };
     }
 
-    // Filtro per vendor specifico
+    // Filtro per vendor specifico (sovrascrive il filtro base se specificato)
     if (vendor && typeof vendor === 'string') {
       whereClause.vendor_catalog_items = {
         some: {
           is_for_sale: true,
-          vendor_org: {
-            id: vendor
-          }
+          vendor_org_id: vendor
         }
       };
     }
 
-    // Filtro prezzo (se fornito)
+    // Filtro prezzo (se fornito) - usa price_list_items su sku, non su vendor_catalog_items
     if (minPrice || maxPrice) {
-      whereClause.vendor_catalog_items = {
+      whereClause.price_list_items = {
         some: {
-          is_for_sale: true,
-          price_list_items: {
-            some: {
-              price_list: {
-                status: 'ACTIVE'
-              },
-              price_cents: {
-                ...(minPrice && { gte: parseInt(minPrice as string) * 100 }),
-                ...(maxPrice && { lte: parseInt(maxPrice as string) * 100 })
-              }
-            }
+          price_list: {
+            status: 'ACTIVE'
+          },
+          price_cents: {
+            ...(minPrice && { gte: parseInt(minPrice as string) * 100 }),
+            ...(maxPrice && { lte: parseInt(maxPrice as string) * 100 })
           }
         }
       };
     }
 
     // Trova tutti i prodotti con vendor attivi
-    const products = await prisma.sku.findMany({
+    let products = await prisma.sku.findMany({
       where: whereClause,
       include: {
         product: true,
         vendor_catalog_items: {
           where: { is_for_sale: true },
           include: {
-            vendor_org: true,
+            vendor_org: true
+          }
+        },
+        price_list_items: {
+          where: {
+            price_list: { 
+              status: 'ACTIVE'
+            }
+          },
+          include: {
+            price_list: true
+          }
+        },
+        inventories: {
+          where: {
+            vendor_org_id: {
+              in: activeOrgIds
+            }
+          },
+          include: {
+            location: true
+          }
+        }
+      }
+    });
+
+    console.log(`[getPublicCatalog] Trovati ${products.length} SKU con vendor attivi (filtro ACTIVE)`);
+    
+    // Se non ci sono risultati, prova senza filtro status (per debug)
+    if (products.length === 0) {
+      console.log('[getPublicCatalog] Nessun risultato con filtro ACTIVE, provo senza filtro status...');
+      const whereClausePermissive: any = {
+        vendor_catalog_items: {
+          some: {
+            is_for_sale: true
+          }
+        }
+      };
+      
+      products = await prisma.sku.findMany({
+        where: whereClausePermissive,
+        include: {
+          product: true,
+          vendor_catalog_items: {
+            where: { is_for_sale: true },
+            include: {
+              vendor_org: true
+            }
+          },
+          price_list_items: {
+            where: {
+              price_list: { status: 'ACTIVE' }
+            },
+            include: {
+              price_list: true
+            }
+          },
+          inventories: {
+            include: {
+              location: true
+            }
+          }
+        }
+      });
+      
+      console.log(`[getPublicCatalog] Trovati ${products.length} SKU con is_for_sale: true (senza filtro status)`);
+      
+      // Se ancora non ci sono risultati, prova query ancora più semplice
+      if (products.length === 0) {
+        console.log('[getPublicCatalog] Provo query ancora più semplice...');
+        const simpleProducts = await prisma.sku.findMany({
+          where: {
+            vendor_catalog_items: {
+              some: {
+                is_for_sale: true,
+                vendor_org_id: 'lenzi-org-id' // Test diretto con Lenzi
+              }
+            }
+          },
+          include: {
+            product: true,
+            vendor_catalog_items: {
+              where: { 
+                is_for_sale: true,
+                vendor_org_id: 'lenzi-org-id'
+              },
+              include: {
+                vendor_org: true
+              }
+            },
             price_list_items: {
               where: {
                 price_list: { status: 'ACTIVE' }
@@ -84,16 +185,37 @@ export const getPublicCatalog: RequestHandler = async (req, res) => {
               include: {
                 price_list: true
               }
+            },
+            inventories: {
+              include: {
+                location: true
+              }
             }
-          }
-        },
-        inventories: {
-          include: {
-            location: true
-          }
-        }
+          },
+          take: 10
+        });
+        console.log(`[getPublicCatalog] Query semplice trovati ${simpleProducts.length} SKU`);
+        products = simpleProducts;
       }
-    });
+    }
+    
+    if (products.length > 0) {
+      console.log(`[getPublicCatalog] Primo SKU:`, {
+        id: products[0].id,
+        sku_code: products[0].sku_code,
+        vendor_items_count: products[0].vendor_catalog_items.length,
+        vendors: products[0].vendor_catalog_items.map(item => ({
+          org_id: item.vendor_org_id,
+          org_name: item.vendor_org.legal_name,
+          is_for_sale: item.is_for_sale,
+          org_status: item.vendor_org.status
+        }))
+      });
+    } else {
+      console.log('[getPublicCatalog] ATTENZIONE: Nessun prodotto trovato! Verifica:');
+      console.log('  - Esistono vendor_catalog_items con is_for_sale: true?');
+      console.log('  - Le organizzazioni hanno status: ACTIVE?');
+    }
 
     // Raggruppa per vendor
     const vendorGroups: { [key: string]: any } = {};
@@ -113,16 +235,57 @@ export const getPublicCatalog: RequestHandler = async (req, res) => {
           };
         }
 
-        // Trova prezzo per questo vendor
-        const priceItem = catalogItem.price_list_items[0];
+        // Trova prezzo per questo vendor (price_list_items è su sku, filtra per vendor_org_id)
+        const priceItem = sku.price_list_items.find(
+          item => item.price_list.vendor_org_id === vendorId
+        );
         const price = priceItem ? priceItem.price_cents / 100 : 0;
 
-        // Calcola stock totale
-        const totalStock = sku.inventories.reduce((sum, inv) => sum + inv.qty_on_hand, 0);
+        // Calcola stock totale solo per questo vendor
+        const totalStock = sku.inventories
+          .filter(inv => inv.vendor_org_id === vendorId)
+          .reduce((sum, inv) => sum + inv.qty_on_hand, 0);
+
+        // Estrai GLB URL - gestisce sia array di stringhe che array di oggetti
+        let glbUrl: string | null = null;
+        if (sku.product.glb_files_json) {
+          const glbFiles = sku.product.glb_files_json as any;
+          if (Array.isArray(glbFiles) && glbFiles.length > 0) {
+            const firstGlb = glbFiles[0];
+            // Se è una stringa (path), costruisci URL
+            if (typeof firstGlb === 'string') {
+              // Se inizia con /, è un path relativo - costruisci URL assoluto
+              glbUrl = firstGlb.startsWith('/') 
+                ? `http://localhost:3001${firstGlb}` 
+                : firstGlb;
+            } 
+            // Se è un oggetto con url
+            else if (firstGlb?.url) {
+              glbUrl = firstGlb.url.startsWith('/')
+                ? `http://localhost:3001${firstGlb.url}`
+                : firstGlb.url;
+            }
+          }
+        }
+
+        // Estrai image URL
+        let imageUrl: string | null = null;
+        if (sku.product.images_json) {
+          const images = sku.product.images_json as any;
+          if (Array.isArray(images) && images.length > 0) {
+            const firstImage = images[0];
+            imageUrl = typeof firstImage === 'string' 
+              ? firstImage 
+              : firstImage?.url || null;
+          }
+        }
 
         // Prepara dati prodotto
+        // Usa l'ID del prodotto (senza prefisso prd_) per compatibilità con /drones/:id
+        const productId = sku.product.id.replace('prd_', '');
         const productData = {
-          id: sku.id,
+          id: productId, // ID prodotto per navigazione a /drones/:id
+          skuId: sku.id, // ID SKU per riferimento interno
           skuCode: sku.sku_code,
           name: sku.product.name,
           model: sku.product.model,
@@ -132,8 +295,8 @@ export const getPublicCatalog: RequestHandler = async (req, res) => {
           currency: 'EUR',
           stock: totalStock,
           leadTimeDays: catalogItem.lead_time_days,
-          imageUrl: sku.product.images_json ? (sku.product.images_json as any)?.[0]?.url : null,
-          glbUrl: sku.product.glb_files_json ? (sku.product.glb_files_json as any)?.[0]?.url : null,
+          imageUrl: imageUrl,
+          glbUrl: glbUrl,
           description: sku.product.name,
           specs: sku.product.specs_core_json,
           vendorNotes: catalogItem.notes
@@ -147,6 +310,12 @@ export const getPublicCatalog: RequestHandler = async (req, res) => {
     const vendors = Object.values(vendorGroups)
       .sort((a: any, b: any) => b.products.length - a.products.length);
 
+    console.log(`[getPublicCatalog] Raggruppati in ${vendors.length} vendor:`, vendors.map((v: any) => ({
+      id: v.id,
+      name: v.name,
+      products_count: v.products.length
+    })));
+
     // Salva in cache
     catalogCache = { vendors };
     cacheTimestamp = now;
@@ -154,10 +323,16 @@ export const getPublicCatalog: RequestHandler = async (req, res) => {
     res.json({ vendors });
   } catch (error: any) {
     console.error('Errore nel recupero catalogo pubblico:', error);
+    console.error('Stack trace:', error.stack);
+    console.error('Error message:', error.message);
 
     // In caso di errore database, restituisci dati vuoti invece di errore
     // Questo previene il crash dell'interfaccia utente
-    res.json({ vendors: [] });
+    res.status(500).json({ 
+      error: 'Errore nel recupero catalogo',
+      message: error.message,
+      vendors: [] 
+    });
   }
 };
 
@@ -170,21 +345,25 @@ export const getVendorCatalog: RequestHandler = async (req, res) => {
       return res.status(400).json({ error: 'orgId richiesto' });
     }
 
+    // Trova price list attiva del vendor
+    const priceList = await prisma.priceList.findFirst({
+      where: { vendor_org_id: orgId, status: 'ACTIVE' }
+    });
+
     // Trova tutti i prodotti DJI
     const allSkus = await prisma.sku.findMany({
       where: { status: 'ACTIVE' },
       include: {
         product: true,
         vendor_catalog_items: {
-          where: { vendor_org_id: orgId },
-          include: {
-            price_list_items: {
-              include: {
-                price_list: true
-              }
-            }
-          }
+          where: { vendor_org_id: orgId }
         },
+        price_list_items: priceList ? {
+          where: { price_list_id: priceList.id },
+          include: {
+            price_list: true
+          }
+        } : false,
         inventories: {
           where: { vendor_org_id: orgId },
           include: {
@@ -194,27 +373,29 @@ export const getVendorCatalog: RequestHandler = async (req, res) => {
       }
     });
 
-    // Trasforma per il frontend
-    const catalog = allSkus.map(sku => {
-      const catalogItem = sku.vendor_catalog_items[0];
-      const priceItem = catalogItem?.price_list_items[0];
-      const inventory = sku.inventories[0];
+    // Trasforma per il frontend - solo SKU con vendor_catalog_item
+    const catalog = allSkus
+      .filter(sku => sku.vendor_catalog_items.length > 0)
+      .map(sku => {
+        const catalogItem = sku.vendor_catalog_items[0];
+        const priceItem = sku.price_list_items?.[0];
+        const inventory = sku.inventories[0];
 
-      return {
-        id: sku.id,
-        skuCode: sku.sku_code,
-        productName: sku.product.name,
-        productModel: sku.product.model,
-        productType: sku.product.product_type,
-        isActive: catalogItem?.is_for_sale || false,
-        isForRent: catalogItem?.is_for_rent || false,
-        price: priceItem ? priceItem.price_cents / 100 : null,
-        leadTimeDays: catalogItem?.lead_time_days || null,
-        stock: inventory?.qty_on_hand || 0,
-        location: inventory?.location?.name || null,
-        notes: catalogItem?.notes || null
-      };
-    });
+        return {
+          id: sku.id,
+          skuCode: sku.sku_code,
+          productName: sku.product.name,
+          productModel: sku.product.model,
+          productType: sku.product.product_type,
+          isActive: catalogItem?.is_for_sale || false,
+          isForRent: catalogItem?.is_for_rent || false,
+          price: priceItem ? priceItem.price_cents / 100 : null,
+          leadTimeDays: catalogItem?.lead_time_days || null,
+          stock: inventory?.qty_on_hand || 0,
+          location: inventory?.location?.name || null,
+          notes: catalogItem?.notes || null
+        };
+      });
 
     res.json({ catalog });
   } catch (error: any) {
@@ -259,11 +440,11 @@ export const toggleVendorProduct: RequestHandler = async (req, res) => {
   }
 };
 
-// Aggiorna prezzo e lead time per vendor
+// Aggiorna prezzo, lead time, note e stock per vendor
 export const updateVendorProduct: RequestHandler = async (req, res) => {
   try {
     const { orgId } = req.params;
-    const { skuId, price, leadTimeDays, notes } = req.body;
+    const { skuId, price, leadTimeDays, notes, stock } = req.body;
 
     if (!orgId || !skuId) {
       return res.status(400).json({ error: 'orgId e skuId richiesti' });
@@ -314,6 +495,36 @@ export const updateVendorProduct: RequestHandler = async (req, res) => {
             sku_id: skuId,
             price_cents: price * 100,
             tax_code: '22'
+          }
+        });
+      }
+    }
+
+    // Aggiorna stock (inventory) se fornito
+    if (stock !== undefined) {
+      // Trova location principale del vendor
+      const location = await prisma.location.findFirst({
+        where: { org_id: orgId }
+      });
+
+      if (location) {
+        await prisma.inventory.upsert({
+          where: {
+            vendor_org_id_location_id_sku_id: {
+              vendor_org_id: orgId,
+              location_id: location.id,
+              sku_id: skuId
+            }
+          },
+          update: {
+            qty_on_hand: stock
+          },
+          create: {
+            vendor_org_id: orgId,
+            location_id: location.id,
+            sku_id: skuId,
+            qty_on_hand: stock,
+            qty_reserved: 0
           }
         });
       }

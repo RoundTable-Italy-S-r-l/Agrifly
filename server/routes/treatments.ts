@@ -11,7 +11,9 @@ export const getTreatments: RequestHandler = async (req, res) => {
     });
     res.json(treatments);
   } catch (error: any) {
-    handlePrismaError(error, res, []);
+    console.error('Errore nel recupero treatments:', error);
+    // Restituisci array vuoto invece di errore per non bloccare il frontend
+    res.json([]);
   }
 };
 

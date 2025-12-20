@@ -12,7 +12,9 @@ export const getGisCategories: RequestHandler = async (req, res) => {
     });
     res.json(categories);
   } catch (error: any) {
-    handlePrismaError(error, res, []);
+    console.error('Errore nel recupero GIS categories:', error);
+    // Restituisci array vuoto invece di errore per non bloccare il frontend
+    res.json([]);
   }
 };
 

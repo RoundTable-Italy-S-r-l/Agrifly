@@ -13,10 +13,15 @@ import { getTreatments, getTreatmentsByCategory, getTreatmentById } from "./rout
 import { getAffiliates, getAffiliateById } from "./routes/affiliates";
 import { getSavedFields, createSavedField, getSavedFieldById, deleteSavedField } from "./routes/fields";
 import { getGisCategories, getGisCategoryById } from "./routes/gis-categories";
-import { getOrders, getOrderStats, createSampleOrder } from "./routes/orders";
-import { getActiveMissions, getMissionsStats } from "./routes/missions";
-import { getPublicCatalog, getVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, initializeLenziCatalog, setupTestData, createVendorCatalogItems } from "./routes/catalog";
+import { getOrders, getOrderStats, createSampleOrder, updateOrderStatus } from "./routes/orders";
+import { getMissions, getActiveMissions, getMissionsStats } from "./routes/missions";
+import { getPublicCatalog, getVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, initializeLenziCatalog, setupTestData } from "./routes/catalog";
+import { getOffers, createOffer, updateOffer, deleteOffer } from "./routes/offers";
+import { getRateCards, getRateCard, upsertRateCard, deleteRateCard } from "./routes/services";
+import { getOperators, getOperator } from "./routes/operators";
+import { getBookings } from "./routes/bookings";
 import * as authRoutes from "./routes/auth";
+import settingsRoutes from "./routes/settings";
 import { requireAuth } from "./middleware/auth";
 
 export function createServer() {
@@ -95,11 +100,14 @@ export function createServer() {
   app.get("/api/gis-categories/:id", getGisCategoryById);
 
   // Orders API
-  app.get("/api/orders", getOrders);
+  // Route specifica prima delle route generiche per evitare conflitti
+  app.put("/api/orders/:orderId/status", updateOrderStatus);
   app.get("/api/orders/stats", getOrderStats);
+  app.get("/api/orders", getOrders);
   app.post("/api/orders/sample", createSampleOrder);
 
   // Missions API
+  app.get("/api/missions", getMissions);
   app.get("/api/missions/active", getActiveMissions);
   app.get("/api/missions/stats", getMissionsStats);
 
@@ -109,9 +117,28 @@ export function createServer() {
   app.post("/api/catalog/vendor/:orgId/toggle", toggleVendorProduct);
   app.put("/api/catalog/vendor/:orgId/product", updateVendorProduct);
   app.post("/api/catalog/vendor/:orgId/initialize", initializeVendorCatalog);
-  app.post("/api/catalog/vendor/:orgId/create-items", createVendorCatalogItems);
   app.post("/api/catalog/initialize/lenzi", initializeLenziCatalog);
   app.post("/api/setup-test-data", setupTestData);
+
+  // Offers API (Bundle e Offerte)
+  app.get("/api/offers/:orgId", getOffers);
+  app.post("/api/offers/:orgId", createOffer);
+  app.put("/api/offers/:orgId/:offerId", updateOffer);
+  app.delete("/api/offers/:orgId/:offerId", deleteOffer);
+
+  // Services API (Rate Cards)
+  app.get("/api/services/:orgId", getRateCards);
+  app.get("/api/services/:orgId/:serviceType", getRateCard);
+  app.post("/api/services/:orgId", upsertRateCard);
+  app.put("/api/services/:orgId", upsertRateCard);
+  app.delete("/api/services/:orgId/:serviceType", deleteRateCard);
+
+  // Operators API
+  app.get("/api/operators/:orgId", getOperators);
+  app.get("/api/operators/:orgId/:operatorId", getOperator);
+
+  // Bookings API
+  app.get("/api/bookings/:orgId", getBookings);
 
   // Auth API
   app.post("/api/auth/send-verification-code", authRoutes.sendVerificationCode);
@@ -125,6 +152,9 @@ export function createServer() {
   app.get("/api/auth/microsoft", authRoutes.microsoftAuth);
   app.get("/api/auth/microsoft/callback", authRoutes.microsoftCallback);
   app.post("/api/auth/invite", requireAuth, authRoutes.inviteToOrganization);
+
+  // Settings API
+  app.use("/api/settings", settingsRoutes);
 
   return app;
 }

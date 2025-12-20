@@ -54,12 +54,20 @@ export function Layout({ children }: LayoutProps) {
 
           <div className="flex items-center gap-2 md:gap-3">
             {isAuthenticated ? (
-              <Link
-                to="/admin"
-                className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
-              >
-                <span>Dashboard</span>
-              </Link>
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  to="/admin"
+                  className="inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                >
+                  <span>Dashboard</span>
+                </Link>
+                <Link
+                  to="/admin/impostazioni"
+                  className="inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                >
+                  <span>Impostazioni</span>
+                </Link>
+              </div>
             ) : (
               <Link
                 to="/login"

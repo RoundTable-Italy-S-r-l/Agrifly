@@ -38,6 +38,7 @@ model User {
   external_calendar_connections ExternalCalendarConnection[]
   verification_codes            VerificationCode[]
   organization_invitations      OrganizationInvitation[]
+  notification_preferences      UserNotificationPreferences?
 
   @@unique([oauth_provider, oauth_id])
   @@map("users")
@@ -640,7 +641,7 @@ model Order {
   buyer_org_id  String      @map("buyer_org_id")
   seller_org_id String      @map("seller_org_id")
   quote_id      String?     @map("quote_id")
-  order_status  OrderStatus @default(CREATED) @map("order_status")
+  order_status  OrderStatus @default(PAID) @map("order_status")
   total_cents   Int         @map("total_cents")
   currency      String      @default("EUR") @map("currency")
   created_at    DateTime    @default(now()) @map("created_at")
@@ -654,10 +655,11 @@ model Order {
 }
 
 enum OrderStatus {
-  CREATED
   PAID
+  SHIPPED
   FULFILLED
   CANCELLED
+  PROBLEMATIC
 }
 
 model OrderLine {
@@ -1085,6 +1087,31 @@ model ServiceSite {
   bookings  Booking[]
 
   @@map("service_sites")
+}
+
+// ============================================================================
+// USER NOTIFICATION PREFERENCES
+// ============================================================================
+
+model UserNotificationPreferences {
+  id                String   @id @default(cuid()) @map("id")
+  user_id           String   @unique @map("user_id")
+
+  // Email notifications
+  email_orders      Boolean  @default(true) @map("email_orders")
+  email_payments    Boolean  @default(true) @map("email_payments")
+  email_updates     Boolean  @default(false) @map("email_updates")
+
+  // In-app notifications
+  inapp_orders      Boolean  @default(true) @map("inapp_orders")
+  inapp_messages    Boolean  @default(true) @map("inapp_messages")
+
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
 }
 
 // ============================================================================
