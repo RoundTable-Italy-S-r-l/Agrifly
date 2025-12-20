@@ -79,9 +79,10 @@ const orgs = await prisma.organization.findMany({ take: 20 });
 DATABASE_URL="postgresql://postgres:66tY3_C_%255iAR8c@db.fzowfkfwriajohjjboed.supabase.co:5432/postgres?sslmode=require"
 
 # Supabase API
-SUPABASE_URL="https://fzowfkfwriajohjjboed.supabase.co"
-SUPABASE_ANON_KEY="sb_publishable_7twpz0lUwybaxAB4-1swfg_1mRg5Z6N"
-SUPABASE_SERVICE_ROLE_KEY="sb_secret_suMNhaT9YiCnVCeC0_nPmQ_3untRk1-"
+SUPABASE_URL="<SET_IN_NETLIFY_ENV_VARS>"
+SUPABASE_ANON_KEY="<SET_IN_NETLIFY_ENV_VARS>"
+SUPABASE_SERVICE_ROLE_KEY="<DO_NOT_COMMIT_THIS>"
+
 
 # Server
 PORT=3001
