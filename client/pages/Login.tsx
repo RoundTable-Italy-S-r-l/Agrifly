@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { supabase } from "@/lib/supabase";
+
 
 // In sviluppo, usa percorso relativo (Vite fa proxy automatico)
-// In produzione, usa VITE_API_URL se definito
-const API_URL = "";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -40,20 +40,17 @@ export default function Login() {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(`/.netlify/functions/send-verification-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
 
-      if (!response.ok) {
-        const data = await parseJsonSafe(response);
-        throw new Error(data.error || 'Errore nell\'invio del codice');
-      }
+      if (otpError) throw otpError;
 
       setShowVerificationCode(true);
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Errore invio codice');
     } finally {
       setLoading(false);
     }
@@ -65,7 +62,7 @@ export default function Login() {
       setLoading(true);
       setError('');
 
-      const response = await fetch(`${API_URL}/api/auth/register`, {
+      const response = await fetch(`/.netlify/functions/auth-register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -105,7 +102,7 @@ export default function Login() {
       setLoading(true);
       setError('');
 
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      const response = await fetch(`/.netlify/functions/auth-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -144,7 +141,7 @@ export default function Login() {
       setLoading(true);
       setError('');
 
-      const response = await fetch(`${API_URL}/api/auth/select-organization`, {
+      const response = await fetch(`/.netlify/functions/auth-select-organization`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, organization_id: orgId }),
@@ -344,13 +341,15 @@ export default function Login() {
           <p className="text-xs text-slate-500 text-center mb-4">Oppure accedi con</p>
           <div className="grid grid-cols-2 gap-3">
             <a
-              href={`${API_URL}/api/auth/google`}
+              href="/.netlify/functions/auth-google"
+
               className="px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition text-center text-sm font-medium"
             >
               Google
             </a>
             <a
-              href={`${API_URL}/api/auth/microsoft`}
+              href="/.netlify/functions/auth-microsoft"
+
               className="px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition text-center text-sm font-medium"
             >
               Microsoft
