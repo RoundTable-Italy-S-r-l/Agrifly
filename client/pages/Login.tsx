@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 
 // In sviluppo, usa percorso relativo (Vite fa proxy automatico)
 // In produzione, usa VITE_API_URL se definito
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : 'http://localhost:8080');
+const API_URL = "";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ export default function Login() {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(`${API_URL}/api/auth/send-verification-code`, {
+      const response = await fetch(`/.netlify/functions/send-verification-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
