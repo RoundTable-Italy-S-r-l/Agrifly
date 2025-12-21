@@ -5,16 +5,37 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Prepara DATABASE_URL per Prisma con prepared statements disabilitati se usa pooler
+// Prepara DATABASE_URL per Prisma
+// Per Supabase, usiamo il pooler (porta 6543) con ?pgbouncer=true per disabilitare prepared statements
 const getDatabaseUrl = () => {
   const dbUrl = process.env.DATABASE_URL || '';
-  // Se usa connection pooler (porta 6543), aggiungi parametro per disabilitare prepared statements
+  // Se usa connection pooler (porta 6543), aggiungi parametro pgbouncer
   if (dbUrl.includes(':6543/')) {
-    // Usa direct connection invece del pooler per Prisma
-    return dbUrl.replace(':6543/', ':5432/');
+    // Aggiungi ?pgbouncer=true se non presente, altrimenti aggiungi &pgbouncer=true
+    if (dbUrl.includes('?')) {
+      const url = dbUrl + '&pgbouncer=true';
+      console.log('[Prisma] Usando pooler con pgbouncer=true');
+      return url;
+    } else {
+      const url = dbUrl + '?pgbouncer=true';
+      console.log('[Prisma] Usando pooler con pgbouncer=true');
+      return url;
+    }
   }
   return dbUrl;
 };
+
+// Forza ricreazione del Prisma Client se necessario
+// Nota: $disconnect() è asincrono, ma qui siamo in top-level code
+// Quindi disconnettiamo in modo sincrono e forziamo la ricreazione
+if (globalForPrisma.prisma) {
+  console.log('[Prisma] Forzo ricreazione Prisma Client...');
+  // Non possiamo fare await qui, quindi semplicemente resettiamo
+  globalForPrisma.prisma = undefined;
+}
+
+const dbUrl = getDatabaseUrl();
+console.log('[Prisma] Database URL configurato:', dbUrl.replace(/:[^:@]*@/, ':****@'));
 
 export const prisma =
   globalForPrisma.prisma ??
@@ -22,7 +43,7 @@ export const prisma =
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     datasources: {
       db: {
-        url: getDatabaseUrl(),
+        url: dbUrl,
       },
     },
   });

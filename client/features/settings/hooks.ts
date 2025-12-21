@@ -165,11 +165,20 @@ export function useNotificationPreferences() {
   return useQuery({
     queryKey: ['notifications', 'preferences'],
     queryFn: async () => {
-      const response = await api.get('/settings/notifications')
-      return response
+      try {
+        const response = await api.get('/settings/notifications')
+        return response
+      } catch (error: any) {
+        // If unauthorized, throw a specific error that can be handled
+        if (error.status === 401 || error.status === 403) {
+          throw new Error('UNAUTHORIZED')
+        }
+        throw error
+      }
     },
     retry: (failureCount, error: any) => {
-      if (error?.status === 401 || error?.status === 403) {
+      // Don't retry on auth errors
+      if (error?.message === 'UNAUTHORIZED') {
         return false
       }
       return failureCount < 2
@@ -189,8 +198,16 @@ export function useUpdateNotificationPreferences() {
       inapp_orders?: boolean
       inapp_messages?: boolean
     }) => {
-      const response = await api.patch('/settings/notifications', data)
-      return response
+      try {
+        const response = await api.patch('/settings/notifications', data)
+        return response
+      } catch (error: any) {
+        // If unauthorized, throw a specific error
+        if (error.status === 401 || error.status === 403) {
+          throw new Error('UNAUTHORIZED')
+        }
+        throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', 'preferences'] })

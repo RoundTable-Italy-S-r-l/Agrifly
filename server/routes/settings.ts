@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { prisma } from '../utils/prisma'
 import { requireAuth } from '../middleware/auth'
 import { z } from 'zod'
 
@@ -385,18 +386,24 @@ router.get('/notifications', requireAuth, async (req, res) => {
   try {
     const userId = req.user!.userId
 
-    // For now, return mock data since Prisma is having issues
-    // TODO: Fix Prisma prepared statements issue
-    const preferences = {
-      id: 'mock-id',
-      user_id: userId,
-      email_orders: true,
-      email_payments: true,
-      email_updates: false,
-      inapp_orders: true,
-      inapp_messages: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    // Try to find existing preferences using simple query
+    const preferences = await prisma.userNotificationPreferences.findFirst({
+      where: { user_id: userId }
+    })
+
+    if (!preferences) {
+      // Create default preferences
+      const newPreferences = await prisma.userNotificationPreferences.create({
+        data: {
+          user_id: userId,
+          email_orders: true,
+          email_payments: true,
+          email_updates: false,
+          inapp_orders: true,
+          inapp_messages: true,
+        }
+      })
+      return res.json(newPreferences)
     }
 
     res.json(preferences)
@@ -412,14 +419,26 @@ router.put('/notifications', requireAuth, async (req, res) => {
     const userId = req.user!.userId
     const validatedData = notificationPreferencesSchema.parse(req.body)
 
-    // For now, just return the validated data as mock response
-    // TODO: Fix Prisma prepared statements issue
-    const preferences = {
-      id: 'mock-id',
-      user_id: userId,
-      ...validatedData,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    // Check if preferences exist
+    const existing = await prisma.userNotificationPreferences.findFirst({
+      where: { user_id: userId }
+    })
+
+    let preferences
+    if (existing) {
+      // Update existing preferences
+      preferences = await prisma.userNotificationPreferences.update({
+        where: { id: existing.id },
+        data: validatedData
+      })
+    } else {
+      // Create new preferences
+      preferences = await prisma.userNotificationPreferences.create({
+        data: {
+          user_id: userId,
+          ...validatedData
+        }
+      })
     }
 
     res.json(preferences)

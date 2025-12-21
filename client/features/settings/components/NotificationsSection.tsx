@@ -9,7 +9,7 @@ import { useNotificationPreferences, useUpdateNotificationPreferences } from '..
 
 export function NotificationsSection() {
   const { toast } = useToast()
-  const { data: preferences, isLoading } = useNotificationPreferences()
+  const { data: preferences, isLoading, error } = useNotificationPreferences()
   const updateMutation = useUpdateNotificationPreferences()
 
   // Local state for switches
@@ -44,13 +44,71 @@ export function NotificationsSection() {
         title: 'Impostazioni salvate',
         description: 'Le tue preferenze di notifica sono state aggiornate.',
       })
-    } catch (error) {
-      toast({
-        title: 'Errore',
-        description: 'Si è verificato un errore durante il salvataggio.',
-        variant: 'destructive',
-      })
+    } catch (error: any) {
+      if (error?.message === 'UNAUTHORIZED') {
+        toast({
+          title: 'Sessione scaduta',
+          description: 'La tua sessione è scaduta. Effettua nuovamente il login.',
+          variant: 'destructive',
+        })
+        // Redirect to login after a delay
+        setTimeout(() => window.location.href = '/login', 2000)
+      } else {
+        toast({
+          title: 'Errore',
+          description: 'Si è verificato un errore durante il salvataggio.',
+          variant: 'destructive',
+        })
+      }
     }
+  }
+
+  // Handle authentication errors
+  if (error && error.message === 'UNAUTHORIZED') {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center space-y-4">
+            <div className="text-red-600">
+              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900">Accesso non autorizzato</h3>
+            <p className="text-gray-500">
+              Devi essere autenticato per visualizzare le impostazioni delle notifiche.
+            </p>
+            <Button variant="emerald" onClick={() => window.location.href = '/login'}>
+              Vai al Login
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Handle other errors
+  if (error && error.message !== 'UNAUTHORIZED') {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center space-y-4">
+            <div className="text-red-600">
+              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900">Errore di caricamento</h3>
+            <p className="text-gray-500">
+              Si è verificato un errore nel caricamento delle preferenze di notifica.
+            </p>
+            <Button variant="emerald" onClick={() => window.location.reload()}>
+              Riprova
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   if (isLoading) {

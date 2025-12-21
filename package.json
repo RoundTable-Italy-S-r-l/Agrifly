@@ -26,6 +26,7 @@
     "db:create-admin": "tsx server/scripts/create-admin-user.ts",
     "db:create-sample-orders": "tsx server/scripts/create-sample-orders.ts",
     "db:fix-order-statuses": "tsx server/scripts/fix-order-statuses.ts",
+    "db:create-sample-services": "tsx server/scripts/create-sample-services-operators-missions.ts",
     "manage:memberships": "node manage-memberships.js",
     "fix:giacomo": "node fix-giacomo-membership.js",
     "fix:giacomo-api": "node fix-giacomo-api.js",
