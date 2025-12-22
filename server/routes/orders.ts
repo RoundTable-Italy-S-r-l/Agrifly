@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { handlePrismaError } from "../utils/error-handler";
 import { prisma } from "../utils/prisma";
+import { OrderStatus } from "../../generated/prisma/client";
 
 // Ottieni tutti gli ordini per un'organizzazione (sia buyer che seller)
 export const getOrders: RequestHandler = async (req, res) => {
@@ -14,7 +15,7 @@ export const getOrders: RequestHandler = async (req, res) => {
     console.log('🔵 getOrders chiamato per orgId:', orgId);
 
     // Carica ordini con Prisma, filtrando solo stati validi
-    const validStatuses = ['PAID', 'SHIPPED', 'FULFILLED', 'CANCELLED', 'PROBLEMATIC'];
+    const validStatuses: OrderStatus[] = ['PAID', 'SHIPPED', 'FULFILLED', 'CANCELLED', 'PROBLEMATIC'];
     
     const orders = await prisma.order.findMany({
       where: {
