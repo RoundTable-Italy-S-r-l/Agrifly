@@ -20,7 +20,7 @@ export const getActiveMissions: RequestHandler = async (req, res) => {
       include: {
         booking_slots: {
           include: {
-            booking_assignments: {
+            assignments: {
               include: {
                 asset: {
                   include: {
@@ -40,7 +40,7 @@ export const getActiveMissions: RequestHandler = async (req, res) => {
 
       // Ottieni operatori per le assegnazioni
       const assignmentUserIds = activeBookings
-        .flatMap(b => b.booking_slots.flatMap(s => s.booking_assignments.map(a => a.pilot_user_id)))
+        .flatMap(b => b.booking_slots.flatMap(s => s.assignments.map(a => a.pilot_user_id)))
         .filter((id): id is string => id !== null);
 
       const users = assignmentUserIds.length > 0 ? await prisma.user.findMany({
@@ -53,7 +53,7 @@ export const getActiveMissions: RequestHandler = async (req, res) => {
       // Trasforma per il frontend
       const transformedMissions = activeBookings.map(booking => {
         const firstSlot = booking.booking_slots[0];
-        const firstAssignment = firstSlot?.booking_assignments[0];
+        const firstAssignment = firstSlot?.assignments[0];
         const mission = firstSlot?.missions[0];
         const pilotUser = firstAssignment?.pilot_user_id ? userMap.get(firstAssignment.pilot_user_id) : null;
 
@@ -161,7 +161,7 @@ export const getMissions: RequestHandler = async (req, res) => {
             service_site: true,
             booking_slots: {
               include: {
-                booking_assignments: {
+                assignments: {
                   include: {
                     asset: {
                       include: {
@@ -176,7 +176,7 @@ export const getMissions: RequestHandler = async (req, res) => {
         },
         booking_slot: {
           include: {
-            booking_assignments: {
+            assignments: {
               include: {
                 asset: {
                   include: {
@@ -195,8 +195,8 @@ export const getMissions: RequestHandler = async (req, res) => {
     // Trasforma per il frontend
     const transformed = missions.map(mission => {
       // Prova a ottenere l'assegnazione dal booking_slot della missione, altrimenti dal primo slot del booking
-      const assignment = mission.booking_slot?.booking_assignments[0] || 
-                         mission.booking.booking_slots[0]?.booking_assignments[0];
+      const assignment = mission.booking_slot?.assignments[0] ||
+                         mission.booking.booking_slots[0]?.assignments[0];
       const asset = assignment?.asset;
       const model = asset?.product?.model || 'N/A';
       

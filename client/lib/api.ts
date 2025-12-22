@@ -357,7 +357,7 @@ export const deleteRateCard = (orgId: string, serviceType: string): Promise<void
   });
 
 // Missions API
-export interface Mission {
+export interface MissionHistory {
   id: string;
   booking_id: string;
   service_type: 'SPRAY' | 'SPREAD' | 'MAPPING';
@@ -379,9 +379,9 @@ export const fetchMissions = (orgId: string, filters?: {
   period?: string;
   serviceType?: string;
   status?: string;
-}): Promise<Mission[]> => {
+}): Promise<MissionHistory[]> => {
   const params = new URLSearchParams({ orgId, ...filters });
-  return apiRequest<Mission[]>(`/missions?${params}`);
+  return apiRequest<MissionHistory[]>(`/missions?${params}`);
 };
 
 
