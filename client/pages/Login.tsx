@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
+import { authAPI } from "@/lib/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // REGISTRAZIONE (Supabase)
+  // REGISTRAZIONE (Sistema custom come Agoralia)
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -29,24 +29,27 @@ export default function Login() {
       setLoading(true);
       setError("");
 
-      const { error: signUpError } = await supabase.auth.signUp({
+      const data = await authAPI.register({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            phone: phone || null,
-          },
-        },
+        firstName,
+        lastName,
+        phone,
+        organizationName: `${firstName} ${lastName}` // Nome org di default
       });
 
-      if (signUpError) throw signUpError;
+      // Salva JWT e organizzazione
+      localStorage.setItem("auth_token", data.token);
+      localStorage.setItem('organization', JSON.stringify(data.organization));
 
       setError(
-        "Registrazione avviata. Controlla la mail e clicca il link di conferma, poi torna qui e fai login."
+        "Registrazione completata! Controlla la tua email per il codice di verifica."
       );
+
+      // Reindirizza alla dashboard (verifica email opzionale)
+      await queryClient.invalidateQueries();
+      navigate("/dashboard");
+
     } catch (err: any) {
       setError(err?.message || "Errore nella registrazione");
     } finally {
@@ -54,7 +57,7 @@ export default function Login() {
     }
   };
 
-  // LOGIN (Supabase)
+  // LOGIN (Sistema custom come Agoralia)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -62,49 +65,17 @@ export default function Login() {
       setLoading(true);
       setError("");
 
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const data = await authAPI.login(email, password);
 
-      if (signInError) throw signInError;
+      // Salva JWT e organizzazione
+      localStorage.setItem("auth_token", data.token);
+      localStorage.setItem('organization', JSON.stringify(data.organization));
 
-      // Scambia token Supabase con JWT nostro + organizzazione
-      const supabaseToken = data.session?.access_token;
-      const userEmail = data.user?.email;
-
-      if (supabaseToken && userEmail) {
-        try {
-          console.log('🔄 Scambio token Supabase per:', userEmail);
-
-          const response = await fetch('/api/auth/exchange-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              supabaseToken,
-              email: userEmail
-            })
-          });
-
-          if (response.ok) {
-            const authData = await response.json();
-            console.log('✅ Token scambiato, JWT ricevuto');
-
-            // Salva il nostro JWT (non il token Supabase)
-            localStorage.setItem("auth_token", authData.token);
-            localStorage.setItem('organization', JSON.stringify(authData.organization));
-
-            console.log('✅ JWT e organizzazione salvati');
-          } else {
-            console.error('❌ Errore scambio token:', response.status, await response.text());
-          }
-        } catch (exchangeError) {
-          console.error('❌ Errore chiamata /api/auth/exchange-token:', exchangeError);
-        }
-      }
+      console.log('✅ Login completato, JWT e organizzazione salvati');
 
       await queryClient.invalidateQueries();
       navigate("/dashboard");
+
     } catch (err: any) {
       setError(err?.message || "Errore nel login");
     } finally {

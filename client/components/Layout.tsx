@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { authAPI } from "@/lib/auth";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -6,7 +7,14 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
+  const isAuthenticated = authAPI.isAuthenticated();
+
+  const handleLogout = () => {
+    authAPI.logout();
+    navigate('/login');
+  };
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-200">
@@ -63,12 +71,21 @@ export function Layout({ children }: LayoutProps) {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
-            <Link
-              to="/login"
-              className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
-            >
-              <span>Login</span>
-            </Link>
+            {isAuthenticated ? (
+              <button
+                onClick={handleLogout}
+                className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+              >
+                <span>Logout</span>
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+              >
+                <span>Login</span>
+              </Link>
+            )}
 
             <button className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black">
               Contattaci

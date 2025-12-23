@@ -22,11 +22,14 @@ model User {
   phone               String?        @map("phone")
   first_name          String         @map("first_name")
   last_name           String         @map("last_name")
+  // Password hashing come Agoralia: PBKDF2 + salt
+  password_salt       String?        @map("password_salt")
   password_hash       String?        @map("password_hash")
   email_verified      Boolean        @default(false) @map("email_verified")
   email_verified_at   DateTime?      @map("email_verified_at")
   oauth_provider      OAuthProvider? @map("oauth_provider")
   oauth_id            String?        @map("oauth_id")
+  // Reset password come Agoralia: token URL-safe 32 caratteri, 24 ore
   reset_token         String?        @map("reset_token")
   reset_token_expires DateTime?      @map("reset_token_expires")
   status              UserStatus     @default(ACTIVE) @map("status")

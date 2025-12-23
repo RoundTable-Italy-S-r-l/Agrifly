@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../utils/prisma'
-import { requireAuth } from '../middleware/auth'
+import { requireAuth } from '../routes/auth-custom'
 import { z } from 'zod'
 import { randomBytes } from 'crypto'
 

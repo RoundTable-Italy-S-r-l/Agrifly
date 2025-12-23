@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import RequireSupabaseAuth from "@/components/RequireSupabaseAuth";
+import RequireAuth from "@/components/RequireAuth";
 
 import Index from "./pages/Index";
 import Catalogo from "./pages/Catalogo";
@@ -22,7 +22,6 @@ import Prenotazioni from "./pages/Prenotazioni";
 import Missioni from "./pages/Missioni";
 import Operatori from "./pages/Operatori";
 import AdminSettingsPage from "./pages/AdminSettingsPage";
-import AuthCallback from "./pages/AuthCallback";
 import DroneDetail from "./pages/DroneDetail";
 import NotFound from "./pages/NotFound";
 
@@ -45,85 +44,84 @@ const App = () => {
             <Route
               path="/dashboard"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <Dashboard />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
             <Route
               path="/admin"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <DashboardAdmin />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
             <Route
               path="/admin/catalogo"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <AdminCatalog />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
             <Route
               path="/admin/ordini"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <Orders />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
             <Route
               path="/admin/servizi"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <Servizi />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
             <Route
               path="/admin/prenotazioni"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <Prenotazioni />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
             <Route
               path="/admin/missioni"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <Missioni />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
             <Route
               path="/admin/operatori"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <Operatori />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
             <Route
               path="/admin/impostazioni"
               element={
-                <RequireSupabaseAuth>
+                <RequireAuth>
                   <AdminSettingsPage />
-                </RequireSupabaseAuth>
+                </RequireAuth>
               }
             />
 
-            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/drones/:id" element={<DroneDetail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

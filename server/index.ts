@@ -20,9 +20,9 @@ import { getOffers, createOffer, updateOffer, deleteOffer } from "./routes/offer
 import { getRateCards, getRateCard, upsertRateCard, deleteRateCard } from "./routes/services";
 import { getOperators, getOperator } from "./routes/operators";
 import { getBookings } from "./routes/bookings";
-import * as authRoutes from "./routes/auth";
+// Rimossi auth Supabase - ora usiamo auth custom come Agoralia
+import authCustomRoutes, { requireAuth } from "./routes/auth-custom";
 import settingsRoutes from "./routes/settings";
-import { requireAuth } from "./middleware/auth";
 
 export function createServer() {
   const app = express();
@@ -140,21 +140,8 @@ export function createServer() {
   // Bookings API
   app.get("/api/bookings/:orgId", getBookings);
 
-  // Auth API
-  app.post("/api/auth/send-verification-code", authRoutes.sendVerificationCode);
-  app.post("/api/auth/register", authRoutes.register);
-  app.post("/api/auth/login", authRoutes.login);
-  app.post("/api/auth/select-organization", authRoutes.selectOrganization);
-  app.post("/api/auth/request-password-reset", authRoutes.requestPasswordReset);
-  app.post("/api/auth/reset-password", authRoutes.resetPassword);
-  app.get("/api/auth/google", authRoutes.googleAuth);
-  app.get("/api/auth/google/callback", authRoutes.googleCallback);
-  app.get("/api/auth/microsoft", authRoutes.microsoftAuth);
-  app.get("/api/auth/microsoft/callback", authRoutes.microsoftCallback);
-  app.post("/api/auth/invite", requireAuth, authRoutes.inviteToOrganization);
-  app.post("/api/auth/exchange-token", authRoutes.exchangeSupabaseToken);
-  app.get("/api/auth/me", requireAuth, authRoutes.getCurrentUser);
-  app.post("/api/auth/associate-lenzi", requireAuth, authRoutes.associateWithLenzi);
+  // Auth API - Sistema custom come Agoralia
+  app.use("/api/auth", authCustomRoutes);
 
   // Settings API
   app.use("/api/settings", settingsRoutes);
