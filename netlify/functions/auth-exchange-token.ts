@@ -1,5 +1,5 @@
 import type { Handler } from "@netlify/functions";
-import { Client } from "pg";
+import { createClient } from "@supabase/supabase-js";
 
 // Funzione per generare JWT semplice (senza libreria esterna)
 function generateJWT(payload: any): string {
@@ -31,119 +31,161 @@ const handler: Handler = async (event) => {
     };
   }
 
-  let client: Client | null = null;
-
   try {
-    console.log('🔍 Inizio connessione database...');
+    console.log('🔍 Uso Supabase client per email:', email);
 
-    // Connessione diretta al database PostgreSQL
-    client = new Client({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    });
+    // Usa Supabase client con service role (ha accesso a tutte le tabelle)
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-    console.log('🔌 Connessione al database...');
-    await client.connect();
-    console.log('✅ Connessione riuscita');
+    // Prima prova a vedere se esiste l'utente nelle nostre tabelle custom
+    console.log('👤 Cerco utente nelle tabelle custom...');
+    const { data: customUser, error: customError } = await supabase
+      .from('users')
+      .select('id, email, first_name, last_name')
+      .eq('email', email)
+      .single();
 
-    // Trova utente per email
-    console.log('👤 Cerco utente per email:', email);
-    const userQuery = `
-      SELECT id, email, first_name, last_name
-      FROM users
-      WHERE email = $1
-    `;
-    const userResult = await client.query(userQuery, [email]);
-    console.log('📊 Risultato query utente:', userResult.rows.length, 'righe');
+    if (customUser && !customError) {
+      console.log('✅ Utente trovato in tabella custom:', customUser.id);
 
-    if (userResult.rows.length === 0) {
-      console.log('❌ Utente non trovato per email:', email);
-      return {
-        statusCode: 404,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ error: "Utente non trovato" }),
-      };
-    }
+      // Trova membership attivo
+      const { data: membership, error: membershipError } = await supabase
+        .from('org_memberships')
+        .select(`
+          role,
+          org_id,
+          organizations (
+            id,
+            legal_name
+          )
+        `)
+        .eq('user_id', customUser.id)
+        .eq('is_active', true)
+        .single();
 
-    const user = userResult.rows[0];
-    console.log('✅ Utente trovato:', user.id, user.email);
+      if (membership && !membershipError) {
+        const isAdmin = membership.role === "BUYER_ADMIN" || membership.role === "VENDOR_ADMIN";
 
-    // Trova membership attivo per l'utente
-    console.log('🏢 Cerco membership attivo per user:', user.id);
-    const membershipQuery = `
-      SELECT om.role, om.org_id, o.legal_name
-      FROM org_memberships om
-      JOIN organizations o ON om.org_id = o.id
-      WHERE om.user_id = $1 AND om.is_active = true
-    `;
-    const membershipResult = await client.query(membershipQuery, [user.id]);
-    console.log('📊 Risultato query membership:', membershipResult.rows.length, 'righe');
+        console.log('✅ Membership trovata:', membership.organizations.legal_name, membership.role);
 
-    if (membershipResult.rows.length === 0) {
-      console.log('❌ Nessuna membership attiva trovata');
-      return {
-        statusCode: 400,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ error: "Nessuna organizzazione attiva" }),
-      };
-    }
-
-    if (membershipResult.rows.length > 1) {
-      console.log('⚠️ Multiple memberships attive trovate');
-      return {
-        statusCode: 400,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ error: "Multiple organizzazioni attive - contattare amministratore" }),
-      };
-    }
-
-    const membership = membershipResult.rows[0];
-    const isAdmin = membership.role === "BUYER_ADMIN" || membership.role === "VENDOR_ADMIN";
-    console.log('✅ Membership trovata:', membership.org_id, membership.legal_name, membership.role);
-
-    // Genera JWT
-    const token = generateJWT({
-      userId: user.id,
-      orgId: membership.org_id,
-      role: membership.role,
-      isAdmin,
-    });
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-      body: JSON.stringify({
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          first_name: user.first_name,
-          last_name: user.last_name,
-        },
-        organization: {
-          id: membership.org_id,
-          name: membership.legal_name,
+        // Genera JWT
+        const token = generateJWT({
+          userId: customUser.id,
+          orgId: membership.org_id,
           role: membership.role,
           isAdmin,
-        },
-      }),
+        });
+
+        return {
+          statusCode: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+          body: JSON.stringify({
+            token,
+            user: customUser,
+            organization: {
+              id: membership.org_id,
+              name: membership.organizations.legal_name,
+              role: membership.role,
+              isAdmin,
+            },
+          }),
+        };
+      }
+    }
+
+    // Fallback: se non trovato nelle tabelle custom, usa auth.users di Supabase
+    console.log('🔄 Fallback: cerco in auth.users Supabase...');
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserByEmail(email);
+
+    if (authUser?.user && !authError) {
+      console.log('✅ Utente trovato in auth.users:', authUser.user.id);
+
+      // Crea organizzazione di default se non esiste
+      const orgName = `${authUser.user.user_metadata?.first_name || ''} ${authUser.user.user_metadata?.last_name || ''}`.trim() || email.split('@')[0];
+
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .upsert({
+          id: `org_${authUser.user.id}`,
+          legal_name: orgName,
+          org_type: 'FARM',
+          address_line: '',
+          city: '',
+          province: '',
+          region: '',
+          status: 'ACTIVE'
+        })
+        .select()
+        .single();
+
+      if (org && !orgError) {
+        // Crea membership
+        await supabase
+          .from('org_memberships')
+          .upsert({
+            org_id: org.id,
+            user_id: authUser.user.id,
+            role: 'BUYER_ADMIN',
+            is_active: true
+          });
+
+        const isAdmin = true;
+
+        // Genera JWT
+        const token = generateJWT({
+          userId: authUser.user.id,
+          orgId: org.id,
+          role: 'BUYER_ADMIN',
+          isAdmin,
+        });
+
+        return {
+          statusCode: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+          body: JSON.stringify({
+            token,
+            user: {
+              id: authUser.user.id,
+              email: authUser.user.email,
+              first_name: authUser.user.user_metadata?.first_name || '',
+              last_name: authUser.user.user_metadata?.last_name || '',
+            },
+            organization: {
+              id: org.id,
+              name: org.legal_name,
+              role: 'BUYER_ADMIN',
+              isAdmin,
+            },
+          }),
+        };
+      }
+    }
+
+    console.log('❌ Utente non trovato né in custom né in auth tables');
+    return {
+      statusCode: 404,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ error: "Utente non trovato" }),
     };
 
   } catch (error: any) {
-    console.error("❌ Errore database:", error);
+    console.error("❌ Errore:", error.message);
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ error: "Errore interno del server" }),
     };
-  } finally {
-    if (client) {
-      await client.end();
-    }
   }
 };
 
