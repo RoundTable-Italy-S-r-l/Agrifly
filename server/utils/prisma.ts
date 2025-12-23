@@ -47,4 +47,12 @@ export const prisma =
     },
   });
 
+// Per Netlify Functions, assicurati che la connessione sia chiusa dopo l'uso
+if (typeof globalThis !== 'undefined' && 'netlify' in globalThis) {
+  // In Netlify Functions, aggiungi cleanup
+  process.on('beforeExit', async () => {
+    await prisma.$disconnect();
+  });
+}
+
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
