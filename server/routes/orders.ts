@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { handlePrismaError } from "../utils/error-handler";
 import { prisma } from "../utils/prisma";
-import { OrderStatus } from "../../generated/prisma/client";
+import { OrderStatus } from "@prisma/client";
 
 // Ottieni tutti gli ordini per un'organizzazione (sia buyer che seller)
 export const getOrders: RequestHandler = async (req, res) => {

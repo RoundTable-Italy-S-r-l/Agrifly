@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from '../../generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 // Usa direct connection invece del pooler per evitare problemi con prepared statements
 const getDatabaseUrl = () => {

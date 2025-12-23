@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { handlePrismaError } from "../utils/error-handler";
 import { prisma } from "../utils/prisma";
-import { ProductType } from "../../generated/prisma/client";
+import { ProductType } from "@prisma/client";
 
 // Cache semplice per catalogo pubblico
 let catalogCache: any = null;
