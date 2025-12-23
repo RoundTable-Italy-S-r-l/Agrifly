@@ -724,6 +724,68 @@ export const microsoftCallback: RequestHandler = async (req, res) => {
   }
 };
 
+// Associa utente corrente a Lenzi (endpoint di utilità)
+export const associateWithLenzi: RequestHandler = async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Non autenticato' });
+    }
+
+    // Verifica se Lenzi esiste
+    const lenzi = await prisma.organization.findUnique({
+      where: { id: 'lenzi-org-id' }
+    });
+
+    if (!lenzi) {
+      return res.status(404).json({ error: 'Organizzazione Lenzi non trovata' });
+    }
+
+    // Verifica se l'utente è già membro
+    const existingMembership = await prisma.orgMembership.findUnique({
+      where: {
+        org_id_user_id: {
+          org_id: 'lenzi-org-id',
+          user_id: userId
+        }
+      }
+    });
+
+    if (existingMembership) {
+      // Se esiste ma non è attivo, attivalo
+      if (!existingMembership.is_active) {
+        await prisma.orgMembership.update({
+          where: { id: existingMembership.id },
+          data: { is_active: true }
+        });
+      }
+      return res.json({ 
+        message: 'Già associato a Lenzi',
+        membership: existingMembership 
+      });
+    }
+
+    // Crea nuovo membership
+    const membership = await prisma.orgMembership.create({
+      data: {
+        org_id: 'lenzi-org-id',
+        user_id: userId,
+        role: 'VENDOR_ADMIN',
+        is_active: true
+      }
+    });
+
+    res.json({ 
+      message: 'Associato a Lenzi con successo',
+      membership 
+    });
+  } catch (error: any) {
+    console.error('Errore associazione Lenzi:', error);
+    handlePrismaError(error, res, { error: 'Errore nell\'associazione a Lenzi' });
+  }
+};
+
 // Invita utente a organization
 export const inviteToOrganization: RequestHandler = async (req: AuthRequest, res) => {
   try {
