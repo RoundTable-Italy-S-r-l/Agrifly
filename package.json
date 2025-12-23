@@ -36,6 +36,7 @@
     "db:studio": "prisma studio",
     "db:connect": "bash scripts/connect-db.sh",
     "server": "node --import tsx/esm server/index.ts",
+    "server:hono": "node --import tsx/esm server/hono-server.ts",
     "seed:lenzi": "node scripts/init-lenzi.mjs",
     "seed:lenzi:local": "DATABASE_URL=\"file:./prisma/dev.db\" node scripts/init-lenzi.mjs"
   },

@@ -1,9 +1,6 @@
 [build]
   command = "npm run build:client"
   publish = "dist/spa"
-
-# Abilita Netlify Functions
-[build]
   functions = "netlify/functions"
 
 # Escludi documentazione dalla scansione segreti
