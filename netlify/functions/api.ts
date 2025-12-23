@@ -21,8 +21,13 @@ const handler: Handler = async (event) => {
   try {
     const { httpMethod, path, body } = event;
 
-    // Gestisci solo l'endpoint che ci serve
-    if (path === "/.netlify/functions/api/auth/exchange-token" && httpMethod === "POST") {
+    console.log('🔍 Netlify function chiamata:', { httpMethod, path });
+
+    // Gestisci l'endpoint exchange-token
+    // Il path può essere /.netlify/functions/api/auth/exchange-token o /.netlify/functions/api
+    if ((path === "/.netlify/functions/api/auth/exchange-token" ||
+         (path === "/.netlify/functions/api" && event.queryStringParameters?.path === "auth/exchange-token")) &&
+        httpMethod === "POST") {
       const { supabaseToken, email } = JSON.parse(body || "{}");
 
       if (!email) {
@@ -37,7 +42,7 @@ const handler: Handler = async (event) => {
         };
       }
 
-      console.log("🔍 Cerco utente per email:", email);
+      console.log("🔍 Cerco utente per email:", email, "con body:", JSON.parse(body || "{}"));
 
       // Trova utente con memberships attivi
       const user = await prisma.user.findUnique({
