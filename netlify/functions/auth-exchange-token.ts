@@ -9,7 +9,7 @@ function generateJWT(payload: any): string {
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 giorni
   })).toString('base64url');
-  const signature = Buffer.from("netlify_function_signature").toString('base64url'); // Firma fissa per ora
+  const signature = Buffer.from("netlify_function_signature").toString('base64url');
   return `${header}.${body}.${signature}`;
 }
 
