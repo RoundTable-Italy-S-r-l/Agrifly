@@ -73,6 +73,21 @@ export default function Login() {
       const token = data.session?.access_token;
       if (token) {
         localStorage.setItem("auth_token", token);
+
+        // Ottieni l'organizzazione dell'utente e salvala
+        try {
+          const response = await fetch('/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const userData = await response.json();
+            if (userData.organization) {
+              localStorage.setItem('organization', JSON.stringify(userData.organization));
+            }
+          }
+        } catch (orgError) {
+          console.warn('Errore recupero organizzazione:', orgError);
+        }
       }
 
       await queryClient.invalidateQueries();

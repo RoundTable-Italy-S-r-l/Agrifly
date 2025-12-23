@@ -724,6 +724,73 @@ export const microsoftCallback: RequestHandler = async (req, res) => {
   }
 };
 
+// Ottieni info utente corrente con organizzazione
+export const getCurrentUser: RequestHandler = async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Non autenticato' });
+    }
+
+    // Trova utente con memberships attivi
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        org_memberships: {
+          where: { is_active: true },
+          include: {
+            org: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utente non trovato' });
+    }
+
+    // Se ha più organizzazioni, richiedi selezione (caso edge)
+    if (user.org_memberships.length > 1) {
+      return res.json({
+        requiresOrgSelection: true,
+        organizations: user.org_memberships.map(m => ({
+          id: m.org.id,
+          name: m.org.legal_name,
+          role: m.role,
+        })),
+      });
+    }
+
+    // Se ha una sola organizzazione, restituisci direttamente
+    if (user.org_memberships.length === 1) {
+      const membership = user.org_memberships[0];
+      const isAdmin = membership.role === 'BUYER_ADMIN' || membership.role === 'VENDOR_ADMIN';
+
+      return res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+        },
+        organization: {
+          id: membership.org.id,
+          name: membership.org.legal_name,
+          role: membership.role,
+          isAdmin,
+        },
+      });
+    }
+
+    // Nessuna organizzazione attiva
+    return res.status(400).json({ error: 'Utente non associato ad alcuna organization' });
+  } catch (error: any) {
+    console.error('Errore recupero utente corrente:', error);
+    handlePrismaError(error, res, { error: 'Errore nel recupero delle informazioni utente' });
+  }
+};
+
 // Associa utente corrente a Lenzi (endpoint di utilità)
 export const associateWithLenzi: RequestHandler = async (req: AuthRequest, res) => {
   try {

@@ -152,6 +152,7 @@ export function createServer() {
   app.get("/api/auth/microsoft", authRoutes.microsoftAuth);
   app.get("/api/auth/microsoft/callback", authRoutes.microsoftCallback);
   app.post("/api/auth/invite", requireAuth, authRoutes.inviteToOrganization);
+  app.get("/api/auth/me", requireAuth, authRoutes.getCurrentUser);
   app.post("/api/auth/associate-lenzi", requireAuth, authRoutes.associateWithLenzi);
 
   // Settings API
