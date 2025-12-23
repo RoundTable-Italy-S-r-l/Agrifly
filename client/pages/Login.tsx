@@ -69,32 +69,37 @@ export default function Login() {
 
       if (signInError) throw signInError;
 
-      // Ponte per il tuo codice attuale (Layout/Dashboard leggono auth_token)
-      const token = data.session?.access_token;
-      if (token) {
-        localStorage.setItem("auth_token", token);
+      // Scambia token Supabase con JWT nostro + organizzazione
+      const supabaseToken = data.session?.access_token;
+      const userEmail = data.user?.email;
 
-        // Ottieni l'organizzazione dell'utente e salvala
+      if (supabaseToken && userEmail) {
         try {
-          const response = await fetch('/api/auth/me', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
+          console.log('🔄 Scambio token Supabase per:', userEmail);
+
+          const response = await fetch('/api/auth/exchange-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              supabaseToken,
+              email: userEmail
+            })
           });
+
           if (response.ok) {
-            const userData = await response.json();
-            if (userData.organization) {
-              localStorage.setItem('organization', JSON.stringify(userData.organization));
-              console.log('✅ Organizzazione salvata:', userData.organization);
-            } else {
-              console.warn('⚠️ Nessuna organizzazione trovata per utente');
-            }
+            const authData = await response.json();
+            console.log('✅ Token scambiato, JWT ricevuto');
+
+            // Salva il nostro JWT (non il token Supabase)
+            localStorage.setItem("auth_token", authData.token);
+            localStorage.setItem('organization', JSON.stringify(authData.organization));
+
+            console.log('✅ JWT e organizzazione salvati');
           } else {
-            console.warn('❌ Errore recupero organizzazione:', response.status, await response.text());
+            console.error('❌ Errore scambio token:', response.status, await response.text());
           }
-        } catch (orgError) {
-          console.warn('❌ Errore chiamata /api/auth/me:', orgError);
+        } catch (exchangeError) {
+          console.error('❌ Errore chiamata /api/auth/exchange-token:', exchangeError);
         }
       }
 

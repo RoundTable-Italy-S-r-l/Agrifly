@@ -724,6 +724,90 @@ export const microsoftCallback: RequestHandler = async (req, res) => {
   }
 };
 
+// Scambia token Supabase con JWT nostro + organizzazione
+export const exchangeSupabaseToken: RequestHandler = async (req, res) => {
+  try {
+    const { supabaseToken } = req.body;
+
+    if (!supabaseToken) {
+      return res.status(400).json({ error: 'Token Supabase richiesto' });
+    }
+
+    console.log('🔄 Scambio token Supabase...');
+
+    // Verifica token Supabase (da implementare con Supabase Admin SDK)
+    // Per ora, assumiamo che sia valido e cerchiamo l'utente per email
+    // TODO: Implementare verifica reale del token Supabase
+
+    // Per ora, workaround: prendiamo l'utente da email nel body
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email richiesta per scambio token' });
+    }
+
+    console.log('🔍 Cerco utente per email:', email);
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        org_memberships: {
+          where: { is_active: true },
+          include: {
+            org: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      console.log('❌ Utente non trovato:', email);
+      return res.status(404).json({ error: 'Utente non trovato' });
+    }
+
+    console.log('✅ Utente trovato:', user.email);
+
+    if (user.org_memberships.length !== 1) {
+      console.log('❌ Utente deve avere esattamente una organizzazione attiva, ne ha:', user.org_memberships.length);
+      return res.status(400).json({ error: 'Configurazione organizzazioni non valida' });
+    }
+
+    const membership = user.org_memberships[0];
+    const isAdmin = membership.role === 'BUYER_ADMIN' || membership.role === 'VENDOR_ADMIN';
+
+    console.log('✅ Organizzazione trovata:', membership.org.legal_name, 'ruolo:', membership.role);
+
+    // Genera JWT nostro
+    const token = generateJWT({
+      userId: user.id,
+      orgId: membership.org_id,
+      role: membership.role,
+      isAdmin,
+    });
+
+    console.log('✅ JWT generato per user:', user.id);
+
+    return res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+      },
+      organization: {
+        id: membership.org.id,
+        name: membership.org.legal_name,
+        role: membership.role,
+        isAdmin,
+      },
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore scambio token:', error);
+    handlePrismaError(error, res, { error: 'Errore nello scambio del token' });
+  }
+};
+
 // Ottieni info utente corrente con organizzazione
 export const getCurrentUser: RequestHandler = async (req: AuthRequest, res) => {
   try {
