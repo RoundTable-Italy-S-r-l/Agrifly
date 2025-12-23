@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { handlePrismaError } from "../utils/error-handler";
 import { prisma } from "../utils/prisma";
+import { ProductType } from "../../generated/prisma/client";
 
 // Cache semplice per catalogo pubblico
 let catalogCache: any = null;
@@ -597,7 +598,7 @@ export const setupTestData: RequestHandler = async (req, res) => {
         name: "DJI Agras T30",
         brand: "DJI",
         model: "T30",
-        product_type: "DRONE",
+        product_type: ProductType.DRONE,
         specs_core_json: {
           spray_tank_capacity_l: 30,
           max_takeoff_weight_kg: 36.4,
@@ -611,7 +612,7 @@ export const setupTestData: RequestHandler = async (req, res) => {
         name: "DJI Agras T25",
         brand: "DJI",
         model: "T25",
-        product_type: "DRONE",
+        product_type: ProductType.DRONE,
         specs_core_json: {
           spray_tank_capacity_l: 20,
           max_takeoff_weight_kg: 25.4,
@@ -625,7 +626,7 @@ export const setupTestData: RequestHandler = async (req, res) => {
         name: "DJI Agras T50",
         brand: "DJI",
         model: "T50",
-        product_type: "DRONE",
+        product_type: ProductType.DRONE,
         specs_core_json: {
           spray_tank_capacity_l: 40,
           max_takeoff_weight_kg: 52.2,

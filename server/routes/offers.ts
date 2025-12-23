@@ -13,7 +13,7 @@ export const getOffers: RequestHandler = async (req, res) => {
 
     const offers = await prisma.offer.findMany({
       where: { vendor_org_id: orgId },
-      orderBy: { created_at: 'desc' }
+      orderBy: { valid_from: 'desc' }
     });
 
     res.json(offers);
