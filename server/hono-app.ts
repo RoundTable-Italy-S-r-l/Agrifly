@@ -53,7 +53,34 @@ app.route('/api/operators', operatorsRoutes);
 app.route('/api/bookings', bookingsRoutes);
 app.route('/api/settings', settingsRoutes);
 
-// Health check
-app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+// Health check dettagliato
+app.get('/api/health', async (c) => {
+  const checks = {
+    timestamp: new Date().toISOString(),
+    environment: {
+      node_env: process.env.NODE_ENV,
+      netlify: !!process.env.NETLIFY,
+    },
+    env_vars: {
+      database_url: !!process.env.DATABASE_URL,
+      jwt_secret: !!process.env.JWT_SECRET,
+      supabase_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      frontend_url: !!process.env.FRONTEND_URL,
+    }
+  };
+
+  // Test connessione database
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+    await prisma.$connect();
+    await prisma.$disconnect();
+    checks.database = { status: 'connected' };
+  } catch (error: any) {
+    checks.database = { status: 'error', message: error.message };
+  }
+
+  return c.json(checks);
+});
 
 export default app;
