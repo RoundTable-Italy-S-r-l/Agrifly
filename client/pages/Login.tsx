@@ -77,16 +77,24 @@ export default function Login() {
         // Ottieni l'organizzazione dell'utente e salvala
         try {
           const response = await fetch('/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
           });
           if (response.ok) {
             const userData = await response.json();
             if (userData.organization) {
               localStorage.setItem('organization', JSON.stringify(userData.organization));
+              console.log('✅ Organizzazione salvata:', userData.organization);
+            } else {
+              console.warn('⚠️ Nessuna organizzazione trovata per utente');
             }
+          } else {
+            console.warn('❌ Errore recupero organizzazione:', response.status, await response.text());
           }
         } catch (orgError) {
-          console.warn('Errore recupero organizzazione:', orgError);
+          console.warn('❌ Errore chiamata /api/auth/me:', orgError);
         }
       }
 

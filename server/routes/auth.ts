@@ -728,8 +728,10 @@ export const microsoftCallback: RequestHandler = async (req, res) => {
 export const getCurrentUser: RequestHandler = async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.userId;
+    console.log('🔍 getCurrentUser chiamato per userId:', userId);
 
     if (!userId) {
+      console.log('❌ userId mancante nella request');
       return res.status(401).json({ error: 'Non autenticato' });
     }
 
@@ -747,11 +749,15 @@ export const getCurrentUser: RequestHandler = async (req: AuthRequest, res) => {
     });
 
     if (!user) {
+      console.log('❌ Utente non trovato:', userId);
       return res.status(404).json({ error: 'Utente non trovato' });
     }
 
+    console.log('✅ Utente trovato:', user.email, 'con', user.org_memberships.length, 'organizzazioni');
+
     // Se ha più organizzazioni, richiedi selezione (caso edge)
     if (user.org_memberships.length > 1) {
+      console.log('📋 Più organizzazioni, richiedi selezione');
       return res.json({
         requiresOrgSelection: true,
         organizations: user.org_memberships.map(m => ({
@@ -766,6 +772,8 @@ export const getCurrentUser: RequestHandler = async (req: AuthRequest, res) => {
     if (user.org_memberships.length === 1) {
       const membership = user.org_memberships[0];
       const isAdmin = membership.role === 'BUYER_ADMIN' || membership.role === 'VENDOR_ADMIN';
+
+      console.log('✅ Una organizzazione trovata:', membership.org.legal_name, 'ruolo:', membership.role);
 
       return res.json({
         user: {
@@ -784,9 +792,10 @@ export const getCurrentUser: RequestHandler = async (req: AuthRequest, res) => {
     }
 
     // Nessuna organizzazione attiva
+    console.log('❌ Nessuna organizzazione attiva per utente');
     return res.status(400).json({ error: 'Utente non associato ad alcuna organization' });
   } catch (error: any) {
-    console.error('Errore recupero utente corrente:', error);
+    console.error('❌ Errore recupero utente corrente:', error);
     handlePrismaError(error, res, { error: 'Errore nel recupero delle informazioni utente' });
   }
 };
