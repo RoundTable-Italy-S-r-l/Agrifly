@@ -47,6 +47,14 @@ export const prisma =
     },
   });
 
+// Test connessione per debug
+if (process.env.NETLIFY) {
+  console.log('🔌 Test connessione Prisma...');
+  prisma.$connect()
+    .then(() => console.log('✅ Prisma connesso'))
+    .catch((err) => console.error('❌ Errore connessione Prisma:', err.message));
+}
+
 // Per Netlify Functions, assicurati che la connessione sia chiusa dopo l'uso
 if (typeof globalThis !== 'undefined' && 'netlify' in globalThis) {
   // In Netlify Functions, aggiungi cleanup

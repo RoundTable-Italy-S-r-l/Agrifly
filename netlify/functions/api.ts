@@ -43,12 +43,23 @@ export async function handler(event: any, context: any) {
     const host = event.headers.host || 'localhost';
     const protocol = event.headers['x-forwarded-proto'] || 'https';
 
+    // Prepara il body per Hono (Netlify passa il body come stringa)
+    let requestBody = undefined;
+    if (event.body && event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD') {
+      // Se è JSON, mantieni come stringa (Hono lo parserà)
+      if (event.headers['content-type']?.includes('application/json')) {
+        requestBody = event.body;
+      } else {
+        requestBody = event.body;
+      }
+    }
+
     // Gestisci la richiesta con Hono
     const response = await honoApp.fetch(
-      new Request(`${protocol}://${host}${event.path}`, {
+      new Request(`${protocol}://${host}${event.path}${event.queryStringParameters ? '?' + new URLSearchParams(event.queryStringParameters).toString() : ''}`, {
         method: event.httpMethod,
         headers: event.headers,
-        body: event.body
+        body: requestBody
       }),
       {
         ...context,
