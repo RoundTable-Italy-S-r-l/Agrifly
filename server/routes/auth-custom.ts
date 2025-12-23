@@ -1,16 +1,16 @@
 import { Router } from 'express';
-import { PrismaClient, UserStatus, VerificationPurpose, OrgRole } from '../../generated/prisma';
+import { UserStatus, VerificationPurpose, OrgRole } from '../../generated/prisma';
 import { hashPassword, verifyPassword, generateJWT, generateResetToken, generateVerificationCode, rateLimiter, sendEmail } from '../utils/auth';
+import { prisma } from '../utils/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // ============================================================================
 // MIDDLEWARE AUTENTICAZIONE JWT CUSTOM
 // ============================================================================
 
 /**
- * Middleware per verificare JWT custom (come Agoralia)
+ * Middleware per verificare JWT custom
  */
 export function requireAuth(req: any, res: any, next: any) {
   try {
@@ -34,7 +34,7 @@ export function requireAuth(req: any, res: any, next: any) {
 }
 
 /**
- * Middleware per verificare admin (come Agoralia)
+ * Middleware per verificare admin
  */
 export function requireAdmin(req: any, res: any, next: any) {
   if (!req.user?.isAdmin) {
@@ -44,7 +44,7 @@ export function requireAdmin(req: any, res: any, next: any) {
 }
 
 // ============================================================================
-// REGISTRAZIONE (come Agoralia)
+// REGISTRAZIONE
 // ============================================================================
 
 /**
@@ -168,7 +168,7 @@ router.post('/register', async (req, res) => {
 });
 
 // ============================================================================
-// LOGIN (come Agoralia)
+// LOGIN
 // ============================================================================
 
 /**
@@ -257,7 +257,7 @@ router.post('/login', async (req, res) => {
 });
 
 // ============================================================================
-// VERIFICA EMAIL (come Agoralia)
+// VERIFICA EMAIL
 // ============================================================================
 
 /**
@@ -369,7 +369,7 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
 });
 
 // ============================================================================
-// RESET PASSWORD (come Agoralia)
+// RESET PASSWORD
 // ============================================================================
 
 /**
@@ -476,7 +476,7 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // ============================================================================
-// PROFILO UTENTE (come Agoralia)
+// PROFILO UTENTE
 // ============================================================================
 
 /**

@@ -31,7 +31,6 @@
     "manage:memberships": "node manage-memberships.js",
     "fix:giacomo": "node fix-giacomo-membership.js",
     "fix:giacomo-api": "node fix-giacomo-api.js",
-    "db:test": "tsx scripts/test-supabase-connection.ts",
     "db:test-connection": "tsx scripts/test-db-connection.ts",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
@@ -41,6 +40,7 @@
     "seed:lenzi:local": "DATABASE_URL=\"file:./prisma/dev.db\" node scripts/init-lenzi.mjs"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.1",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -58,7 +58,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@hookform/resolvers": "^5.2.1",
+    "@hookform/resolvers": "^5.2.2",
+    "prisma": "^6.19.1",
     "@netlify/functions": "^5.1.2",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

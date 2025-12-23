@@ -6,7 +6,6 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // Prepara DATABASE_URL per Prisma
-// Per Supabase, usiamo il pooler (porta 6543) con ?pgbouncer=true per disabilitare prepared statements
 const getDatabaseUrl = () => {
   const dbUrl = process.env.DATABASE_URL || '';
   // Se usa connection pooler (porta 6543), aggiungi parametro pgbouncer

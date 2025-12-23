@@ -21,7 +21,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // REGISTRAZIONE (Sistema custom come Agoralia)
+  // REGISTRAZIONE
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -57,7 +57,7 @@ export default function Login() {
     }
   };
 
-  // LOGIN (Sistema custom come Agoralia)
+  // LOGIN
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 

@@ -1,4 +1,4 @@
-// Client API per autenticazione custom (come Agoralia)
+// Client API per autenticazione custom
 
 const API_BASE = '/api/auth';
 

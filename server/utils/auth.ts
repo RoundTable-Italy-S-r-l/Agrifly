@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 
 // ============================================================================
-// PASSWORD HASHING (come Agoralia: PBKDF2 + salt casuale)
+// PASSWORD HASHING
 // ============================================================================
 
 /**
- * Hash password con PBKDF2 + salt casuale (come Agoralia)
+ * Hash password con PBKDF2 + salt casuale
  * @param password Password in chiaro
  * @returns {salt: string, hash: string}
  */
@@ -14,7 +14,7 @@ export function hashPassword(password: string): { salt: string; hash: string } {
   const saltBytes = crypto.randomBytes(16);
   const salt = saltBytes.toString('hex');
 
-  // PBKDF2 con SHA256, 100.000 iterazioni (come Agoralia)
+  // PBKDF2 con SHA256, 100.000 iterazioni
   const hash = crypto.pbkdf2Sync(password, saltBytes, 100000, 64, 'sha256').toString('hex');
 
   return { salt, hash };
@@ -36,11 +36,11 @@ export function verifyPassword(password: string, storedHash: string, storedSalt:
 }
 
 // ============================================================================
-// JWT CUSTOM (come Agoralia: formato non standard)
+// JWT CUSTOM
 // ============================================================================
 
 /**
- * Genera JWT custom (formato Agoralia: {body}.{signature} senza header)
+ * Genera JWT custom (formato {body}.{signature} senza header)
  * @param payload Payload del token
  * @returns JWT string
  */
@@ -52,14 +52,14 @@ export function generateJWT(payload: any): string {
     exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 giorni
   };
 
-  // Codifica body in base64url (senza header, come Agoralia)
+  // Codifica body in base64url (senza header)
   const body = Buffer.from(JSON.stringify(jwtPayload, null, 0)).toString('base64url');
 
   // Firma HMAC-SHA256 con secret (da env, non hardcoded)
   const secret = process.env.JWT_SECRET || 'fallback_secret_change_in_production';
   const signature = crypto.createHmac('sha256', secret).update(body).digest('base64url');
 
-  // Formato Agoralia: {body}.{signature} (senza header)
+  // Formato: {body}.{signature} (senza header)
   return `${body}.${signature}`;
 }
 
@@ -98,7 +98,7 @@ export function verifyJWT(token: string): any | null {
 }
 
 // ============================================================================
-// RESET PASSWORD TOKEN (come Agoralia)
+// RESET PASSWORD TOKEN
 // ============================================================================
 
 /**
@@ -110,7 +110,7 @@ export function generateResetToken(): string {
 }
 
 // ============================================================================
-// VERIFICATION CODE (come Agoralia)
+// VERIFICATION CODE
 // ============================================================================
 
 /**
@@ -169,11 +169,11 @@ class RateLimiter {
 export const rateLimiter = new RateLimiter();
 
 // ============================================================================
-// EMAIL UTILITIES (Resend come Agoralia)
+// EMAIL UTILITIES
 // ============================================================================
 
 /**
- * Invia email con Resend (come Agoralia)
+ * Invia email con Resend
  * Nota: Implementazione placeholder, serve API key
  */
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {

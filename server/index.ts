@@ -3,7 +3,6 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 
-// Configurazione ottimizzata per Supabase
 process.env.PRISMA_GENERATE_DATAPROXY = "true";
 process.env.PRISMA_GENERATE_ACCELERATE = "true";
 import { handleDemo } from "./routes/demo";
@@ -20,7 +19,6 @@ import { getOffers, createOffer, updateOffer, deleteOffer } from "./routes/offer
 import { getRateCards, getRateCard, upsertRateCard, deleteRateCard } from "./routes/services";
 import { getOperators, getOperator } from "./routes/operators";
 import { getBookings } from "./routes/bookings";
-// Rimossi auth Supabase - ora usiamo auth custom come Agoralia
 import authCustomRoutes, { requireAuth } from "./routes/auth-custom";
 import settingsRoutes from "./routes/settings";
 
@@ -140,7 +138,7 @@ export function createServer() {
   // Bookings API
   app.get("/api/bookings/:orgId", getBookings);
 
-  // Auth API - Sistema custom come Agoralia
+  // Auth API - Sistema custom
   app.use("/api/auth", authCustomRoutes);
 
   // Settings API
