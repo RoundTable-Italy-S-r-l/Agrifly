@@ -34,23 +34,30 @@ const handler: Handler = async (event) => {
   let client: Client | null = null;
 
   try {
+    console.log('🔍 Inizio connessione database...');
+
     // Connessione diretta al database PostgreSQL
     client = new Client({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false }
     });
 
+    console.log('🔌 Connessione al database...');
     await client.connect();
+    console.log('✅ Connessione riuscita');
 
     // Trova utente per email
+    console.log('👤 Cerco utente per email:', email);
     const userQuery = `
       SELECT id, email, first_name, last_name
       FROM users
       WHERE email = $1
     `;
     const userResult = await client.query(userQuery, [email]);
+    console.log('📊 Risultato query utente:', userResult.rows.length, 'righe');
 
     if (userResult.rows.length === 0) {
+      console.log('❌ Utente non trovato per email:', email);
       return {
         statusCode: 404,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -59,8 +66,10 @@ const handler: Handler = async (event) => {
     }
 
     const user = userResult.rows[0];
+    console.log('✅ Utente trovato:', user.id, user.email);
 
     // Trova membership attivo per l'utente
+    console.log('🏢 Cerco membership attivo per user:', user.id);
     const membershipQuery = `
       SELECT om.role, om.org_id, o.legal_name
       FROM org_memberships om
@@ -68,8 +77,10 @@ const handler: Handler = async (event) => {
       WHERE om.user_id = $1 AND om.is_active = true
     `;
     const membershipResult = await client.query(membershipQuery, [user.id]);
+    console.log('📊 Risultato query membership:', membershipResult.rows.length, 'righe');
 
     if (membershipResult.rows.length === 0) {
+      console.log('❌ Nessuna membership attiva trovata');
       return {
         statusCode: 400,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -78,6 +89,7 @@ const handler: Handler = async (event) => {
     }
 
     if (membershipResult.rows.length > 1) {
+      console.log('⚠️ Multiple memberships attive trovate');
       return {
         statusCode: 400,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -87,6 +99,7 @@ const handler: Handler = async (event) => {
 
     const membership = membershipResult.rows[0];
     const isAdmin = membership.role === "BUYER_ADMIN" || membership.role === "VENDOR_ADMIN";
+    console.log('✅ Membership trovata:', membership.org_id, membership.legal_name, membership.role);
 
     // Genera JWT
     const token = generateJWT({
