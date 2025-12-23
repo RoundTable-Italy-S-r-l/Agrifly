@@ -4,6 +4,11 @@
   functions = "netlify/functions"
 
 [[redirects]]
+  from = "/api/auth/exchange-token"
+  to = "/.netlify/functions/auth-exchange-token"
+  status = 200
+
+[[redirects]]
   from = "/api/send-verification-code"
   to = "/.netlify/functions/send-verification-code"
   status = 200
