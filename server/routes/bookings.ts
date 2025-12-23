@@ -49,7 +49,7 @@ export const getBookings: RequestHandler = async (req, res) => {
         service_site: true,
         booking_slots: {
           include: {
-            booking_assignments: {
+            assignments: {
               include: {
                 asset: {
                   include: {
@@ -69,7 +69,7 @@ export const getBookings: RequestHandler = async (req, res) => {
     // Trasforma per il frontend
     const transformed = bookings.map(booking => {
       const firstSlot = booking.booking_slots[0];
-      const assignment = firstSlot?.booking_assignments[0];
+      const assignment = firstSlot?.assignments[0];
       
       return {
         id: booking.id,

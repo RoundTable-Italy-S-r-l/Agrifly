@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/AdminLayout';
-import { fetchMissions, fetchMissionsStats, Mission } from '@/lib/api';
+import { fetchMissions, fetchMissionsStats, MissionHistory } from '@/lib/api';
 import {
   Truck,
   MapPin,
@@ -15,7 +15,8 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  X
+  X,
+  Edit
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +48,7 @@ const serviceTypeConfig = {
 
 export default function Missioni() {
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
-  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
+  const [selectedMission, setSelectedMission] = useState<MissionHistory | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [periodFilter, setPeriodFilter] = useState<'7d' | '30d' | 'season' | 'all'>('30d');
   const [serviceFilter, setServiceFilter] = useState<string>('all');
@@ -322,7 +323,7 @@ function MissionCard({
   formatArea,
   onClick,
 }: {
-  mission: Mission;
+  mission: MissionHistory;
   config: { label: string; icon: any; color: string };
   Icon: any;
   formatDate: (date: string) => string;
@@ -388,7 +389,7 @@ function MissionDetailSheet({
   formatDate,
   formatArea,
 }: {
-  mission: Mission;
+  mission: MissionHistory;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   formatDate: (date: string) => string;

@@ -1,4 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { Organization, OrgMembership, User } from '../../../generated/prisma/client'
+
+// Type definitions for API responses
+type OrganizationWithUsers = Organization & {
+  memberships?: Array<OrgMembership & { user: User }>
+}
+
+type NotificationSettings = {
+  email_orders: boolean
+  email_payments: boolean
+  email_updates: boolean
+  inapp_orders: boolean
+  inapp_messages: boolean
+}
+
+type InviteUserData = {
+  email: string
+  role: string
+}
 
 // API helper - similar to the apiRequest function in lib/api.ts
 const API_BASE = '';
@@ -17,7 +36,7 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
   const token = localStorage.getItem('auth_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options?.headers,
+    ...(options?.headers as Record<string, string> || {}),
   };
 
   if (token) {
@@ -65,7 +84,7 @@ export function useOrganizationGeneral() {
   return useQuery({
     queryKey: ['organization', 'general'],
     queryFn: async () => {
-      const response = await api.get('/settings/organization/general')
+      const response = await api.get<Organization>('/settings/organization/general')
       return response
     },
     retry: (failureCount, error: any) => {
@@ -83,8 +102,8 @@ export function useUpdateOrganizationGeneral() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: any) => {
-      const response = await api.patch('/settings/organization/general', data)
+    mutationFn: async (data: Partial<Organization>) => {
+      const response = await api.patch<{ data: Organization }>('/settings/organization/general', data)
       return response.data
     },
     onSuccess: () => {
@@ -98,7 +117,7 @@ export function useOrganizationUsers() {
   return useQuery({
     queryKey: ['organization', 'users'],
     queryFn: async () => {
-      const response = await api.get('/settings/organization/users')
+      const response = await api.get<Array<OrgMembership & { user: User }>>('/settings/organization/users')
       return response
     },
     retry: (failureCount, error: any) => {
@@ -116,7 +135,7 @@ export function useOrganizationInvitations() {
   return useQuery({
     queryKey: ['organization', 'invitations'],
     queryFn: async () => {
-      const response = await api.get('/settings/organization/invitations')
+      const response = await api.get<any[]>('/settings/organization/invitations')
       return response
     },
     retry: (failureCount, error: any) => {
@@ -133,8 +152,8 @@ export function useInviteUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: { email: string; role: string }) => {
-      const response = await api.post('/settings/organization/invitations/invite', data)
+    mutationFn: async (data: InviteUserData) => {
+      const response = await api.post<{ data: any }>('/settings/organization/invitations/invite', data)
       return response.data
     },
     onSuccess: () => {
@@ -148,7 +167,7 @@ export function useRevokeInvitation() {
 
   return useMutation({
     mutationFn: async (invitationId: string) => {
-      const response = await api.post(`/settings/organization/invitations/revoke/${invitationId}`)
+      const response = await api.post<{ data: any }>(`/settings/organization/invitations/revoke/${invitationId}`)
       return response.data
     },
     onSuccess: () => {
@@ -166,7 +185,7 @@ export function useNotificationPreferences() {
     queryKey: ['notifications', 'preferences'],
     queryFn: async () => {
       try {
-        const response = await api.get('/settings/notifications')
+        const response = await api.get<NotificationSettings>('/settings/notifications')
         return response
       } catch (error: any) {
         // If unauthorized, throw a specific error that can be handled

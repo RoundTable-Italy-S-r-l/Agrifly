@@ -61,7 +61,7 @@ export function UsersSection() {
 
   const onInviteSubmit = async (data: InviteForm) => {
     try {
-      await inviteMutation.mutateAsync(data)
+      await inviteMutation.mutateAsync(data as { email: string; role: string })
       toast({
         title: 'Invito inviato',
         description: `L'invito è stato inviato a ${data.email}`,

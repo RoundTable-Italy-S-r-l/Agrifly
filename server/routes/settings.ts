@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../utils/prisma'
 import { requireAuth } from '../middleware/auth'
 import { z } from 'zod'
+import { randomBytes } from 'crypto'
 
 const router = Router()
 
@@ -282,7 +283,7 @@ router.post('/organization/invitations/invite', requireAuth, async (req, res) =>
     }
 
     // Generate token
-    const token = crypto.randomBytes(32).toString('hex')
+    const token = randomBytes(32).toString('hex')
 
     // Create invitation (expires in 7 days)
     const expiresAt = new Date()

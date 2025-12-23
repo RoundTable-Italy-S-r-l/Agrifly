@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { handlePrismaError } from "../utils/error-handler";
 import { prisma } from "../utils/prisma";
+import { ProductType } from "../../generated/prisma/client";
 
 // Cache semplice per catalogo pubblico
 let catalogCache: any = null;
@@ -595,8 +596,9 @@ export const setupTestData: RequestHandler = async (req, res) => {
       {
         id: "t30",
         name: "DJI Agras T30",
+        brand: "DJI",
         model: "T30",
-        product_type: "DRONE",
+        product_type: ProductType.DRONE,
         specs_core_json: {
           spray_tank_capacity_l: 30,
           max_takeoff_weight_kg: 36.4,
@@ -608,8 +610,9 @@ export const setupTestData: RequestHandler = async (req, res) => {
       {
         id: "t25",
         name: "DJI Agras T25",
+        brand: "DJI",
         model: "T25",
-        product_type: "DRONE",
+        product_type: ProductType.DRONE,
         specs_core_json: {
           spray_tank_capacity_l: 20,
           max_takeoff_weight_kg: 25.4,
@@ -621,8 +624,9 @@ export const setupTestData: RequestHandler = async (req, res) => {
       {
         id: "t50",
         name: "DJI Agras T50",
+        brand: "DJI",
         model: "T50",
-        product_type: "DRONE",
+        product_type: ProductType.DRONE,
         specs_core_json: {
           spray_tank_capacity_l: 40,
           max_takeoff_weight_kg: 52.2,
@@ -660,23 +664,25 @@ export const setupTestData: RequestHandler = async (req, res) => {
     }
 
     // 6. Crea listino prezzi per Lenzi
-    const priceList = await prisma.priceList.upsert({
+    let priceList = await prisma.priceList.findFirst({
       where: {
-        vendor_org_id_name: {
-          vendor_org_id: lenziOrg.id,
-          name: "Listino Standard"
-        }
-      },
-      update: {},
-      create: {
         vendor_org_id: lenziOrg.id,
-        name: "Listino Standard",
-        currency: "EUR",
-        status: "ACTIVE",
-        valid_from: new Date(),
-        valid_to: new Date(new Date().getFullYear() + 1, 11, 31)
+        name: "Listino Standard"
       }
     });
+
+    if (!priceList) {
+      priceList = await prisma.priceList.create({
+        data: {
+          vendor_org_id: lenziOrg.id,
+          name: "Listino Standard",
+          currency: "EUR",
+          status: "ACTIVE",
+          valid_from: new Date(),
+          valid_to: new Date(new Date().getFullYear() + 1, 11, 31)
+        }
+      });
+    }
 
     // 7. Crea prezzi
     const prices = [
@@ -686,41 +692,50 @@ export const setupTestData: RequestHandler = async (req, res) => {
     ];
 
     for (const priceData of prices) {
-      await prisma.priceListItem.upsert({
-        where: {
-          price_list_id_sku_code: {
+      const sku = await prisma.sku.findUnique({ where: { sku_code: priceData.sku_code } });
+      if (sku) {
+        await prisma.priceListItem.upsert({
+          where: {
+            price_list_id_sku_id: {
+              price_list_id: priceList.id,
+              sku_id: sku.id
+            }
+          },
+          update: {
+            price_cents: priceData.price_cents
+          },
+          create: {
             price_list_id: priceList.id,
-            sku_code: priceData.sku_code
+            sku_id: sku.id,
+            price_cents: priceData.price_cents,
+            tax_code: "22"
           }
-        },
-        update: {},
-        create: {
-          price_list_id: priceList.id,
-          sku_code: priceData.sku_code,
-          price_cents: priceData.price_cents,
-          tax_code: "22"
-        }
-      });
+        });
+      }
     }
 
     // 8. Crea location
-    const location = await prisma.location.upsert({
+    let location = await prisma.location.findFirst({
       where: {
-        org_id_name: {
-          org_id: lenziOrg.id,
-          name: "Magazzino Principale"
-        }
-      },
-      update: {},
-      create: {
         org_id: lenziOrg.id,
-        name: "Magazzino Principale",
-        address: "Via Roma 123",
-        city: "Bologna",
-        province: "BO",
-        country: "IT"
+        name: "Magazzino Principale"
       }
     });
+
+    if (!location) {
+      location = await prisma.location.create({
+        data: {
+          org_id: lenziOrg.id,
+          name: "Magazzino Principale",
+          address_json: {
+            street: "Via Roma 123",
+            city: "Bologna",
+            province: "BO",
+            country: "IT"
+          }
+        }
+      });
+    }
 
     // 9. Crea VendorCatalogItem (prodotti attivi nel catalogo)
     for (const skuData of skus) {
