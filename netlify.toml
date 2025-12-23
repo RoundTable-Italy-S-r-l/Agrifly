@@ -2,6 +2,11 @@
   command = "npm run build:client"
   publish = "dist/spa"
 
+# Escludi documentazione dalla scansione segreti
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "DATABASE_URL"
+  SECRETS_SCAN_OMIT_PATHS = "scripts/README-DB-SETUP.md,scripts/check-db-connection.md"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
