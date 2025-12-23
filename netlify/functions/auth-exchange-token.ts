@@ -1,15 +1,12 @@
 import type { Handler } from "@netlify/functions";
-import { PrismaClient } from "@prisma/client";
+import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 
-// Inizializza Prisma con configurazione Netlify
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
-});
+// Inizializza Supabase con service role key
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Funzione per generare JWT
 const generateJWT = (payload: any) => {
@@ -19,77 +16,62 @@ const generateJWT = (payload: any) => {
 
 const handler: Handler = async (event) => {
   try {
-    const { httpMethod, body } = event;
-
-    if (httpMethod !== "POST") {
+    if (event.httpMethod !== "POST") {
       return {
         statusCode: 405,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
         body: JSON.stringify({ error: "Method not allowed" }),
       };
     }
 
-    const { supabaseToken, email } = JSON.parse(body || "{}");
-
+    const { email } = JSON.parse(event.body || "{}");
     if (!email) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
         body: JSON.stringify({ error: "Email richiesta" }),
       };
     }
 
-    console.log("🔍 Cerco utente per email:", email);
+    // Trova utente
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id, email, first_name, last_name")
+      .eq("email", email)
+      .single();
 
-    // Trova utente con memberships attivi
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        org_memberships: {
-          where: { is_active: true },
-          include: {
-            org: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      console.log("❌ Utente non trovato:", email);
+    if (userError || !user) {
       return {
         statusCode: 404,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
         body: JSON.stringify({ error: "Utente non trovato" }),
       };
     }
 
-    console.log("✅ Utente trovato:", user.email);
+    // Trova membership attivo
+    const { data: membership, error: membershipError } = await supabase
+      .from("org_memberships")
+      .select(`
+        role,
+        org_id,
+        organizations (
+          id,
+          legal_name
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .single();
 
-    if (user.org_memberships.length !== 1) {
-      console.log("❌ Utente deve avere esattamente una organizzazione attiva");
+    if (membershipError || !membership) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ error: "Configurazione organizzazioni non valida" }),
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: "Nessuna organizzazione attiva" }),
       };
     }
 
-    const membership = user.org_memberships[0];
     const isAdmin = membership.role === "BUYER_ADMIN" || membership.role === "VENDOR_ADMIN";
-
-    console.log("✅ Organizzazione trovata:", membership.org.legal_name, "ruolo:", membership.role);
 
     // Genera JWT
     const token = generateJWT({
@@ -98,8 +80,6 @@ const handler: Handler = async (event) => {
       role: membership.role,
       isAdmin,
     });
-
-    console.log("✅ JWT generato per user:", user.id);
 
     return {
       statusCode: 200,
@@ -110,15 +90,10 @@ const handler: Handler = async (event) => {
       },
       body: JSON.stringify({
         token,
-        user: {
-          id: user.id,
-          email: user.email,
-          first_name: user.first_name,
-          last_name: user.last_name,
-        },
+        user,
         organization: {
-          id: membership.org.id,
-          name: membership.org.legal_name,
+          id: membership.org_id,
+          name: membership.organizations.legal_name,
           role: membership.role,
           isAdmin,
         },
@@ -126,17 +101,11 @@ const handler: Handler = async (event) => {
     };
 
   } catch (error: any) {
-    console.error("❌ Errore Netlify function:", error);
+    console.error("❌ Errore:", error.message);
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        error: "Internal server error",
-        message: error.message,
-      }),
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ error: "Internal server error" }),
     };
   }
 };
