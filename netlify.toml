@@ -2,10 +2,20 @@
   command = "npm run build:client"
   publish = "dist/spa"
 
+# Abilita Netlify Functions
+[build]
+  functions = "netlify/functions"
+
 # Escludi documentazione dalla scansione segreti
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "DATABASE_URL"
   SECRETS_SCAN_OMIT_PATHS = "scripts/README-DB-SETUP.md,scripts/check-db-connection.md"
+
+# Routing per API e SPA
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api"
+  status = 200
 
 [[redirects]]
   from = "/*"
