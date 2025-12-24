@@ -9,13 +9,17 @@ export async function handler(event: any, context: any) {
     console.log('🔧 Context disponibile');
 
     // Verifica env variables critiche
-    const hasDbUrl = !!process.env.DATABASE_URL;
+    const hasPgHost = !!process.env.PGHOST;
+    const hasPgUser = !!process.env.PGUSER;
+    const hasPgPassword = !!process.env.PGPASSWORD;
     const hasJwtSecret = !!process.env.JWT_SECRET;
 
-    console.log('✅ DATABASE_URL:', hasDbUrl ? 'presente' : 'MANCANTE');
+    console.log('✅ PGHOST:', hasPgHost ? 'presente' : 'MANCANTE');
+    console.log('✅ PGUSER:', hasPgUser ? 'presente' : 'MANCANTE');
+    console.log('✅ PGPASSWORD:', hasPgPassword ? 'presente' : 'MANCANTE');
     console.log('✅ JWT_SECRET:', hasJwtSecret ? 'presente' : 'MANCANTE');
 
-    if (!hasDbUrl || !hasJwtSecret) {
+    if (!hasPgHost || !hasPgUser || !hasPgPassword || !hasJwtSecret) {
       console.error('❌ Env variables critiche mancanti');
       return {
         statusCode: 500,
@@ -23,7 +27,9 @@ export async function handler(event: any, context: any) {
         body: JSON.stringify({
           error: 'Server configuration error',
           details: {
-            database: hasDbUrl,
+            pghost: hasPgHost,
+            pguser: hasPgUser,
+            pgpassword: hasPgPassword,
             jwt: hasJwtSecret
           }
         })
