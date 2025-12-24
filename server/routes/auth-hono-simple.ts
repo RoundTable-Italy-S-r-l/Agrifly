@@ -187,14 +187,24 @@ app.post('/request-password-reset', async (c) => {
     }
 
     // Trova utente
-    const userResult = await query('SELECT id, email, first_name FROM users WHERE email = $1 AND status = $2', [email, 'ACTIVE']);
+    console.log('🔍 Cerca utente con email:', email);
+    let userResult;
+    try {
+      userResult = await query('SELECT id, email, first_name FROM users WHERE email = $1 AND status = $2', [email, 'ACTIVE']);
+      console.log('✅ Query eseguita, risultati:', userResult.rows.length);
+    } catch (queryError: any) {
+      console.error('❌ Errore query database:', queryError);
+      throw queryError;
+    }
     
     if (userResult.rows.length === 0) {
       // Per sicurezza, non rivelare se l'email esiste
+      console.log('⚠️  Utente non trovato o non attivo');
       return c.json({ message: 'Se l\'email esiste, riceverai un link per resettare la password' });
     }
 
     const user = userResult.rows[0];
+    console.log('✅ Utente trovato:', user.id);
 
     // Genera token reset
     const resetToken = generateResetToken();
