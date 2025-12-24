@@ -466,7 +466,8 @@ app.get('/public', async (c) => {
       // Filtra solo prodotti con stock disponibile > 0 o con prezzo definito
       const availableStock = parseInt(row.available_stock) || 0;
       
-      // Mostra solo prodotti con stock disponibile o con prezzo (per debug)
+      // Mostra prodotti se hanno stock disponibile O prezzo (anche se stock = 0)
+      // Questo permette di vedere prodotti anche senza stock se hanno un prezzo
       if (availableStock > 0 || price > 0) {
         vendor.products.push({
           id: row.catalog_item_id, // Usa catalog_item_id come ID univoco
@@ -484,6 +485,14 @@ app.get('/public', async (c) => {
           description: `${row.brand} ${row.model} - ${row.product_name}`, // Costruisci description da altri campi
           specs: row.specs_json,
           vendorNotes: row.vendor_notes
+        });
+      } else {
+        console.log('⚠️  Prodotto escluso dal catalogo pubblico:', {
+          skuCode: row.sku_code,
+          productName: row.product_name,
+          stock: availableStock,
+          price: price,
+          isForSale: row.is_for_sale
         });
       }
     });
