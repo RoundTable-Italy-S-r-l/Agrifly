@@ -2,6 +2,7 @@
   command = "npm run build:client"
   publish = "dist/spa"
   functions = "netlify/functions"
+  environment = { SECRETS_SCAN_OMIT_PATHS = "scripts/**,package-lock.json,pnpm-lock.yaml,prisma/schema.prisma,**/*.md,**/*.sh", SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,PGDATABASE,PGPORT" }
 
 # Escludi documentazione e nuove variabili PG dalla scansione segreti
 [build.environment]

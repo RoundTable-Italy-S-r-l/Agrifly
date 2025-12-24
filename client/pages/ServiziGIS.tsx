@@ -33,12 +33,14 @@ import {
   fetchSavedFields,
   createSavedField,
   deleteSavedField,
+  estimateQuote,
   type Drone,
   type Crop,
   type Treatment,
   type Affiliate,
   type GisCategory,
-  type SavedField as SavedFieldType
+  type SavedField as SavedFieldType,
+  type QuoteEstimateInput
 } from '@/lib/api';
 
 interface GisData {
@@ -47,11 +49,15 @@ interface GisData {
   slope: number;
 }
 
-const BASE_RATE_PER_HA = 45;
-const LOGISTICS_FIXED = 100;
-const KM_RATE = 0.50;
+// Default seller organization ID for quote estimation
+// TODO: Make this configurable from user settings or organization context
+const DEFAULT_SELLER_ORG_ID = 'org_default';
 
-const calculatePricing = (
+/**
+ * Calculate pricing using the new quote-estimate API with rate cards
+ * This replaces the old hardcoded calculation
+ */
+const calculatePricing = async (
   area: number,
   slope: number,
   distance_km: number = 20,
@@ -59,44 +65,79 @@ const calculatePricing = (
   isHilly: boolean = false,
   hasObstacles: boolean = false
 ) => {
-  let slopeMultiplier = 1.0;
-  let recommendedDrone = 'DJI Agras T50';
+  try {
+    // Determine service type from treatment or default to SPRAY
+    const service_type = treatment?.type === 'solid' ? 'SPREAD' : 'SPRAY';
 
-  // Base price from treatment or default
-  const basePricePerHa = treatment
-    ? (treatment.marketPriceMin + treatment.marketPriceMax) / 2
-    : BASE_RATE_PER_HA;
+    // Determine risk multiplier key based on terrain conditions
+    let risk_key: string | undefined;
+    if (hasObstacles && isHilly) {
+      risk_key = 'high';
+    } else if (hasObstacles || isHilly) {
+      risk_key = 'medium';
+    }
 
-  // Slope multiplier from terrain data
-  if (slope <= 10) {
-    slopeMultiplier = 1.0;
-    recommendedDrone = area > 20 ? 'DJI Agras T50' : 'DJI Agras T30';
-  } else if (slope <= 20) {
-    slopeMultiplier = 1.2;
-    recommendedDrone = 'DJI Agras T30';
-  } else {
-    slopeMultiplier = 1.5;
-    recommendedDrone = 'DJI Agras T30';
+    // Build the API request
+    const input: QuoteEstimateInput = {
+      seller_org_id: DEFAULT_SELLER_ORG_ID,
+      service_type,
+      area_ha: area,
+      distance_km,
+      risk_key,
+      month: new Date().getMonth() + 1 // Current month for seasonal pricing
+    };
+
+    // Call the new API
+    const response = await estimateQuote(input);
+
+    // Convert cents to euros for display
+    const total = response.total_estimated_cents / 100;
+    const basePricePerHa = response.breakdown.baseCents / area / 100;
+    const logistics = response.breakdown.travelCents / 100;
+    const serviceBase = response.breakdown.multipliedCents / 100;
+
+    // Determine recommended drone based on area and slope
+    let recommendedDrone = 'DJI Agras T50';
+    if (slope <= 10) {
+      recommendedDrone = area > 20 ? 'DJI Agras T50' : 'DJI Agras T30';
+    } else {
+      recommendedDrone = 'DJI Agras T30';
+    }
+
+    return {
+      serviceBase,
+      basePricePerHa,
+      slopeMultiplier: response.breakdown.seasonalMult,
+      terrainMultiplier: response.breakdown.riskMult,
+      obstacleMultiplier: 1.0, // Included in risk multiplier now
+      logistics,
+      total,
+      recommendedDrone,
+      breakdown: response.breakdown // Keep full breakdown for debugging
+    };
+  } catch (error) {
+    console.error('Error calculating pricing:', error);
+
+    // Fallback to basic estimation if API fails
+    const basePricePerHa = treatment
+      ? (treatment.marketPriceMin + treatment.marketPriceMax) / 2
+      : 45;
+
+    const serviceBase = area * basePricePerHa;
+    const logistics = 100 + (distance_km * 0.5);
+    const total = serviceBase + logistics;
+
+    return {
+      serviceBase,
+      basePricePerHa,
+      slopeMultiplier: 1.0,
+      terrainMultiplier: 1.0,
+      obstacleMultiplier: 1.0,
+      logistics,
+      total,
+      recommendedDrone: area > 20 ? 'DJI Agras T50' : 'DJI Agras T30'
+    };
   }
-
-  // Additional complexity multipliers
-  const terrainMultiplier = isHilly ? 1.2 : 1.0;
-  const obstacleMultiplier = hasObstacles ? 1.15 : 1.0;
-
-  const serviceBase = area * basePricePerHa * slopeMultiplier * terrainMultiplier * obstacleMultiplier;
-  const logistics = LOGISTICS_FIXED + (distance_km * KM_RATE);
-  const total = serviceBase + logistics;
-
-  return {
-    serviceBase,
-    basePricePerHa,
-    slopeMultiplier,
-    terrainMultiplier,
-    obstacleMultiplier,
-    logistics,
-    total,
-    recommendedDrone
-  };
 };
 
 const Badge = ({ children, color = 'emerald' }: { children: React.ReactNode; color?: string }) => {
@@ -137,7 +178,9 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
 const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
   const [step, setStep] = useState(1);
   const [gisData, setGisData] = useState<GisData | null>(null);
-  const [pricing, setPricing] = useState<ReturnType<typeof calculatePricing> | null>(null);
+  const [pricing, setPricing] = useState<Awaited<ReturnType<typeof calculatePricing>> | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
   const [savedFields, setSavedFields] = useState<SavedFieldType[]>([]);
   const [clientName, setClientName] = useState('');
   const [fieldName, setFieldName] = useState('');
@@ -161,44 +204,68 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
   });
 
   // Recalculate pricing when treatment or terrain changes
-  const recalculatePricing = () => {
+  const recalculatePricing = async () => {
     if (gisData) {
-      const calculatedPricing = calculatePricing(
-        parseFloat(gisData.area),
-        gisData.slope,
+      setPricingLoading(true);
+      setPricingError(null);
+      try {
+        const calculatedPricing = await calculatePricing(
+          parseFloat(gisData.area),
+          gisData.slope,
+          20,
+          selectedTreatment,
+          isHillyTerrain,
+          hasObstacles
+        );
+        setPricing(calculatedPricing);
+      } catch (error) {
+        setPricingError('Errore nel calcolo del preventivo');
+        console.error('Pricing calculation error:', error);
+      } finally {
+        setPricingLoading(false);
+      }
+    }
+  };
+
+  const handleGisComplete = async (data: GisData) => {
+    setGisData(data);
+    setPricingLoading(true);
+    setPricingError(null);
+    try {
+      const calculatedPricing = await calculatePricing(
+        parseFloat(data.area),
+        data.slope,
         20,
         selectedTreatment,
         isHillyTerrain,
         hasObstacles
       );
       setPricing(calculatedPricing);
+      setShowSaveForm(true);
+      setStep(1);
+    } catch (error) {
+      setPricingError('Errore nel calcolo del preventivo');
+      console.error('Pricing calculation error:', error);
+    } finally {
+      setPricingLoading(false);
     }
-  };
-
-  const handleGisComplete = (data: GisData) => {
-    setGisData(data);
-    const calculatedPricing = calculatePricing(
-      parseFloat(data.area),
-      data.slope,
-      20,
-      selectedTreatment,
-      isHillyTerrain,
-      hasObstacles
-    );
-    setPricing(calculatedPricing);
-    setShowSaveForm(true);
-    setStep(1);
   };
 
   const handleSaveField = () => {
     if (!gisData || !clientName || !fieldName) return;
 
+    const now = new Date().toISOString();
     const newField: SavedFieldType = {
       id: Date.now().toString(),
       clientName,
       fieldName,
+      area: gisData.area,
+      slope: gisData.slope,
+      points: gisData.points,
       gisData,
-      savedAt: new Date().toLocaleString('it-IT')
+      savedAt: new Date().toLocaleString('it-IT'),
+      createdAt: now,
+      updatedAt: now
     };
 
     setSavedFields([...savedFields, newField]);
@@ -207,11 +274,27 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
     setShowSaveForm(false);
   };
 
-  const handleLoadField = (field: SavedFieldType) => {
+  const handleLoadField = async (field: SavedFieldType) => {
     setGisData(field.gisData);
-    const calculatedPricing = calculatePricing(parseFloat(field.gisData.area), field.gisData.slope);
-    setPricing(calculatedPricing);
-    setStep(2);
+    setPricingLoading(true);
+    setPricingError(null);
+    try {
+      const calculatedPricing = await calculatePricing(
+        parseFloat(field.gisData.area),
+        field.gisData.slope,
+        20,
+        selectedTreatment,
+        isHillyTerrain,
+        hasObstacles
+      );
+      setPricing(calculatedPricing);
+      setStep(2);
+    } catch (error) {
+      setPricingError('Errore nel calcolo del preventivo');
+      console.error('Pricing calculation error:', error);
+    } finally {
+      setPricingLoading(false);
+    }
   };
 
   const handleDeleteField = (id: string) => {
@@ -406,7 +489,19 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
               )}
 
               {/* Price Preview */}
-              {selectedTreatment && pricing && (
+              {pricingError && (
+                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700">⚠️ {pricingError}</p>
+                </div>
+              )}
+              {pricingLoading && (
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700 flex items-center gap-2">
+                    <span className="animate-spin">⏳</span> Calcolo preventivo in corso...
+                  </p>
+                </div>
+              )}
+              {selectedTreatment && pricing && !pricingLoading && (
                 <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                   <div className="flex justify-between items-center mb-4">
                     <div>
@@ -518,13 +613,17 @@ const ServiceConfigurator = ({ onBack }: { onBack: () => void }) => {
 
               <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-start gap-3">
                 <span className="text-slate-400 text-lg">ℹ️</span>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-slate-700">Algoritmo Intelligente:</strong> Prezzo base €{pricing.basePricePerHa}/ha per {selectedTreatment?.name || 'servizio standard'}.
-                  Moltiplicatori applicati: Pendenza {gisData.slope}% (×{pricing.slopeMultiplier.toFixed(1)})
-                  {isHillyTerrain && `, Terreno Collinare (×${pricing.terrainMultiplier.toFixed(1)})`}
-                  {hasObstacles && `, Ostacoli (×${pricing.obstacleMultiplier.toFixed(2)})`}.
-                  Sistema adattivo per garantire qualità e margine operativo.
-                </p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">Nuovo Algoritmo Rate Cards</span>
+                    <span className="text-xs text-slate-500">Powered by Netlify Functions</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    <strong className="text-slate-700">Algoritmo Dinamico:</strong> Preventivo calcolato da rate_cards database con moltiplicatori stagionali (×{pricing.slopeMultiplier.toFixed(2)}) e di rischio (×{pricing.terrainMultiplier.toFixed(2)}).
+                    Base €{pricing.basePricePerHa.toFixed(2)}/ha per {selectedTreatment?.name || 'servizio standard'}.
+                    Sistema adattivo per garantire qualità e margine operativo.
+                  </p>
+                </div>
               </div>
             </div>
           )}
