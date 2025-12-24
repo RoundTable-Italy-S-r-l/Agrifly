@@ -265,7 +265,20 @@ app.get('/vendor/:orgId', async (c) => {
         p.specs_json,
         p.images_json,
         COALESCE(SUM(i.qty_on_hand), 0) as total_stock,
-        COALESCE(SUM(i.qty_reserved), 0) as total_reserved
+        COALESCE(SUM(i.qty_reserved), 0) as total_reserved,
+        -- Prezzo dalla price list attiva più recente
+        (
+          SELECT pli.price_cents / 100.0
+          FROM price_list_items pli
+          JOIN price_lists pl ON pli.price_list_id = pl.id
+          WHERE pli.sku_id = vci.sku_id
+            AND pl.vendor_org_id = $1
+            AND pl.status = 'ACTIVE'
+            AND pl.valid_from <= NOW()
+            AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
+          ORDER BY pl.valid_from DESC
+          LIMIT 1
+        ) as price_euros
       FROM vendor_catalog_items vci
       JOIN skus s ON vci.sku_id = s.id
       JOIN products p ON s.product_id = p.id
@@ -281,6 +294,11 @@ app.get('/vendor/:orgId', async (c) => {
       const totalStock = parseInt(row.total_stock) || 0;
       const totalReserved = parseInt(row.total_reserved) || 0;
       const available = totalStock - totalReserved;
+      
+      // Converti il prezzo da stringa a numero e arrotonda a 2 decimali
+      const priceRaw = row.price_euros || null;
+      const price = priceRaw ? (typeof priceRaw === 'string' ? parseFloat(priceRaw) : priceRaw) : null;
+      const priceRounded = price ? Math.round(price * 100) / 100 : null;
       
       return {
         id: row.id,
@@ -299,6 +317,7 @@ app.get('/vendor/:orgId', async (c) => {
         isActive: row.is_for_sale, // Alias per compatibilità frontend
         leadTimeDays: row.lead_time_days,
         notes: row.notes,
+        price: priceRounded, // Prezzo arrotondato a 2 decimali
         stock: available, // Numero disponibile (per compatibilità frontend)
         stockDetails: { // Dettagli opzionali per uso futuro
           total: totalStock,
