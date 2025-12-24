@@ -421,6 +421,8 @@ app.post('/reset-password', async (c) => {
 
 app.get('/debug/lenzi-catalog', async (c) => {
   try {
+    console.log('🔍 Debug Lenzi catalog - inizio query...');
+    
     // Trova organizzazione Lenzi
     const lenziOrg = await query(`
       SELECT id, legal_name, org_type, status
@@ -429,11 +431,24 @@ app.get('/debug/lenzi-catalog', async (c) => {
       LIMIT 1
     `);
 
+    console.log('📋 Organizzazioni Lenzi trovate:', lenziOrg.rows.length);
+
     if (lenziOrg.rows.length === 0) {
-      return c.json({ error: 'Organizzazione Lenzi non trovata' }, 404);
+      // Prova a cercare tutte le organizzazioni vendor
+      const allVendors = await query(`
+        SELECT id, legal_name, org_type
+        FROM organizations
+        WHERE org_type = 'VENDOR'
+        LIMIT 10
+      `);
+      return c.json({ 
+        error: 'Organizzazione Lenzi non trovata',
+        availableVendors: allVendors.rows
+      }, 404);
     }
 
     const lenziId = lenziOrg.rows[0].id;
+    console.log('✅ Lenzi ID trovato:', lenziId);
 
     // Catalog items
     const catalogItems = await query(`
