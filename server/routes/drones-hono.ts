@@ -99,6 +99,7 @@ app.get('/', async (c) => {
 app.get('/:id', async (c) => {
   try {
     const id = c.req.param('id');
+    console.log('🔍 Richiesta drone detail per ID:', id);
     
     // Prova prima come catalog_item_id (vendor_catalog_items)
     // Se non trovato, prova come product_id
@@ -132,6 +133,7 @@ app.get('/:id', async (c) => {
 
     // Se non trovato come catalog_item_id, prova come product_id
     if (result.rows.length === 0) {
+      console.log('⚠️  Non trovato come catalog_item_id, provo come product_id');
       result = await query(`
         SELECT 
           p.id,
@@ -161,8 +163,11 @@ app.get('/:id', async (c) => {
     }
 
     if (result.rows.length === 0) {
-      return c.json({ error: 'Drone non trovato' }, 404);
+      console.log('❌ Drone non trovato con ID:', id);
+      return c.json({ error: 'Drone non trovato', id }, 404);
     }
+    
+    console.log('✅ Drone trovato:', result.rows[0].model);
 
     const row = result.rows[0];
 
