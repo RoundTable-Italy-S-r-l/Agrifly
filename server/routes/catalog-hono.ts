@@ -103,7 +103,6 @@ app.get('/public', async (c) => {
       SELECT 
         o.id as vendor_id,
         o.legal_name as vendor_name,
-        o.description as vendor_description,
         vci.id as catalog_item_id,
         vci.sku_id,
         vci.is_for_sale,
@@ -174,7 +173,7 @@ app.get('/public', async (c) => {
     }
 
     querySql += `
-      GROUP BY o.id, o.legal_name, o.description, vci.id, vci.sku_id, vci.is_for_sale, 
+      GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale, 
                vci.is_for_rent, vci.lead_time_days, vci.notes, s.sku_code, p.id, 
                p.name, p.brand, p.model, p.product_type, p.description, p.specs_json, p.images_json
       HAVING COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) > 0
@@ -232,7 +231,7 @@ app.get('/public', async (c) => {
           id: vendorId,
           name: row.vendor_name,
           logo: '', // TODO: aggiungere logo quando disponibile
-          description: row.vendor_description || '',
+          description: '', // Organizations non ha description, usare valore vuoto o costruire da address
           products: []
         });
       }
