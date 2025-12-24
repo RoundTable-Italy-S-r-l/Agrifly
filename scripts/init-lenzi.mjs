@@ -222,21 +222,31 @@ async function initializeLenziCatalogStandalone() {
           lead_time_days = EXCLUDED.lead_time_days,
           notes = EXCLUDED.notes;
 
-        -- Inizializza prezzi
+        -- Inizializza prezzi basati sul modello del prodotto
         INSERT INTO price_list_items (id, price_list_id, sku_id, price_cents, tax_code, created_at)
         SELECT
           gen_random_uuid(),
           (SELECT price_list_id FROM temp_ids),
-          p.id,
+          s.id,  -- Usa sku_id invece di product_id
           CASE
-            WHEN p.product_type = 'DRONE' THEN 2500000  -- 25,000€
-            WHEN p.product_type = 'BATTERY' THEN 150000 -- 1,500€
-            WHEN p.product_type = 'SPARE' THEN 50000    -- 500€
-            ELSE 100000                                 -- 1,000€
+            -- Prezzi specifici per modello drone
+            WHEN p.model ILIKE '%T50%' THEN 2850000  -- 28,500€
+            WHEN p.model ILIKE '%T30%' THEN 1650000   -- 16,500€
+            WHEN p.model ILIKE '%T70P%' THEN 3200000  -- 32,000€
+            WHEN p.model ILIKE '%T100%' THEN 4500000  -- 45,000€
+            WHEN p.model ILIKE '%T25P%' THEN 1400000  -- 14,000€
+            WHEN p.model ILIKE '%T25%' THEN 1200000   -- 12,000€
+            WHEN p.model ILIKE '%Mavic 3M%' OR p.model ILIKE '%Mavic3M%' THEN 800000  -- 8,000€
+            -- Prezzi generici per tipo prodotto
+            WHEN p.product_type = 'DRONE' THEN 2000000  -- 20,000€ default
+            WHEN p.product_type = 'BATTERY' THEN 150000  -- 1,500€
+            WHEN p.product_type = 'SPARE' THEN 50000     -- 500€
+            ELSE 100000                                  -- 1,000€
           END,
           '22',
           NOW()
         FROM products p
+        JOIN skus s ON s.product_id = p.id
         WHERE p.status = 'ACTIVE'
         ON CONFLICT (price_list_id, sku_id) DO UPDATE SET
           price_cents = EXCLUDED.price_cents,
