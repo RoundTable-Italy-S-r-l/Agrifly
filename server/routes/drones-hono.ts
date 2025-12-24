@@ -114,9 +114,11 @@ app.get('/:id', async (c) => {
           p.product_type,
           p.specs_json,
           p.images_json,
-          p.glb_files_json
+          p.glb_files_json,
+          s.sku_code
         FROM products p
-        WHERE p.id = $1 AND p.status = 'ACTIVE'
+        JOIN skus s ON p.id = s.product_id
+        WHERE p.id = $1 AND p.status = 'ACTIVE' AND s.status = 'ACTIVE'
         LIMIT 1
       `;
       queryParams = [param];
@@ -131,7 +133,9 @@ app.get('/:id', async (c) => {
           p.product_type,
           p.specs_json,
           p.images_json,
-          p.glb_files_json
+          p.glb_files_json,
+          s.sku_code,
+          a."productId"
         FROM products p
         JOIN skus s ON p.id = s.product_id
         LEFT JOIN assets a ON s.id = a.sku_id AND a."productId" = $1
@@ -153,6 +157,29 @@ app.get('/:id', async (c) => {
     console.log('✅ Prodotto trovato:', result.rows[0].model);
 
     const row = result.rows[0];
+
+    // Calcola prezzo dalla price list attiva
+    let price: number | undefined;
+    try {
+      const priceResult = await query(`
+        SELECT pli.price_cents / 100.0 as price_euros
+        FROM price_list_items pli
+        JOIN price_lists pl ON pli.price_list_id = pl.id
+        WHERE pli.sku_id = (SELECT id FROM skus WHERE product_id = $1 AND status = 'ACTIVE' LIMIT 1)
+          AND pl.vendor_org_id = (SELECT vendor_org_id FROM vendor_catalog_items WHERE sku_id = (SELECT id FROM skus WHERE product_id = $1 AND status = 'ACTIVE' LIMIT 1) LIMIT 1)
+          AND pl.status = 'ACTIVE'
+          AND pl.valid_from <= NOW()
+          AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
+        ORDER BY pl.valid_from DESC
+        LIMIT 1
+      `, [row.id]);
+
+      if (priceResult.rows.length > 0) {
+        price = parseFloat(priceResult.rows[0].price_euros);
+      }
+    } catch (e) {
+      console.warn('Errore calcolo prezzo:', e);
+    }
 
     // Estrai GLB e immagini
     let imageUrl: string | undefined;
@@ -208,6 +235,7 @@ app.get('/:id', async (c) => {
       model: row.model,
       brand: row.brand,
       productType: row.product_type,
+      price,
       specs: row.specs_json,
       images: row.images_json,
       imageUrl,
