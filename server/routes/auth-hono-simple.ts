@@ -215,35 +215,47 @@ app.post('/request-password-reset', async (c) => {
     console.log('📧 FRONTEND_URL configurato:', frontendUrl);
     console.log('📧 RESEND_API_KEY configurato:', !!process.env.RESEND_API_KEY);
     
-    const emailResult = await sendPasswordResetEmail(email, resetUrl);
+    try {
+      const emailResult = await sendPasswordResetEmail(email, resetUrl);
 
-    // Se RESEND non è configurato (sviluppo), restituiamo il link nella risposta
-    if (!emailResult.sent && emailResult.resetUrl) {
-      console.warn('⚠️  RESEND_API_KEY non configurato - link reset disponibile solo in console');
-      console.log('📧 RESET PASSWORD LINK:', emailResult.resetUrl);
-      
-      // In sviluppo, possiamo restituire il link (rimuovere in produzione)
-      if (process.env.NODE_ENV === 'development') {
-        return c.json({ 
-          message: 'Email non configurata. Link reset (solo sviluppo):',
-          resetUrl: emailResult.resetUrl,
-          warning: 'RESEND_API_KEY non configurato'
-        });
+      // Se RESEND non è configurato (sviluppo), restituiamo il link nella risposta
+      if (!emailResult.sent && emailResult.resetUrl) {
+        console.warn('⚠️  RESEND_API_KEY non configurato - link reset disponibile solo in console');
+        console.log('📧 RESET PASSWORD LINK:', emailResult.resetUrl);
+        
+        // In sviluppo, possiamo restituire il link (rimuovere in produzione)
+        if (process.env.NODE_ENV === 'development') {
+          return c.json({ 
+            message: 'Email non configurata. Link reset (solo sviluppo):',
+            resetUrl: emailResult.resetUrl,
+            warning: 'RESEND_API_KEY non configurato'
+          });
+        }
       }
-    }
 
-    if (!emailResult.sent && emailResult.error) {
-      console.error('Errore invio email reset password:', emailResult.error);
-      // Non blocchiamo il flusso, ma loggiamo l'errore
-    }
+      if (!emailResult.sent && emailResult.error) {
+        console.error('Errore invio email reset password:', emailResult.error);
+        // Non blocchiamo il flusso, ma loggiamo l'errore
+      }
 
-    return c.json({ 
-      message: 'Se l\'email esiste, riceverai un link per resettare la password' 
-    });
+      return c.json({ 
+        message: 'Se l\'email esiste, riceverai un link per resettare la password' 
+      });
+    } catch (emailError: any) {
+      console.error('Errore nell\'invio email:', emailError);
+      // Anche se l'email fallisce, restituiamo successo per sicurezza
+      return c.json({ 
+        message: 'Se l\'email esiste, riceverai un link per resettare la password' 
+      });
+    }
 
   } catch (error: any) {
     console.error('Errore richiesta reset password:', error);
-    return c.json({ error: 'Errore interno' }, 500);
+    console.error('Stack:', error.stack);
+    return c.json({ 
+      error: 'Errore interno',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, 500);
   }
 });
 
