@@ -1,12 +1,21 @@
 import { Client } from 'pg';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-// Usa le credenziali dal pooler Supabase
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Carica .env dalla root del progetto
+dotenv.config({ path: join(__dirname, '../.env') });
+
+// Usa le credenziali dalle variabili d'ambiente
 const client = new Client({
-  host: 'aws-1-eu-central-2.pooler.supabase.com',
-  port: 6543,
-  database: 'postgres',
-  user: 'postgres.fzowfkfwriajohjjboed',
-  password: '66tY3_C_%5iAR8c',
+  host: process.env.PGHOST || process.env.DATABASE_URL?.match(/@([^:]+)/)?.[1],
+  port: Number(process.env.PGPORT || 5432),
+  database: process.env.PGDATABASE || 'postgres',
+  user: process.env.PGUSER || process.env.DATABASE_URL?.match(/:\/\/([^:]+):/)?.[1],
+  password: process.env.PGPASSWORD || process.env.DATABASE_URL?.match(/:\/\/[^:]+:([^@]+)@/)?.[1]?.replace(/%5/g, '%'),
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 3000,
 });

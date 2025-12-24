@@ -7,9 +7,15 @@ if [ -f .env ]; then
   export $(cat .env | grep -v '^#' | xargs)
 fi
 
-# Password (URL-encoded: % diventa %25)
-DB_PASSWORD="66tY3_C_%5iAR8c"
-PROJECT_REF="fzowfkfwriajohjjboed"
+# Usa variabili d'ambiente - NON hardcodare credenziali!
+DB_PASSWORD="${PGPASSWORD:-${DATABASE_URL#*:}}"
+PROJECT_REF="${SUPABASE_PROJECT_REF:-fzowfkfwriajohjjboed}"
+
+if [ -z "$DB_PASSWORD" ]; then
+  echo "❌ Errore: PGPASSWORD o DATABASE_URL non configurati"
+  echo "Configura le variabili d'ambiente nel file .env"
+  exit 1
+fi
 
 echo "🔄 Test connessione via Pooler..."
 echo ""

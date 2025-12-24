@@ -37,3 +37,9 @@ dist-ssr
 
 # Config
 .config/
+
+# Scripts con credenziali (devono usare .env)
+scripts/*.sh
+scripts/*.js
+!scripts/README.md
+check-db-status.js
