@@ -5,22 +5,22 @@ import path from "path";
 
 process.env.PRISMA_GENERATE_DATAPROXY = "true";
 process.env.PRISMA_GENERATE_ACCELERATE = "true";
-import { handleDemo } from "./routes/demo";
-import { getDrones, getDroneById } from "./routes/drones";
-import { getCrops, getCropById } from "./routes/crops";
-import { getTreatments, getTreatmentsByCategory, getTreatmentById } from "./routes/treatments";
-import { getAffiliates, getAffiliateById } from "./routes/affiliates";
-import { getSavedFields, createSavedField, getSavedFieldById, deleteSavedField } from "./routes/fields";
-import { getGisCategories, getGisCategoryById } from "./routes/gis-categories";
-import { getOrders, getOrderStats, createSampleOrder, updateOrderStatus } from "./routes/orders";
-import { getMissions, getActiveMissions, getMissionsStats } from "./routes/missions";
-import { getPublicCatalog, getVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, initializeLenziCatalog, setupTestData } from "./routes/catalog";
-import { getOffers, createOffer, updateOffer, deleteOffer } from "./routes/offers";
-import { getRateCards, getRateCard, upsertRateCard, deleteRateCard } from "./routes/services";
-import { getOperators, getOperator } from "./routes/operators";
-import { getBookings } from "./routes/bookings";
-import authCustomRoutes, { requireAuth } from "./routes/auth-custom";
-import settingsRoutes from "./routes/settings";
+import { handleDemo } from "./routes/demo-hono";
+import { getDrones, getDroneById } from "./routes/drones-hono";
+import { getCrops, getCropById } from "./routes/crops-hono";
+import { getTreatments, getTreatmentsByCategory, getTreatmentById } from "./routes/treatments-hono";
+import { getAffiliates, getAffiliateById } from "./routes/affiliates-hono";
+import { getSavedFields, createSavedField, getSavedFieldById, deleteSavedField } from "./routes/fields-hono";
+import { getGisCategories, getGisCategoryById } from "./routes/gis-categories-hono";
+import { getOrders, getOrderStats, createSampleOrder, updateOrderStatus } from "./routes/orders-hono";
+import { getMissions, getActiveMissions, getMissionsStats } from "./routes/missions-hono";
+import { getPublicCatalog, getVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, initializeLenziCatalog, setupTestData } from "./routes/catalog-hono";
+import { getOffers, createOffer, updateOffer, deleteOffer } from "./routes/offers-hono";
+import { getRateCards, getRateCard, upsertRateCard, deleteRateCard } from "./routes/services-hono";
+import { getOperators, getOperator } from "./routes/operators-hono";
+import { getBookings } from "./routes/bookings-hono";
+// import authCustomRoutes, { requireAuth } from "./routes/auth-custom"; // Temporarily disabled
+import settingsRoutes from "./routes/settings-hono";
 
 export function createServer() {
   const app = express();
