@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
-// Import delle routes esistenti (convertite da Express)
-import authRoutes from './routes/auth-hono';
+// Import delle routes semplificate (senza Prisma)
+import authRoutes from './routes/auth-hono-simple';
 import demoRoutes from './routes/demo-hono';
 import dronesRoutes from './routes/drones-hono';
 import cropsRoutes from './routes/crops-hono';
@@ -53,34 +53,6 @@ app.route('/api/operators', operatorsRoutes);
 app.route('/api/bookings', bookingsRoutes);
 app.route('/api/settings', settingsRoutes);
 
-// Health check dettagliato
-app.get('/api/health', async (c) => {
-  const checks = {
-    timestamp: new Date().toISOString(),
-    environment: {
-      node_env: process.env.NODE_ENV,
-      netlify: !!process.env.NETLIFY,
-    },
-    env_vars: {
-      database_url: !!process.env.DATABASE_URL,
-      jwt_secret: !!process.env.JWT_SECRET,
-      supabase_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      frontend_url: !!process.env.FRONTEND_URL,
-    }
-  };
-
-  // Test connessione database
-  try {
-    const { createPrismaClient } = await import('./utils/prisma');
-    const prisma = createPrismaClient();
-    await prisma.$connect();
-    await prisma.$disconnect();
-    checks.database = { status: 'connected' };
-  } catch (error: any) {
-    checks.database = { status: 'error', message: error.message };
-  }
-
-  return c.json(checks);
-});
+// Health check rimosso - ora è nella route auth
 
 export default app;
