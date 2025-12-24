@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { hashPassword, verifyPassword, generateJWT, verifyJWT, generateResetToken, generateVerificationCode, rateLimiter } from '../utils/auth';
 import { query } from '../utils/database';
 import { sendPasswordResetEmail } from '../utils/email';
+import { publicObjectUrl } from '../utils/storage';
 import type { UserStatus, OrgRole } from '../types';
 
 const app = new Hono();
@@ -710,14 +711,17 @@ app.get('/debug/glb-paths', async (c) => {
           glbPaths = glbFiles.map(glb => glb.url || glb.filename || glb);
           
           // Costruisci URL Supabase Storage
-          const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fzowfkfwriajohjjboed.supabase.co';
-          
           supabaseUrls = glbPaths
             .filter((path: string) => typeof path === 'string')
             .map((path: string) => {
-              const cleanPath = path.replace(/^\//, ''); // Rimuovi slash iniziale se presente
-              return `${supabaseUrl}/storage/v1/object/public/assets/${cleanPath}`;
-            });
+              try {
+                return publicObjectUrl('assets', path);
+              } catch (e) {
+                console.warn('Errore costruzione URL per path:', path, e);
+                return null;
+              }
+            })
+            .filter((url): url is string => url !== null);
         }
       } catch (e) {
         console.error('Errore parsing glb_files_json:', e);
@@ -731,7 +735,13 @@ app.get('/debug/glb-paths', async (c) => {
       };
     });
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fzowfkfwriajohjjboed.supabase.co';
+    let supabaseUrl: string;
+    try {
+      const { getSupabaseUrl } = await import('../utils/storage');
+      supabaseUrl = getSupabaseUrl();
+    } catch (e) {
+      supabaseUrl = 'NOT_CONFIGURED';
+    }
     
     return c.json({
       supabaseUrl,

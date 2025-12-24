@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
+import { publicObjectUrl } from '../utils/storage';
 
 const app = new Hono();
 
@@ -321,19 +322,12 @@ app.get('/vendor/:orgId', async (c) => {
             } 
             // Se è un path relativo, costruisci URL Supabase Storage
             else if (typeof rawUrl === 'string') {
-              const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-              
-              if (supabaseUrl) {
-                // Rimuovi slash iniziale se presente e costruisci URL Supabase Storage
-                const cleanPath = rawUrl.replace(/^\//, '');
-                glbUrl = `${supabaseUrl}/storage/v1/object/public/assets/${cleanPath}`;
-              } else {
-                // Fallback: usa il path originale (per sviluppo locale)
-                glbUrl = rawUrl;
+              try {
+                glbUrl = publicObjectUrl('assets', rawUrl);
+              } catch (e) {
+                console.warn('Errore costruzione URL Supabase Storage:', e);
+                glbUrl = undefined; // Non usare path locale su Netlify
               }
-            } else {
-              // Altri casi (path senza slash iniziale, filename, etc.)
-              glbUrl = rawUrl;
             }
           }
         } catch (e) {
@@ -557,19 +551,12 @@ app.get('/public', async (c) => {
             } 
             // Se è un path relativo, costruisci URL Supabase Storage
             else if (typeof rawUrl === 'string') {
-              const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-              
-              if (supabaseUrl) {
-                // Rimuovi slash iniziale se presente e costruisci URL Supabase Storage
-                const cleanPath = rawUrl.replace(/^\//, '');
-                glbUrl = `${supabaseUrl}/storage/v1/object/public/assets/${cleanPath}`;
-              } else {
-                // Fallback: usa il path originale (per sviluppo locale)
-                glbUrl = rawUrl;
+              try {
+                glbUrl = publicObjectUrl('assets', rawUrl);
+              } catch (e) {
+                console.warn('Errore costruzione URL Supabase Storage:', e);
+                glbUrl = undefined; // Non usare path locale su Netlify
               }
-            } else {
-              // Altri casi (path senza slash iniziale, filename, etc.)
-              glbUrl = rawUrl;
             }
           }
         } catch (e) {
