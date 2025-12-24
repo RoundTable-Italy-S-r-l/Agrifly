@@ -3,10 +3,10 @@
   publish = "dist/spa"
   functions = "netlify/functions"
 
-# Escludi documentazione dalla scansione segreti
+# Escludi documentazione e nuove variabili PG dalla scansione segreti
 [build.environment]
-  SECRETS_SCAN_OMIT_KEYS = "DATABASE_URL"
-  SECRETS_SCAN_OMIT_PATHS = "scripts/README-DB-SETUP.md,scripts/check-db-connection.md"
+  SECRETS_SCAN_OMIT_KEYS = "DATABASE_URL,PGHOST,PGPORT,PGDATABASE,PGUSER,PGPASSWORD"
+  SECRETS_SCAN_OMIT_PATHS = "scripts/README-DB-SETUP.md,scripts/check-db-connection.md,scripts/connect-db.sh,scripts/test-pooler.sh"
 
 # Routing per API e SPA
 [[redirects]]
