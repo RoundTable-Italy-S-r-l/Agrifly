@@ -53,6 +53,24 @@ app.route('/api/operators', operatorsRoutes);
 app.route('/api/bookings', bookingsRoutes);
 app.route('/api/settings', settingsRoutes);
 
-// Health check rimosso - ora è nella route auth
+// Health check globale (compatibilità)
+app.get('/api/health', async (c) => {
+  try {
+    const { query } = await import('./utils/database');
+    await query('SELECT 1');
+    return c.json({
+      timestamp: new Date().toISOString(),
+      status: 'ok',
+      database: 'connected',
+      environment: process.env.NODE_ENV
+    });
+  } catch (error: any) {
+    return c.json({
+      status: 'error',
+      database: 'disconnected',
+      error: error.message
+    }, 500);
+  }
+});
 
 export default app;
