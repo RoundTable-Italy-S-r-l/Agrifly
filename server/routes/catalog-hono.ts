@@ -466,18 +466,7 @@ app.get('/public', async (c) => {
             : row.glb_files_json;
           if (Array.isArray(glbFiles) && glbFiles.length > 0) {
             const firstGlb = glbFiles[0];
-            let rawUrl = firstGlb.url || firstGlb.filename || firstGlb;
-            // Se l'URL è relativo (inizia con /glb/), costruisci URL completo
-            if (typeof rawUrl === 'string' && rawUrl.startsWith('/glb/')) {
-              // Su Netlify, i file statici devono essere serviti da un CDN o storage
-              // Per ora, disabilita GLB se non è un URL completo
-              // TODO: configurare CDN per GLB files
-              glbUrl = undefined; // Disabilita GLB relativi su Netlify
-            } else if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
-              glbUrl = rawUrl; // URL completo, usa direttamente
-            } else {
-              glbUrl = undefined; // Path relativo non supportato su Netlify
-            }
+            glbUrl = firstGlb.url || firstGlb.filename || firstGlb;
           }
         } catch (e) {
           console.warn('Errore parsing glb_files_json:', e);
