@@ -212,27 +212,37 @@ app.put('/vendor/:orgId/product', async (c) => {
     // Aggiorna stock (inventario)
     if (stock !== undefined) {
       // Trova location principale del vendor (o crea una default)
-      const locationResult = await query(`
+      let locationResult = await query(`
         SELECT id FROM locations
         WHERE org_id = $1
         LIMIT 1
       `, [orgId]);
 
+      let locationId: string;
+
       if (locationResult.rows.length > 0) {
-        const locationId = locationResult.rows[0].id;
-
-        // Upsert inventory
-        await query(`
-          INSERT INTO inventories (id, vendor_org_id, location_id, sku_id, qty_on_hand, qty_reserved, created_at)
-          VALUES (gen_random_uuid(), $1, $2, $3, $4, 0, NOW())
-          ON CONFLICT (vendor_org_id, location_id, sku_id)
-          DO UPDATE SET qty_on_hand = $4
-        `, [orgId, locationId, skuId, stock]);
-
-        console.log('✅ Stock aggiornato');
+        locationId = locationResult.rows[0].id;
       } else {
-        console.warn('⚠️  Nessuna location trovata per aggiornare lo stock');
+        // Crea una location di default se non esiste
+        console.log('📍 Creazione location di default per vendor:', orgId);
+        const newLocationResult = await query(`
+          INSERT INTO locations (id, org_id, name, address_json, is_hub)
+          VALUES (gen_random_uuid(), $1, 'Magazzino Principale', '{}'::json, false)
+          RETURNING id
+        `, [orgId]);
+        locationId = newLocationResult.rows[0].id;
+        console.log('✅ Location di default creata:', locationId);
       }
+
+      // Upsert inventory (usa il constraint UNIQUE corretto)
+      await query(`
+        INSERT INTO inventories (id, vendor_org_id, location_id, sku_id, qty_on_hand, qty_reserved)
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, 0)
+        ON CONFLICT (vendor_org_id, location_id, sku_id)
+        DO UPDATE SET qty_on_hand = $4
+      `, [orgId, locationId, skuId, stock]);
+
+      console.log('✅ Stock aggiornato:', { orgId, locationId, skuId, stock });
     }
 
     return c.json({ 
