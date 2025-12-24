@@ -18,25 +18,34 @@ app.post('/vendor/:orgId/toggle', async (c) => {
     }
 
     // Accetta sia skuId che catalogItemId (per compatibilità frontend)
-    let actualSkuId = skuId;
+    // Il frontend potrebbe passare l'ID del catalog item come skuId
+    let actualSkuId = skuId || catalogItemId;
     
-    if (!actualSkuId && catalogItemId) {
-      // Se viene passato catalogItemId, recupera lo sku_id
+    if (!actualSkuId) {
+      return c.json({ error: 'skuId o catalogItemId obbligatorio' }, 400);
+    }
+
+    // Verifica se actualSkuId è uno sku_id valido
+    const skuCheck = await query(`
+      SELECT id FROM skus WHERE id = $1
+    `, [actualSkuId]);
+
+    if (skuCheck.rows.length === 0) {
+      // Non è uno sku_id valido, prova a recuperarlo dal catalog item
+      console.log('⚠️  Valore passato non è uno sku_id valido, provo a recuperarlo dal catalog item:', actualSkuId);
       const catalogItemResult = await query(`
         SELECT sku_id FROM vendor_catalog_items
         WHERE id = $1 AND vendor_org_id = $2
-      `, [catalogItemId, orgId]);
+      `, [actualSkuId, orgId]);
       
       if (catalogItemResult.rows.length === 0) {
-        return c.json({ error: 'Catalog item non trovato' }, 404);
+        return c.json({ error: 'Catalog item o sku non trovato' }, 404);
       }
       
       actualSkuId = catalogItemResult.rows[0].sku_id;
-      console.log('🔄 Convertito catalogItemId a skuId:', { catalogItemId, actualSkuId });
-    }
-
-    if (!actualSkuId) {
-      return c.json({ error: 'skuId o catalogItemId obbligatorio' }, 400);
+      console.log('🔄 Convertito catalog item ID a skuId:', { originalId: skuId || catalogItemId, actualSkuId });
+    } else {
+      console.log('✅ skuId valido:', actualSkuId);
     }
 
     console.log('🔄 Toggle prodotto:', { orgId, skuId: actualSkuId, isForSale });
@@ -83,25 +92,34 @@ app.put('/vendor/:orgId/product', async (c) => {
     const { skuId, catalogItemId, price, leadTimeDays, notes, stock } = body;
 
     // Accetta sia skuId che catalogItemId (per compatibilità frontend)
-    let actualSkuId = skuId;
+    // Il frontend potrebbe passare l'ID del catalog item come skuId
+    let actualSkuId = skuId || catalogItemId;
     
-    if (!actualSkuId && catalogItemId) {
-      // Se viene passato catalogItemId, recupera lo sku_id
+    if (!actualSkuId) {
+      return c.json({ error: 'skuId o catalogItemId obbligatorio' }, 400);
+    }
+
+    // Verifica se actualSkuId è uno sku_id valido
+    const skuCheck = await query(`
+      SELECT id FROM skus WHERE id = $1
+    `, [actualSkuId]);
+
+    if (skuCheck.rows.length === 0) {
+      // Non è uno sku_id valido, prova a recuperarlo dal catalog item
+      console.log('⚠️  Valore passato non è uno sku_id valido, provo a recuperarlo dal catalog item:', actualSkuId);
       const catalogItemResult = await query(`
         SELECT sku_id FROM vendor_catalog_items
         WHERE id = $1 AND vendor_org_id = $2
-      `, [catalogItemId, orgId]);
+      `, [actualSkuId, orgId]);
       
       if (catalogItemResult.rows.length === 0) {
-        return c.json({ error: 'Catalog item non trovato' }, 404);
+        return c.json({ error: 'Catalog item o sku non trovato' }, 404);
       }
       
       actualSkuId = catalogItemResult.rows[0].sku_id;
-      console.log('🔄 Convertito catalogItemId a skuId:', { catalogItemId, actualSkuId });
-    }
-
-    if (!actualSkuId) {
-      return c.json({ error: 'skuId o catalogItemId obbligatorio' }, 400);
+      console.log('🔄 Convertito catalog item ID a skuId:', { originalId: skuId || catalogItemId, actualSkuId });
+    } else {
+      console.log('✅ skuId valido:', actualSkuId);
     }
 
     console.log('📝 Update prodotto:', { orgId, skuId: actualSkuId, price, leadTimeDays, notes, stock });
