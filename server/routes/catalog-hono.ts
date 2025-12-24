@@ -264,6 +264,7 @@ app.get('/vendor/:orgId', async (c) => {
         p.product_type,
         p.specs_json,
         p.images_json,
+        p.glb_files_json,
         COALESCE(SUM(i.qty_on_hand), 0) as total_stock,
         COALESCE(SUM(i.qty_reserved), 0) as total_reserved,
         -- Prezzo dalla price list attiva più recente
@@ -286,7 +287,7 @@ app.get('/vendor/:orgId', async (c) => {
       WHERE vci.vendor_org_id = $1
       GROUP BY vci.id, vci.sku_id, vci.is_for_sale, vci.is_for_rent, 
                vci.lead_time_days, vci.notes, s.sku_code, s.variant_tags,
-               p.id, p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json
+               p.id, p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json, p.glb_files_json
       ORDER BY p.brand, p.model, s.sku_code
     `, [orgId]);
 
@@ -299,6 +300,66 @@ app.get('/vendor/:orgId', async (c) => {
       const priceRaw = row.price_euros || null;
       const price = priceRaw ? (typeof priceRaw === 'string' ? parseFloat(priceRaw) : priceRaw) : null;
       const priceRounded = price ? Math.round(price * 100) / 100 : null;
+      
+      // Estrai GLB e immagini
+      let imageUrl: string | undefined;
+      let glbUrl: string | undefined;
+      
+      // Prima cerca GLB in glb_files_json
+      if (row.glb_files_json) {
+        try {
+          const glbFiles = typeof row.glb_files_json === 'string' 
+            ? JSON.parse(row.glb_files_json) 
+            : row.glb_files_json;
+          if (Array.isArray(glbFiles) && glbFiles.length > 0) {
+            const firstGlb = glbFiles[0];
+            let rawUrl = firstGlb.url || firstGlb.filename || firstGlb;
+            
+            // Se è un URL completo (http/https), usa direttamente
+            if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+              glbUrl = rawUrl;
+            } 
+            // Se è un path relativo che inizia con /glb/, costruisci URL Supabase Storage
+            else if (typeof rawUrl === 'string' && rawUrl.startsWith('/glb/')) {
+              const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+              if (supabaseUrl) {
+                // Rimuovi lo slash iniziale e costruisci URL Supabase Storage
+                const storagePath = rawUrl.substring(1); // rimuove il primo /
+                glbUrl = `${supabaseUrl}/storage/v1/object/public/assets/${storagePath}`;
+              } else {
+                // Fallback: usa il path originale (per sviluppo locale)
+                glbUrl = rawUrl;
+              }
+            } else {
+              // Altri casi (path senza slash iniziale, filename, etc.)
+              glbUrl = rawUrl;
+            }
+          }
+        } catch (e) {
+          console.warn('Errore parsing glb_files_json:', e);
+        }
+      }
+      
+      // Poi cerca immagini in images_json come fallback
+      if (row.images_json) {
+        try {
+          const images = typeof row.images_json === 'string' 
+            ? JSON.parse(row.images_json) 
+            : row.images_json;
+          if (Array.isArray(images) && images.length > 0) {
+            const normalImage = images.find((img: any) => 
+              img.type !== 'glb' && !img.url?.endsWith('.glb')
+            );
+            if (normalImage) {
+              imageUrl = normalImage.url || normalImage;
+            } else if (images[0]) {
+              imageUrl = images[0].url || images[0];
+            }
+          }
+        } catch (e) {
+          console.warn('Errore parsing images_json:', e);
+        }
+      }
       
       return {
         id: row.id,
@@ -323,7 +384,9 @@ app.get('/vendor/:orgId', async (c) => {
           total: totalStock,
           reserved: totalReserved,
           available: available
-        }
+        },
+        imageUrl,
+        glbUrl
       };
     });
 
@@ -485,7 +548,27 @@ app.get('/public', async (c) => {
             : row.glb_files_json;
           if (Array.isArray(glbFiles) && glbFiles.length > 0) {
             const firstGlb = glbFiles[0];
-            glbUrl = firstGlb.url || firstGlb.filename || firstGlb;
+            let rawUrl = firstGlb.url || firstGlb.filename || firstGlb;
+            
+            // Se è un URL completo (http/https), usa direttamente
+            if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+              glbUrl = rawUrl;
+            } 
+            // Se è un path relativo che inizia con /glb/, costruisci URL Supabase Storage
+            else if (typeof rawUrl === 'string' && rawUrl.startsWith('/glb/')) {
+              const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+              if (supabaseUrl) {
+                // Rimuovi lo slash iniziale e costruisci URL Supabase Storage
+                const storagePath = rawUrl.substring(1); // rimuove il primo /
+                glbUrl = `${supabaseUrl}/storage/v1/object/public/assets/${storagePath}`;
+              } else {
+                // Fallback: usa il path originale (per sviluppo locale)
+                glbUrl = rawUrl;
+              }
+            } else {
+              // Altri casi (path senza slash iniziale, filename, etc.)
+              glbUrl = rawUrl;
+            }
           }
         } catch (e) {
           console.warn('Errore parsing glb_files_json:', e);
