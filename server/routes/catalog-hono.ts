@@ -437,20 +437,24 @@ app.get('/public', async (c) => {
           p.specs_json,
           p.images_json,
           p.glb_files_json,
+          a.productId,
           COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) as available_stock
         FROM vendor_catalog_items vci
         JOIN organizations o ON vci.vendor_org_id = o.id
         JOIN skus s ON vci.sku_id = s.id
         JOIN products p ON s.product_id = p.id
         LEFT JOIN inventories i ON vci.sku_id = i.sku_id AND i.vendor_org_id = o.id
+        -- INNER JOIN per mostrare solo prodotti con assets disponibili
+        INNER JOIN assets a ON vci.sku_id = a.sku_id AND a.asset_status = 'AVAILABLE' AND a.owning_org_id = o.id
         WHERE o.org_type = 'VENDOR'
           AND o.status = 'ACTIVE'
           AND vci.is_for_sale = true
           AND s.status = 'ACTIVE'
           AND p.status = 'ACTIVE'
-        GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale, 
-                 vci.is_for_rent, vci.lead_time_days, vci.notes, s.id, s.sku_code, p.id, 
-                 p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json
+        GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale,
+                 vci.is_for_rent, vci.lead_time_days, vci.notes, s.id, s.sku_code, p.id,
+                 p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json,
+                 a.productId
       )
       SELECT 
         cb.*,
@@ -594,7 +598,7 @@ app.get('/public', async (c) => {
       if (availableStock > 0) {
         vendor.products.push({
           id: row.catalog_item_id, // catalog_item_id per compatibilità
-          productId: row.sku_code, // sku_code per routing (prd_t25, etc.)
+          productId: row.productId, // da tabella assets (prd_t25, etc.)
           skuCode: row.sku_code,
           name: row.product_name,
           model: row.model,
