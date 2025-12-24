@@ -5,7 +5,7 @@ import path from "path";
 
 process.env.PRISMA_GENERATE_DATAPROXY = "true";
 process.env.PRISMA_GENERATE_ACCELERATE = "true";
-import { handleDemo } from "./routes/demo-hono";
+// import { handleDemo } from "./routes/demo-hono"; // Disabled for Hono migration
 import { getDrones, getDroneById } from "./routes/drones-hono";
 import { getCrops, getCropById } from "./routes/crops-hono";
 import { getTreatments, getTreatmentsByCategory, getTreatmentById } from "./routes/treatments-hono";
@@ -67,8 +67,8 @@ export function createServer() {
     res.json({ message: ping });
   });
 
-  // Demo route
-  app.get("/api/demo", handleDemo);
+  // Demo route - disabled for Hono migration
+  // app.get("/api/demo", handleDemo);
 
   // Drones API
   app.get("/api/drones", getDrones);
