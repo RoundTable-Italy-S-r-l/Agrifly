@@ -321,20 +321,25 @@ app.get('/vendor/:orgId', async (c) => {
             } 
             // Se è un path relativo che inizia con /glb/, costruisci URL Supabase Storage
             else if (typeof rawUrl === 'string' && rawUrl.startsWith('/glb/')) {
-              // Costruisci URL Supabase Storage da PGHOST
-              // PGHOST è tipo: db.fzowfkfwriajohjjboed.supabase.co
-              // Estrai project-ref: fzowfkfwriajohjjboed
-              const pgHost = process.env.PGHOST;
-              if (pgHost && pgHost.includes('.supabase.co')) {
-                const projectRef = pgHost.split('.')[1]; // Estrae "fzowfkfwriajohjjboed" da "db.fzowfkfwriajohjjboed.supabase.co"
-                const supabaseUrl = `https://${projectRef}.supabase.co`;
-                // Rimuovi lo slash iniziale e costruisci URL Supabase Storage
-                const storagePath = rawUrl.substring(1); // rimuove il primo /
-                glbUrl = `${supabaseUrl}/storage/v1/object/public/assets/${storagePath}`;
-              } else {
-                // Fallback: usa il path originale (per sviluppo locale)
-                glbUrl = rawUrl;
+              // Costruisci URL Supabase Storage
+              // Il project-ref è fzowfkfwriajohjjboed
+              // PGHOST su Netlify è pooler.supabase.co, quindi usiamo DATABASE_URL o hardcode
+              let projectRef = 'fzowfkfwriajohjjboed'; // Default hardcoded
+              
+              // Prova a estrarre da DATABASE_URL (se disponibile)
+              const dbUrl = process.env.DATABASE_URL;
+              if (dbUrl) {
+                // DATABASE_URL formato: postgresql://user:pass@db.xxx.supabase.co:port/db
+                const match = dbUrl.match(/@db\.([^.]+)\.supabase\.co/);
+                if (match && match[1]) {
+                  projectRef = match[1];
+                }
               }
+              
+              const supabaseUrl = `https://${projectRef}.supabase.co`;
+              // Rimuovi lo slash iniziale e costruisci URL Supabase Storage
+              const storagePath = rawUrl.substring(1); // rimuove il primo /
+              glbUrl = `${supabaseUrl}/storage/v1/object/public/assets/${storagePath}`;
             } else {
               // Altri casi (path senza slash iniziale, filename, etc.)
               glbUrl = rawUrl;
@@ -561,20 +566,25 @@ app.get('/public', async (c) => {
             } 
             // Se è un path relativo che inizia con /glb/, costruisci URL Supabase Storage
             else if (typeof rawUrl === 'string' && rawUrl.startsWith('/glb/')) {
-              // Costruisci URL Supabase Storage da PGHOST
-              // PGHOST è tipo: db.fzowfkfwriajohjjboed.supabase.co
-              // Estrai project-ref: fzowfkfwriajohjjboed
-              const pgHost = process.env.PGHOST;
-              if (pgHost && pgHost.includes('.supabase.co')) {
-                const projectRef = pgHost.split('.')[1]; // Estrae "fzowfkfwriajohjjboed" da "db.fzowfkfwriajohjjboed.supabase.co"
-                const supabaseUrl = `https://${projectRef}.supabase.co`;
-                // Rimuovi lo slash iniziale e costruisci URL Supabase Storage
-                const storagePath = rawUrl.substring(1); // rimuove il primo /
-                glbUrl = `${supabaseUrl}/storage/v1/object/public/assets/${storagePath}`;
-              } else {
-                // Fallback: usa il path originale (per sviluppo locale)
-                glbUrl = rawUrl;
+              // Costruisci URL Supabase Storage
+              // Il project-ref è fzowfkfwriajohjjboed
+              // PGHOST su Netlify è pooler.supabase.co, quindi usiamo DATABASE_URL o hardcode
+              let projectRef = 'fzowfkfwriajohjjboed'; // Default hardcoded
+              
+              // Prova a estrarre da DATABASE_URL (se disponibile)
+              const dbUrl = process.env.DATABASE_URL;
+              if (dbUrl) {
+                // DATABASE_URL formato: postgresql://user:pass@db.xxx.supabase.co:port/db
+                const match = dbUrl.match(/@db\.([^.]+)\.supabase\.co/);
+                if (match && match[1]) {
+                  projectRef = match[1];
+                }
               }
+              
+              const supabaseUrl = `https://${projectRef}.supabase.co`;
+              // Rimuovi lo slash iniziale e costruisci URL Supabase Storage
+              const storagePath = rawUrl.substring(1); // rimuove il primo /
+              glbUrl = `${supabaseUrl}/storage/v1/object/public/assets/${storagePath}`;
             } else {
               // Altri casi (path senza slash iniziale, filename, etc.)
               glbUrl = rawUrl;
