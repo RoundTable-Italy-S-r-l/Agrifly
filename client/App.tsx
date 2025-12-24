@@ -124,7 +124,7 @@ const App = () => {
               }
             />
 
-            <Route path="/drones/:id" element={<DroneDetail />} />
+            <Route path="/prodotti/:id" element={<DroneDetail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

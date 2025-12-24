@@ -1,9 +1,198 @@
 import { Hono } from 'hono';
+import { query } from '../utils/database';
+import { publicObjectUrl } from '../utils/storage';
 
 const app = new Hono();
 
-// Placeholder semplificato per evitare errori di bundling
-app.get('/', (c) => c.json({ message: 'Drones API - semplificato per deploy' }));
-app.get('/:id', (c) => c.json({ message: 'Drone detail - semplificato per deploy', id: c.req.param('id') }));
+// GET /api/drones - Lista prodotti (per compatibilità)
+app.get('/', async (c) => {
+  try {
+    const result = await query(`
+      SELECT
+        p.id,
+        p.name,
+        p.model,
+        p.brand,
+        p.product_type,
+        p.specs_json,
+        p.images_json,
+        p.glb_files_json
+      FROM products p
+      WHERE p.status = 'ACTIVE'
+      ORDER BY p.brand, p.model
+    `);
+
+    const products = result.rows.map(row => {
+      // Estrai GLB e immagini
+      let imageUrl: string | undefined;
+      let glbUrl: string | undefined;
+
+      if (row.glb_files_json) {
+        try {
+          const glbFiles = typeof row.glb_files_json === 'string'
+            ? JSON.parse(row.glb_files_json)
+            : row.glb_files_json;
+          if (Array.isArray(glbFiles) && glbFiles.length > 0) {
+            const firstGlb = glbFiles[0];
+            const rawPath = firstGlb.url || firstGlb.filename || firstGlb;
+
+            if (typeof rawPath === 'string' && (rawPath.startsWith('http://') || rawPath.startsWith('https://'))) {
+              glbUrl = rawPath;
+            } else if (typeof rawPath === 'string') {
+              try {
+                glbUrl = publicObjectUrl('assets', rawPath);
+              } catch (e) {
+                console.warn('Errore costruzione URL GLB:', e);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Errore parsing glb_files_json:', e);
+        }
+      }
+
+      if (row.images_json) {
+        try {
+          const images = typeof row.images_json === 'string'
+            ? JSON.parse(row.images_json)
+            : row.images_json;
+          if (Array.isArray(images) && images.length > 0) {
+            const normalImage = images.find((img: any) =>
+              img.type !== 'glb' && !img.url?.endsWith('.glb')
+            );
+            if (normalImage) {
+              imageUrl = normalImage.url || normalImage;
+            } else if (images[0]) {
+              imageUrl = images[0].url || images[0];
+            }
+          }
+        } catch (e) {
+          console.warn('Errore parsing images_json:', e);
+        }
+      }
+
+      return {
+        id: row.id,
+        name: row.name,
+        model: row.model,
+        brand: row.brand,
+        productType: row.product_type,
+        specs: row.specs_json,
+        images: row.images_json,
+        imageUrl,
+        glbUrl
+      };
+    });
+
+    return c.json(products);
+  } catch (error: any) {
+    console.error('Errore get products:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// GET /api/drones/:id - Dettaglio prodotto per product_id (ora principale)
+app.get('/:id', async (c) => {
+  try {
+    const productId = c.req.param('id');
+    console.log('🔍 Richiesta product detail per ID:', productId);
+
+    // Cerca direttamente per product_id
+    const result = await query(`
+      SELECT
+        p.id,
+        p.name,
+        p.model,
+        p.brand,
+        p.product_type,
+        p.specs_json,
+        p.images_json,
+        p.glb_files_json,
+        p.specs_core_json,
+        p.specs_extra_json,
+        p.manuals_json
+      FROM products p
+      WHERE p.id = $1 AND p.status = 'ACTIVE'
+      LIMIT 1
+    `, [productId]);
+
+    if (result.rows.length === 0) {
+      console.log('❌ Prodotto non trovato:', productId);
+      return c.json({ error: 'Prodotto non trovato', productId }, 404);
+    }
+
+    console.log('✅ Prodotto trovato:', result.rows[0].model);
+
+    const row = result.rows[0];
+
+    // Estrai GLB e immagini
+    let imageUrl: string | undefined;
+    let glbUrl: string | undefined;
+
+    if (row.glb_files_json) {
+      try {
+        const glbFiles = typeof row.glb_files_json === 'string'
+          ? JSON.parse(row.glb_files_json)
+          : row.glb_files_json;
+        if (Array.isArray(glbFiles) && glbFiles.length > 0) {
+          const firstGlb = glbFiles[0];
+          const rawPath = firstGlb.url || firstGlb.filename || firstGlb;
+
+          if (typeof rawPath === 'string' && (rawPath.startsWith('http://') || rawPath.startsWith('https://'))) {
+            glbUrl = rawPath;
+          } else if (typeof rawPath === 'string') {
+            try {
+              glbUrl = publicObjectUrl('assets', rawPath);
+            } catch (e) {
+              console.warn('Errore costruzione URL GLB:', e);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Errore parsing glb_files_json:', e);
+      }
+    }
+
+    if (row.images_json) {
+      try {
+        const images = typeof row.images_json === 'string'
+          ? JSON.parse(row.images_json)
+          : row.images_json;
+        if (Array.isArray(images) && images.length > 0) {
+          const normalImage = images.find((img: any) =>
+            img.type !== 'glb' && !img.url?.endsWith('.glb')
+          );
+          if (normalImage) {
+            imageUrl = normalImage.url || normalImage;
+          } else if (images[0]) {
+            imageUrl = images[0].url || images[0];
+          }
+        }
+      } catch (e) {
+        console.warn('Errore parsing images_json:', e);
+      }
+    }
+
+    const product = {
+      id: row.id,
+      name: row.name,
+      model: row.model,
+      brand: row.brand,
+      productType: row.product_type,
+      specs: row.specs_json,
+      specsCore: row.specs_core_json,
+      specsExtra: row.specs_extra_json,
+      images: row.images_json,
+      manuals: row.manuals_json,
+      imageUrl,
+      glbUrl
+    };
+
+    return c.json(product);
+  } catch (error: any) {
+    console.error('Errore get product by id:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
 
 export default app;

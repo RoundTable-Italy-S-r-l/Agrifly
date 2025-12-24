@@ -593,7 +593,8 @@ app.get('/public', async (c) => {
       // Mostra SOLO prodotti che hanno stock disponibile > 0 (basato su inventory)
       if (availableStock > 0) {
         vendor.products.push({
-          id: row.catalog_item_id, // Usa catalog_item_id come ID univoco
+          id: row.catalog_item_id, // catalog_item_id per compatibilità
+          productId: row.product_id, // product_id per routing corretto
           skuCode: row.sku_code,
           name: row.product_name,
           model: row.model,

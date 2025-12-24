@@ -258,7 +258,7 @@ export default function Catalogo() {
                           </Button>
 
                           <Link
-                            to={`/drones/${product.id}`}
+                            to={`/prodotti/${product.productId || product.id}`}
                             className="block"
                           >
                             <Button variant="outline" className="w-full text-sm">
