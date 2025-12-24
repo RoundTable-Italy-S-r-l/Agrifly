@@ -115,7 +115,6 @@ app.get('/public', async (c) => {
         p.brand,
         p.model,
         p.product_type,
-        p.description as product_description,
         p.specs_json,
         p.images_json,
         COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) as available_stock,
@@ -175,7 +174,7 @@ app.get('/public', async (c) => {
     querySql += `
       GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale, 
                vci.is_for_rent, vci.lead_time_days, vci.notes, s.sku_code, p.id, 
-               p.name, p.brand, p.model, p.product_type, p.description, p.specs_json, p.images_json
+               p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json
       -- HAVING: mostra solo prodotti con stock disponibile > 0
       -- HAVING COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) > 0
     `;
@@ -275,7 +274,7 @@ app.get('/public', async (c) => {
           leadTimeDays: row.lead_time_days || null,
           imageUrl,
           glbUrl,
-          description: row.product_description || '',
+          description: `${row.brand} ${row.model} - ${row.product_name}`, // Costruisci description da altri campi
           specs: row.specs_json,
           vendorNotes: row.vendor_notes
         });
