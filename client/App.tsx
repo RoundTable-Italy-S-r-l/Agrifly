@@ -23,6 +23,7 @@ import Prenotazioni from "./pages/Prenotazioni";
 import Missioni from "./pages/Missioni";
 import Operatori from "./pages/Operatori";
 import AdminSettingsPage from "./pages/AdminSettingsPage";
+import AdminRateCards from "./pages/AdminRateCards";
 import DroneDetail from "./pages/DroneDetail";
 import NotFound from "./pages/NotFound";
 
@@ -120,6 +121,15 @@ const App = () => {
               element={
                 <RequireAuth>
                   <AdminSettingsPage />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/admin/rate-cards"
+              element={
+                <RequireAuth>
+                  <AdminRateCards />
                 </RequireAuth>
               }
             />

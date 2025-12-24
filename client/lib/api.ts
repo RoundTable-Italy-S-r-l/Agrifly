@@ -431,6 +431,60 @@ export const estimateQuote = async (input: QuoteEstimateInput): Promise<QuoteEst
   return response.json();
 };
 
+// Rate Cards API
+export interface RateCard {
+  id: string;
+  seller_org_id: string;
+  service_type: string;
+  base_rate_per_ha_cents: number;
+  min_charge_cents: number;
+  travel_rate_per_km_cents: number;
+  hourly_operator_rate_cents?: number;
+  seasonal_multipliers_json: Record<string, number>;
+  risk_multipliers_json: Record<string, number>;
+}
+
+export const fetchRateCards = async (): Promise<RateCard[]> => {
+  const response = await fetch('/api/rate-cards');
+  if (!response.ok) throw new Error('Failed to fetch rate cards');
+  return response.json();
+};
+
+export const fetchRateCard = async (id: string): Promise<RateCard> => {
+  const response = await fetch(`/api/rate-cards/${id}`);
+  if (!response.ok) throw new Error('Failed to fetch rate card');
+  return response.json();
+};
+
+export const createRateCard = async (data: Omit<RateCard, 'id'>): Promise<RateCard> => {
+  const response = await fetch('/api/rate-cards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create rate card');
+  }
+  return response.json();
+};
+
+export const updateRateCard = async (id: string, data: Partial<RateCard>): Promise<RateCard> => {
+  const response = await fetch(`/api/rate-cards/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) throw new Error('Failed to update rate card');
+  return response.json();
+};
+
+export const deleteRateCard = async (id: string): Promise<void> => {
+  const response = await fetch(`/api/rate-cards/${id}`, {
+    method: 'DELETE'
+  });
+  if (!response.ok) throw new Error('Failed to delete rate card');
+};
 
 // Operators API
 export interface Operator {

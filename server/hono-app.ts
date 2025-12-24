@@ -20,6 +20,7 @@ import operatorsRoutes from './routes/operators-hono';
 import bookingsRoutes from './routes/bookings-hono';
 import settingsRoutes from './routes/settings-hono';
 import quoteEstimateRoutes from './routes/quote-estimate-hono';
+import rateCardsRoutes from './routes/rate-cards-hono';
 
 // Crea app Hono
 const app = new Hono();
@@ -54,6 +55,7 @@ app.route('/api/operators', operatorsRoutes);
 app.route('/api/bookings', bookingsRoutes);
 app.route('/api/settings', settingsRoutes);
 app.route('/api/quote-estimate', quoteEstimateRoutes);
+app.route('/api/rate-cards', rateCardsRoutes);
 
 // Health check globale (compatibilità)
 app.get('/api/health', async (c) => {

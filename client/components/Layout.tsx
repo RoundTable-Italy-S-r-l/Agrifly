@@ -67,6 +67,18 @@ export function Layout({ children }: LayoutProps) {
               >
                 Servizi GIS
               </Link>
+              {isAuthenticated && (
+                <Link
+                  to="/admin/rate-cards"
+                  className={`px-3 py-1 rounded-full transition-colors ${
+                    location.pathname.startsWith("/admin")
+                      ? "bg-slate-900 text-white"
+                      : "hover:bg-white hover:text-slate-900"
+                  }`}
+                >
+                  Admin
+                </Link>
+              )}
             </div>
           </nav>
 
