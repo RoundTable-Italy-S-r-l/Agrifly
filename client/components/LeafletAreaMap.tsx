@@ -174,8 +174,8 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
         }
       };
       marker.on('click', (evt: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(evt);
-        L.DomEvent.preventDefault(evt);
+        L.DomEvent.stopPropagation(evt.originalEvent);
+        L.DomEvent.preventDefault(evt.originalEvent);
         checkAndClose();
       });
       // Add extra click area
@@ -200,8 +200,8 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       // Re-attach click handler with updated points reference
       firstMarkerRef.current.off('click');
       firstMarkerRef.current.on('click', (evt: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(evt);
-        L.DomEvent.preventDefault(evt);
+        L.DomEvent.stopPropagation(evt.originalEvent);
+        L.DomEvent.preventDefault(evt.originalEvent);
         closePolygon(points);
       });
     }

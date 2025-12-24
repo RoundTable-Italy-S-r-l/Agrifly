@@ -397,7 +397,9 @@ async function main() {
     // Crea missione se booking è DONE o IN_PROGRESS
     if (booking.status === 'DONE' || booking.status === 'IN_PROGRESS') {
       const slot = booking.booking_slots[0];
-      const actualArea = booking.requested_area_ha * (0.9 + Math.random() * 0.2); // ±10% variazione
+      // Generate realistic area data (10-50 hectares with some variation)
+      const baseArea = 10 + Math.random() * 40;
+      const actualArea = baseArea * (0.9 + Math.random() * 0.2); // ±10% variazione
       const actualHours = 3 + Math.random() * 2; // 3-5 ore
 
       await prisma.mission.create({
