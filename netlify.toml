@@ -14,12 +14,10 @@
   to = "/.netlify/functions/api"
   status = 200
 
-# GLB files devono essere serviti staticamente, non redirect
-[[redirects]]
-  from = "/glb/*"
-  to = "/glb/:splat"
-  status = 200
-  force = false
+# IMPORTANTE: I redirect sono processati in ordine
+# I file statici (GLB, immagini, etc.) devono essere serviti prima del catch-all
+# Netlify serve automaticamente i file dalla cartella pubblicata (dist/spa)
+# Non serve un redirect per /glb/* se i file sono nella cartella pubblicata
 
 [[redirects]]
   from = "/*"
