@@ -44,28 +44,35 @@ app.get('/vendor/:orgId', async (c) => {
       ORDER BY p.brand, p.model, s.sku_code
     `, [orgId]);
 
-    const catalog = catalogResult.rows.map(row => ({
-      id: row.id,
-      skuId: row.sku_id,
-      skuCode: row.sku_code,
-      variantTags: row.variant_tags || [],
-      productId: row.product_id,
-      productName: row.product_name,
-      brand: row.brand,
-      model: row.model,
-      productType: row.product_type,
-      specs: row.specs_json,
-      images: row.images_json,
-      isForSale: row.is_for_sale,
-      isForRent: row.is_for_rent,
-      leadTimeDays: row.lead_time_days,
-      notes: row.notes,
-      stock: {
-        total: parseInt(row.total_stock) || 0,
-        reserved: parseInt(row.total_reserved) || 0,
-        available: (parseInt(row.total_stock) || 0) - (parseInt(row.total_reserved) || 0)
-      }
-    }));
+    const catalog = catalogResult.rows.map(row => {
+      const totalStock = parseInt(row.total_stock) || 0;
+      const totalReserved = parseInt(row.total_reserved) || 0;
+      const available = totalStock - totalReserved;
+      
+      return {
+        id: row.id,
+        skuId: row.sku_id,
+        skuCode: row.sku_code,
+        variantTags: row.variant_tags || [],
+        productId: row.product_id,
+        productName: row.product_name,
+        brand: row.brand,
+        model: row.model,
+        productType: row.product_type,
+        specs: row.specs_json,
+        images: row.images_json,
+        isForSale: row.is_for_sale,
+        isForRent: row.is_for_rent,
+        leadTimeDays: row.lead_time_days,
+        notes: row.notes,
+        stock: available, // Numero disponibile (per compatibilità frontend)
+        stockDetails: { // Dettagli opzionali per uso futuro
+          total: totalStock,
+          reserved: totalReserved,
+          available: available
+        }
+      };
+    });
 
     console.log(`✅ Catalogo vendor trovato: ${catalog.length} prodotti`);
 
