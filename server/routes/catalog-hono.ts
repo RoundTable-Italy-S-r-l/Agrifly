@@ -359,6 +359,7 @@ app.get('/public', async (c) => {
           p.product_type,
           p.specs_json,
           p.images_json,
+          p.glb_files_json,
           COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) as available_stock
         FROM vendor_catalog_items vci
         JOIN organizations o ON vci.vendor_org_id = o.id
@@ -432,9 +433,13 @@ app.get('/public', async (c) => {
 
     result.rows.forEach(row => {
       // Applica filtri prezzo in JavaScript (dopo la query)
-      const price = row.price_euros || 0;
-      if (minPrice !== null && price < minPrice) return;
-      if (maxPrice !== null && price > maxPrice) return;
+      // Converti il prezzo da stringa a numero e arrotonda a 2 decimali
+      const priceRaw = row.price_euros || 0;
+      const price = typeof priceRaw === 'string' ? parseFloat(priceRaw) : priceRaw;
+      const priceRounded = Math.round(price * 100) / 100; // Arrotonda a 2 decimali
+      
+      if (minPrice !== null && priceRounded < minPrice) return;
+      if (maxPrice !== null && priceRounded > maxPrice) return;
       const vendorId = row.vendor_id;
       
       if (!vendorsMap.has(vendorId)) {
@@ -449,17 +454,42 @@ app.get('/public', async (c) => {
 
       const vendor = vendorsMap.get(vendorId)!;
       
-      // Estrai prima immagine da images_json
+      // Estrai GLB da glb_files_json (priorità) e immagini da images_json (fallback)
       let imageUrl: string | undefined;
       let glbUrl: string | undefined;
+      
+      // Prima cerca GLB in glb_files_json
+      if (row.glb_files_json) {
+        try {
+          const glbFiles = typeof row.glb_files_json === 'string' 
+            ? JSON.parse(row.glb_files_json) 
+            : row.glb_files_json;
+          if (Array.isArray(glbFiles) && glbFiles.length > 0) {
+            const firstGlb = glbFiles[0];
+            glbUrl = firstGlb.url || firstGlb.filename || firstGlb;
+          }
+        } catch (e) {
+          console.warn('Errore parsing glb_files_json:', e);
+        }
+      }
+      
+      // Poi cerca immagini in images_json come fallback
       if (row.images_json) {
         try {
           const images = typeof row.images_json === 'string' 
             ? JSON.parse(row.images_json) 
             : row.images_json;
           if (Array.isArray(images) && images.length > 0) {
-            imageUrl = images[0].url || images[0];
-            glbUrl = images.find((img: any) => img.type === 'glb' || img.url?.endsWith('.glb'))?.url;
+            // Cerca la prima immagine normale (non GLB)
+            const normalImage = images.find((img: any) => 
+              img.type !== 'glb' && !img.url?.endsWith('.glb')
+            );
+            if (normalImage) {
+              imageUrl = normalImage.url || normalImage;
+            } else if (images[0]) {
+              // Se non c'è immagine normale, usa la prima disponibile
+              imageUrl = images[0].url || images[0];
+            }
           }
         } catch (e) {
           console.warn('Errore parsing images_json:', e);
@@ -471,7 +501,7 @@ app.get('/public', async (c) => {
       
       // Mostra prodotti se hanno stock disponibile O prezzo (anche se stock = 0)
       // Questo permette di vedere prodotti anche senza stock se hanno un prezzo
-      if (availableStock > 0 || price > 0) {
+      if (availableStock > 0 || priceRounded > 0) {
         vendor.products.push({
           id: row.catalog_item_id, // Usa catalog_item_id come ID univoco
           skuCode: row.sku_code,
@@ -479,7 +509,7 @@ app.get('/public', async (c) => {
           model: row.model,
           brand: row.brand,
           category: row.product_type,
-          price: price,
+          price: priceRounded, // Prezzo arrotondato a 2 decimali
           currency: row.currency || 'EUR',
           stock: availableStock,
           leadTimeDays: row.lead_time_days || null,

@@ -173,7 +173,7 @@ export default function Catalogo() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {vendor.products.map(product => (
                       <div key={product.id} className="bg-slate-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        {/* Modello 3D GLB o Immagine */}
+                        {/* Modello 3D GLB (priorità) o Immagine (fallback) */}
                         <div className={`aspect-square rounded-lg mb-4 overflow-hidden ${
                           product.glbUrl 
                             ? 'bg-gradient-to-br from-slate-50 to-slate-100' 
@@ -203,7 +203,7 @@ export default function Catalogo() {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                            <Package className="w-16 h-16 text-slate-400" />
+                              <Package className="w-16 h-16 text-slate-400" />
                             </div>
                           )}
                         </div>
@@ -217,7 +217,10 @@ export default function Catalogo() {
 
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-emerald-600">
-                              €{product.price.toLocaleString('it-IT')}
+                              €{typeof product.price === 'number' 
+                                ? product.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                : parseFloat(product.price || '0').toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                              }
                             </span>
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               product.stock > 0
@@ -247,17 +250,15 @@ export default function Catalogo() {
                             Richiedi Preventivo
                           </Button>
 
-                          {product.glbUrl && (
-                            <Link
-                              to={`/drones/${product.id}`}
-                              className="block"
-                            >
-                              <Button variant="outline" className="w-full text-sm">
-                                <Star className="w-4 h-4 mr-2" />
-                                Visualizza prodotto
-                              </Button>
-                            </Link>
-                          )}
+                          <Link
+                            to={`/drones/${product.id}`}
+                            className="block"
+                          >
+                            <Button variant="outline" className="w-full text-sm">
+                              <Star className="w-4 h-4 mr-2" />
+                              Visualizza prodotto
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     ))}
