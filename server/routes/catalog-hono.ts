@@ -11,13 +11,35 @@ const app = new Hono();
 app.post('/vendor/:orgId/toggle', async (c) => {
   try {
     const orgId = c.req.param('orgId');
-    const { skuId, isForSale } = await c.req.json();
+    const { skuId, catalogItemId, isForSale } = await c.req.json();
 
-    if (!skuId || typeof isForSale !== 'boolean') {
-      return c.json({ error: 'skuId e isForSale obbligatori' }, 400);
+    if (typeof isForSale !== 'boolean') {
+      return c.json({ error: 'isForSale obbligatorio e deve essere boolean' }, 400);
     }
 
-    console.log('🔄 Toggle prodotto:', { orgId, skuId, isForSale });
+    // Accetta sia skuId che catalogItemId (per compatibilità frontend)
+    let actualSkuId = skuId;
+    
+    if (!actualSkuId && catalogItemId) {
+      // Se viene passato catalogItemId, recupera lo sku_id
+      const catalogItemResult = await query(`
+        SELECT sku_id FROM vendor_catalog_items
+        WHERE id = $1 AND vendor_org_id = $2
+      `, [catalogItemId, orgId]);
+      
+      if (catalogItemResult.rows.length === 0) {
+        return c.json({ error: 'Catalog item non trovato' }, 404);
+      }
+      
+      actualSkuId = catalogItemResult.rows[0].sku_id;
+      console.log('🔄 Convertito catalogItemId a skuId:', { catalogItemId, actualSkuId });
+    }
+
+    if (!actualSkuId) {
+      return c.json({ error: 'skuId o catalogItemId obbligatorio' }, 400);
+    }
+
+    console.log('🔄 Toggle prodotto:', { orgId, skuId: actualSkuId, isForSale });
 
     // Aggiorna is_for_sale nel vendor_catalog_items
     const result = await query(`
@@ -25,7 +47,7 @@ app.post('/vendor/:orgId/toggle', async (c) => {
       SET is_for_sale = $1
       WHERE vendor_org_id = $2 AND sku_id = $3
       RETURNING id, is_for_sale, is_for_rent
-    `, [isForSale, orgId, skuId]);
+    `, [isForSale, orgId, actualSkuId]);
 
     if (result.rows.length === 0) {
       return c.json({ error: 'Prodotto non trovato nel catalogo vendor' }, 404);
@@ -58,13 +80,31 @@ app.put('/vendor/:orgId/product', async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const body = await c.req.json();
-    const { skuId, price, leadTimeDays, notes, stock } = body;
+    const { skuId, catalogItemId, price, leadTimeDays, notes, stock } = body;
 
-    if (!skuId) {
-      return c.json({ error: 'skuId obbligatorio' }, 400);
+    // Accetta sia skuId che catalogItemId (per compatibilità frontend)
+    let actualSkuId = skuId;
+    
+    if (!actualSkuId && catalogItemId) {
+      // Se viene passato catalogItemId, recupera lo sku_id
+      const catalogItemResult = await query(`
+        SELECT sku_id FROM vendor_catalog_items
+        WHERE id = $1 AND vendor_org_id = $2
+      `, [catalogItemId, orgId]);
+      
+      if (catalogItemResult.rows.length === 0) {
+        return c.json({ error: 'Catalog item non trovato' }, 404);
+      }
+      
+      actualSkuId = catalogItemResult.rows[0].sku_id;
+      console.log('🔄 Convertito catalogItemId a skuId:', { catalogItemId, actualSkuId });
     }
 
-    console.log('📝 Update prodotto:', { orgId, skuId, price, leadTimeDays, notes, stock });
+    if (!actualSkuId) {
+      return c.json({ error: 'skuId o catalogItemId obbligatorio' }, 400);
+    }
+
+    console.log('📝 Update prodotto:', { orgId, skuId: actualSkuId, price, leadTimeDays, notes, stock });
 
     // Aggiorna vendor_catalog_items
     const updates: string[] = [];
@@ -84,7 +124,7 @@ app.put('/vendor/:orgId/product', async (c) => {
     }
 
     if (updates.length > 0) {
-      params.push(orgId, skuId);
+      params.push(orgId, actualSkuId);
       const updateQuery = `
         UPDATE vendor_catalog_items
         SET ${updates.join(', ')}
@@ -118,7 +158,7 @@ app.put('/vendor/:orgId/product', async (c) => {
           VALUES (gen_random_uuid(), $1, $2, $3)
           ON CONFLICT (price_list_id, sku_id) 
           DO UPDATE SET price_cents = $3
-        `, [priceListId, skuId, priceCents]);
+        `, [priceListId, actualSkuId, priceCents]);
 
         console.log('✅ Prezzo aggiornato nella price list');
       } else {
@@ -157,9 +197,9 @@ app.put('/vendor/:orgId/product', async (c) => {
         VALUES (gen_random_uuid(), $1, $2, $3, $4, 0)
         ON CONFLICT (vendor_org_id, location_id, sku_id)
         DO UPDATE SET qty_on_hand = $4
-      `, [orgId, locationId, skuId, stock]);
+      `, [orgId, locationId, actualSkuId, stock]);
 
-      console.log('✅ Stock aggiornato:', { orgId, locationId, skuId, stock });
+      console.log('✅ Stock aggiornato:', { orgId, locationId, skuId: actualSkuId, stock });
     }
 
     return c.json({ 
