@@ -22,6 +22,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
 
   // REGISTRAZIONE
   const handleRegister = async (e: React.FormEvent) => {
@@ -97,8 +98,15 @@ export default function Login() {
     try {
       setLoading(true);
       setError("");
+      setResetUrl(null);
 
-      await authAPI.requestPasswordReset(email);
+      const response = await authAPI.requestPasswordReset(email);
+      
+      // Se il backend restituisce un resetUrl (sviluppo senza RESEND configurato)
+      if ((response as any).resetUrl) {
+        setResetUrl((response as any).resetUrl);
+      }
+      
       setResetEmailSent(true);
       setError("");
 
@@ -132,16 +140,41 @@ export default function Login() {
 
         {resetEmailSent ? (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-6">
-            <p className="font-semibold mb-2">Email inviata!</p>
-            <p className="text-sm">
-              Controlla la tua casella email ({email}) per il link di reset password.
-              Se non la trovi, controlla anche la cartella spam.
-            </p>
+            {resetUrl ? (
+              <>
+                <p className="font-semibold mb-2">⚠️ Email non configurata (modalità sviluppo)</p>
+                <p className="text-sm mb-3">
+                  RESEND_API_KEY non è configurato. Usa questo link per resettare la password:
+                </p>
+                <div className="bg-white p-3 rounded border border-emerald-300 mb-3">
+                  <a 
+                    href={resetUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-emerald-600 hover:underline break-all text-sm"
+                  >
+                    {resetUrl}
+                  </a>
+                </div>
+                <p className="text-xs text-emerald-600 mb-3">
+                  ⚠️ Questo link è visibile solo perché RESEND_API_KEY non è configurato. In produzione, il link verrà inviato via email.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold mb-2">Email inviata!</p>
+                <p className="text-sm">
+                  Controlla la tua casella email ({email}) per il link di reset password.
+                  Se non la trovi, controlla anche la cartella spam.
+                </p>
+              </>
+            )}
             <button
               type="button"
               onClick={() => {
                 setShowForgotPassword(false);
                 setResetEmailSent(false);
+                setResetUrl(null);
                 setError("");
               }}
               className="mt-4 text-sm text-emerald-600 hover:underline"

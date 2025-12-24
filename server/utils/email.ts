@@ -71,13 +71,15 @@ export async function sendWelcomeEmail(
 export async function sendPasswordResetEmail(
   to: string,
   resetUrl: string
-): Promise<void> {
+): Promise<{ sent: boolean; resetUrl?: string; error?: string }> {
   if (!resend) {
     console.warn('⚠️  Resend API key not configured. Password reset email not sent.');
-    return;
+    console.warn('📧 RESET PASSWORD LINK (DEV MODE):', resetUrl);
+    // In sviluppo, restituiamo il link nella risposta
+    return { sent: false, resetUrl };
   }
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: 'DJI Agriculture <noreply@dji-agriculture.com>',
       to,
       subject: 'Reset password',
@@ -86,12 +88,15 @@ export async function sendPasswordResetEmail(
           <h2>Reset password</h2>
           <p>Hai richiesto il reset della password. Clicca sul link qui sotto:</p>
           <p><a href="${resetUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Reset password</a></p>
-          <p>Il link è valido per 1 ora.</p>
+          <p>Il link è valido per 24 ore.</p>
         </div>
       `,
     });
-  } catch (error) {
-    console.error('Error sending password reset email:', error);
+    console.log('✅ Password reset email sent to:', to);
+    return { sent: true };
+  } catch (error: any) {
+    console.error('❌ Error sending password reset email:', error);
+    return { sent: false, error: error.message || 'Errore invio email' };
   }
 }
 

@@ -126,7 +126,7 @@ export const authAPI = {
   },
 
   // Richiesta reset password
-  requestPasswordReset: async (email: string): Promise<{ message: string }> => {
+  requestPasswordReset: async (email: string): Promise<{ message: string; resetUrl?: string; warning?: string }> => {
     const response = await fetch(`${API_BASE}/request-password-reset`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

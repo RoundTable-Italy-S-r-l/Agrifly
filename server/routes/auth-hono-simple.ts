@@ -207,8 +207,35 @@ app.post('/request-password-reset', async (c) => {
     );
 
     // Invia email con link reset
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
-    await sendPasswordResetEmail(email, resetUrl);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://agrifly.it';
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+    
+    console.log('🔐 Generato reset token per:', email);
+    console.log('🔗 Reset URL:', resetUrl);
+    console.log('📧 FRONTEND_URL configurato:', frontendUrl);
+    console.log('📧 RESEND_API_KEY configurato:', !!process.env.RESEND_API_KEY);
+    
+    const emailResult = await sendPasswordResetEmail(email, resetUrl);
+
+    // Se RESEND non è configurato (sviluppo), restituiamo il link nella risposta
+    if (!emailResult.sent && emailResult.resetUrl) {
+      console.warn('⚠️  RESEND_API_KEY non configurato - link reset disponibile solo in console');
+      console.log('📧 RESET PASSWORD LINK:', emailResult.resetUrl);
+      
+      // In sviluppo, possiamo restituire il link (rimuovere in produzione)
+      if (process.env.NODE_ENV === 'development') {
+        return c.json({ 
+          message: 'Email non configurata. Link reset (solo sviluppo):',
+          resetUrl: emailResult.resetUrl,
+          warning: 'RESEND_API_KEY non configurato'
+        });
+      }
+    }
+
+    if (!emailResult.sent && emailResult.error) {
+      console.error('Errore invio email reset password:', emailResult.error);
+      // Non blocchiamo il flusso, ma loggiamo l'errore
+    }
 
     return c.json({ 
       message: 'Se l\'email esiste, riceverai un link per resettare la password' 
