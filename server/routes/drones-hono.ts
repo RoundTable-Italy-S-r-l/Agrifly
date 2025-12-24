@@ -257,7 +257,7 @@ app.get('/:id', async (c) => {
             glbUrl = rawPath;
           } else if (typeof rawPath === 'string') {
             try {
-              glbUrl = publicObjectUrl('product', rawPath);
+              glbUrl = publicObjectUrl('assets', rawPath);
             } catch (e) {
               console.warn('Errore costruzione URL GLB:', e);
             }
