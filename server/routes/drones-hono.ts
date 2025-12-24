@@ -218,4 +218,49 @@ app.get('/:id', async (c) => {
   }
 });
 
+// GET /api/drones/debug/tables - Debug: lista tutte le tabelle
+app.get('/debug/tables', async (c) => {
+  try {
+    console.log('🔍 Debug: richiesta lista tabelle');
+
+    const tablesResult = await query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+    );
+
+    const tables = tablesResult.rows.map(row => row.table_name);
+
+    // Controlla se esiste assets
+    const hasAssets = tables.includes('assets');
+
+    let assetsInfo = null;
+    if (hasAssets) {
+      // Struttura della tabella assets
+      const columnsResult = await query(`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_name = 'assets' AND table_schema = 'public'
+        ORDER BY ordinal_position
+      `);
+
+      // Alcuni record di esempio
+      const assetsResult = await query('SELECT * FROM assets LIMIT 3');
+
+      assetsInfo = {
+        columns: columnsResult.rows,
+        sampleRecords: assetsResult.rows
+      };
+    }
+
+    return c.json({
+      tables,
+      hasAssets,
+      assetsInfo
+    });
+
+  } catch (error: any) {
+    console.error('Errore debug tables:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
 export default app;
