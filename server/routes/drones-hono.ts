@@ -40,7 +40,7 @@ app.get('/', async (c) => {
               glbUrl = rawPath;
             } else if (typeof rawPath === 'string') {
               try {
-                glbUrl = publicObjectUrl('assets', rawPath);
+                glbUrl = publicObjectUrl(undefined, rawPath);
               } catch (e) {
                 console.warn('Errore costruzione URL GLB:', e);
               }
@@ -171,7 +171,7 @@ app.get('/:id', async (c) => {
             glbUrl = rawPath;
           } else if (typeof rawPath === 'string') {
             try {
-              glbUrl = publicObjectUrl('assets', rawPath);
+              glbUrl = publicObjectUrl(undefined, rawPath);
             } catch (e) {
               console.warn('Errore costruzione URL GLB:', e);
             }

@@ -323,7 +323,7 @@ app.get('/vendor/:orgId', async (c) => {
             // Se è un path relativo, costruisci URL Supabase Storage
             else if (typeof rawUrl === 'string') {
               try {
-                glbUrl = publicObjectUrl('assets', rawUrl);
+                glbUrl = publicObjectUrl(undefined, rawUrl);
               } catch (e) {
                 console.warn('Errore costruzione URL Supabase Storage:', e);
                 glbUrl = undefined; // Non usare path locale su Netlify
@@ -556,7 +556,7 @@ app.get('/public', async (c) => {
             // Se è un path relativo, costruisci URL Supabase Storage
             else if (typeof rawUrl === 'string') {
               try {
-                glbUrl = publicObjectUrl('assets', rawUrl);
+                glbUrl = publicObjectUrl(undefined, rawUrl);
               } catch (e) {
                 console.warn('Errore costruzione URL Supabase Storage:', e);
                 glbUrl = undefined; // Non usare path locale su Netlify
