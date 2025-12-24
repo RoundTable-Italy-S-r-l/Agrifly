@@ -106,6 +106,9 @@ export default function AdminCatalog() {
       currentOrgId ? toggleVendorProduct(currentOrgId, skuId, isForSale) : Promise.reject('No org ID'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendorCatalog', currentOrgId] });
+    },
+    onError: (error) => {
+      console.error('Errore nel toggle prodotto:', error);
     }
   });
 
@@ -164,6 +167,7 @@ export default function AdminCatalog() {
 
   const handleToggleProduct = async (skuId: string, currentStatus: boolean) => {
     try {
+      console.log('🔄 Toggle prodotto:', { skuId, currentStatus, newStatus: !currentStatus });
       await toggleMutation.mutateAsync({ skuId, isForSale: !currentStatus });
     } catch (error) {
       console.error('Errore nel toggle prodotto:', error);
