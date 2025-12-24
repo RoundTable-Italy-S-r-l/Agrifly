@@ -71,8 +71,8 @@ app.get('/api/health', async (c) => {
 
   // Test connessione database
   try {
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
+    const { createPrismaClient } = await import('./utils/prisma');
+    const prisma = createPrismaClient();
     await prisma.$connect();
     await prisma.$disconnect();
     checks.database = { status: 'connected' };
