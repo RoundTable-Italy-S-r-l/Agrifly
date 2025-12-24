@@ -338,32 +338,51 @@ app.get('/public', async (c) => {
 
     // Query per ottenere tutti i prodotti dei vendor con prezzi e stock
     // Include solo prodotti con is_for_sale = true e stock disponibile
+    // Usa CTE per evitare problemi con subquery e GROUP BY
     let querySql = `
+      WITH catalog_base AS (
+        SELECT 
+          o.id as vendor_id,
+          o.legal_name as vendor_name,
+          vci.id as catalog_item_id,
+          vci.sku_id,
+          vci.is_for_sale,
+          vci.is_for_rent,
+          vci.lead_time_days,
+          vci.notes as vendor_notes,
+          s.id as sku_table_id,
+          s.sku_code,
+          p.id as product_id,
+          p.name as product_name,
+          p.brand,
+          p.model,
+          p.product_type,
+          p.specs_json,
+          p.images_json,
+          COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) as available_stock
+        FROM vendor_catalog_items vci
+        JOIN organizations o ON vci.vendor_org_id = o.id
+        JOIN skus s ON vci.sku_id = s.id
+        JOIN products p ON s.product_id = p.id
+        LEFT JOIN inventories i ON vci.sku_id = i.sku_id AND i.vendor_org_id = o.id
+        WHERE o.org_type = 'VENDOR'
+          AND o.status = 'ACTIVE'
+          AND vci.is_for_sale = true
+          AND s.status = 'ACTIVE'
+          AND p.status = 'ACTIVE'
+        GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale, 
+                 vci.is_for_rent, vci.lead_time_days, vci.notes, s.id, s.sku_code, p.id, 
+                 p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json
+      )
       SELECT 
-        o.id as vendor_id,
-        o.legal_name as vendor_name,
-        vci.id as catalog_item_id,
-        vci.sku_id,
-        vci.is_for_sale,
-        vci.is_for_rent,
-        vci.lead_time_days,
-        vci.notes as vendor_notes,
-        s.sku_code,
-        p.id as product_id,
-        p.name as product_name,
-        p.brand,
-        p.model,
-        p.product_type,
-        p.specs_json,
-        p.images_json,
-        COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) as available_stock,
+        cb.*,
         -- Prezzo dalla price list attiva più recente
         (
           SELECT pli.price_cents / 100.0
           FROM price_list_items pli
           JOIN price_lists pl ON pli.price_list_id = pl.id
-          WHERE pli.sku_id = s.id
-            AND pl.vendor_org_id = o.id
+          WHERE pli.sku_id = cb.sku_table_id
+            AND pl.vendor_org_id = cb.vendor_id
             AND pl.status = 'ACTIVE'
             AND pl.valid_from <= NOW()
             AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
@@ -374,51 +393,35 @@ app.get('/public', async (c) => {
           SELECT pl.currency
           FROM price_list_items pli
           JOIN price_lists pl ON pli.price_list_id = pl.id
-          WHERE pli.sku_id = s.id
-            AND pl.vendor_org_id = o.id
+          WHERE pli.sku_id = cb.sku_table_id
+            AND pl.vendor_org_id = cb.vendor_id
             AND pl.status = 'ACTIVE'
             AND pl.valid_from <= NOW()
             AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
           ORDER BY pl.valid_from DESC
           LIMIT 1
         ) as currency
-      FROM vendor_catalog_items vci
-      JOIN organizations o ON vci.vendor_org_id = o.id
-      JOIN skus s ON vci.sku_id = s.id
-      JOIN products p ON s.product_id = p.id
-      LEFT JOIN inventories i ON vci.sku_id = i.sku_id AND i.vendor_org_id = o.id
-      WHERE o.org_type = 'VENDOR'
-        AND o.status = 'ACTIVE'
-        AND vci.is_for_sale = true
-        AND s.status = 'ACTIVE'
-        AND p.status = 'ACTIVE'
+      FROM catalog_base cb
+      WHERE 1=1
     `;
 
     const params: any[] = [];
     let paramIndex = 1;
 
-    // Filtri
+    // Filtri (applicati alla CTE)
     if (category) {
-      querySql += ` AND p.product_type = $${paramIndex}`;
+      querySql += ` AND cb.product_type = $${paramIndex}`;
       params.push(category);
       paramIndex++;
     }
 
     if (vendorId) {
-      querySql += ` AND o.id = $${paramIndex}`;
+      querySql += ` AND cb.vendor_id = $${paramIndex}`;
       params.push(vendorId);
       paramIndex++;
     }
 
-    querySql += `
-      GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale, 
-               vci.is_for_rent, vci.lead_time_days, vci.notes, s.id, s.sku_code, p.id, 
-               p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json
-      -- HAVING: mostra solo prodotti con stock disponibile > 0
-      -- HAVING COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) > 0
-    `;
-
-    querySql += ` ORDER BY o.legal_name, p.brand, p.model, s.sku_code`;
+    querySql += ` ORDER BY cb.vendor_name, cb.brand, cb.model, cb.sku_code`;
 
     const result = await query(querySql, params);
 
