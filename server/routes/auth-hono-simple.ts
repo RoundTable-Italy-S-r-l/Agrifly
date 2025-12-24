@@ -678,4 +678,80 @@ app.get('/health', async (c) => {
   }
 });
 
+// ============================================================================
+// DEBUG: Verifica path GLB nel database
+// ============================================================================
+
+app.get('/debug/glb-paths', async (c) => {
+  try {
+    const result = await query(`
+      SELECT 
+        p.id,
+        p.model,
+        p.glb_files_json,
+        s.sku_code
+      FROM products p
+      JOIN skus s ON s.product_id = p.id
+      WHERE p.status = 'ACTIVE'
+        AND p.glb_files_json IS NOT NULL
+      ORDER BY p.model
+    `);
+
+    const products = result.rows.map(row => {
+      let glbPaths: any[] = [];
+      let supabaseUrls: string[] = [];
+      
+      try {
+        const glbFiles = typeof row.glb_files_json === 'string' 
+          ? JSON.parse(row.glb_files_json) 
+          : row.glb_files_json;
+        
+        if (Array.isArray(glbFiles)) {
+          glbPaths = glbFiles.map(glb => glb.url || glb.filename || glb);
+          
+          // Costruisci URL Supabase Storage
+          const dbUrl = process.env.DATABASE_URL || '';
+          let projectRef = 'fzowfkfwriajohjjboed';
+          const match = dbUrl.match(/@db\.([^.]+)\.supabase\.co/);
+          if (match && match[1]) {
+            projectRef = match[1];
+          }
+          
+          supabaseUrls = glbPaths
+            .filter((path: string) => typeof path === 'string' && path.startsWith('/glb/'))
+            .map((path: string) => {
+              const storagePath = path.substring(1);
+              return `https://${projectRef}.supabase.co/storage/v1/object/public/assets/${storagePath}`;
+            });
+        }
+      } catch (e) {
+        console.error('Errore parsing glb_files_json:', e);
+      }
+      
+      return {
+        model: row.model,
+        skuCode: row.sku_code,
+        glbPaths,
+        supabaseUrls
+      };
+    });
+
+    return c.json({
+      projectRef: (() => {
+        const dbUrl = process.env.DATABASE_URL || '';
+        const match = dbUrl.match(/@db\.([^.]+)\.supabase\.co/);
+        return match && match[1] ? match[1] : 'fzowfkfwriajohjjboed';
+      })(),
+      products
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore verifica GLB paths:', error);
+    return c.json({ 
+      error: 'Errore interno', 
+      message: error.message 
+    }, 500);
+  }
+});
+
 export default app;
