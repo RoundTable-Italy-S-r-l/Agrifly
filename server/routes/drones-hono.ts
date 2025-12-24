@@ -2,6 +2,34 @@ import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { publicObjectUrl } from '../utils/storage';
 
+/**
+ * Genera slug dal modello prodotto
+ * Es: "DJI Agras T25" -> "t-25", "DJI Mavic 3M" -> "mavic-3m"
+ */
+function generateSlug(model: string): string {
+  const parts = model
+    .replace(/^DJI\s+/i, '')
+    .replace(/\s+Agras\s+/i, ' ')
+    .trim()
+    .split(/\s+/);
+  
+  const lastPart = parts[parts.length - 1] || model;
+  
+  return lastPart
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
+
+/**
+ * Normalizza modello per matching slug
+ * Es: "t-25" -> cerca modelli che contengono "T25" o "T 25"
+ */
+function normalizeModelForSlug(slug: string): string {
+  // Rimuovi trattini e converti in uppercase per matching
+  return slug.replace(/-/g, '').toUpperCase();
+}
+
 const app = new Hono();
 
 // GET /api/drones - Lista tutti i droni
@@ -42,7 +70,7 @@ app.get('/', async (c) => {
               glbUrl = rawPath;
             } else if (typeof rawPath === 'string') {
               try {
-                glbUrl = publicObjectUrl('product', rawPath);
+                glbUrl = publicObjectUrl('assets', rawPath);
               } catch (e) {
                 console.warn('Errore costruzione URL GLB:', e);
               }
@@ -95,15 +123,56 @@ app.get('/', async (c) => {
   }
 });
 
-// GET /api/drones/:id - Dettaglio drone per catalog_item_id o product_id
+// GET /api/drones/:id - Dettaglio drone per slug, catalog_item_id o product_id
 app.get('/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    console.log('🔍 Richiesta drone detail per ID:', id);
+    console.log('🔍 Richiesta drone detail per ID/Slug:', id);
     
-    // Prova prima come catalog_item_id (vendor_catalog_items)
-    // Se non trovato, prova come product_id
-    let result = await query(`
+    // Se è uno slug (contiene trattini e non è un UUID), cerca per modello
+    const isSlug = /^[a-z0-9-]+$/.test(id) && id.includes('-') && !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    
+    let result;
+    
+    if (isSlug) {
+      // Cerca per slug (normalizza il modello)
+      const normalizedSlug = normalizeModelForSlug(id);
+      console.log('🔍 Cerca per slug normalizzato:', normalizedSlug);
+      
+      result = await query(`
+        SELECT 
+          p.id,
+          p.name,
+          p.model,
+          p.brand,
+          p.product_type,
+          p.specs_json,
+          p.images_json,
+          p.glb_files_json,
+          p.specs_core_json,
+          p.specs_extra_json,
+          p.manuals_json,
+          vci.id as catalog_item_id,
+          vci.is_for_sale,
+          vci.is_for_rent,
+          vci.lead_time_days,
+          vci.notes as vendor_notes,
+          s.id as sku_id,
+          s.sku_code
+        FROM products p
+        JOIN skus s ON s.product_id = p.id
+        LEFT JOIN vendor_catalog_items vci ON vci.sku_id = s.id
+        WHERE p.status = 'ACTIVE'
+          AND (
+            REPLACE(UPPER(p.model), ' ', '') LIKE $1
+            OR REPLACE(UPPER(p.model), ' ', '') LIKE $2
+          )
+        ORDER BY vci.id DESC NULLS LAST
+        LIMIT 1
+      `, [`%${normalizedSlug}%`, `${normalizedSlug}%`]);
+    } else {
+      // Prova prima come catalog_item_id (vendor_catalog_items)
+      result = await query(`
       SELECT 
         p.id,
         p.name,

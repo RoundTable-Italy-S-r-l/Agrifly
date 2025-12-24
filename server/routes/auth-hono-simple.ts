@@ -715,7 +715,7 @@ app.get('/debug/glb-paths', async (c) => {
             .filter((path: string) => typeof path === 'string')
             .map((path: string) => {
               try {
-                return publicObjectUrl('product', path);
+                return publicObjectUrl('assets', path);
               } catch (e) {
                 console.warn('Errore costruzione URL per path:', path, e);
                 return null;
@@ -742,6 +742,8 @@ app.get('/debug/glb-paths', async (c) => {
     } catch (e) {
       supabaseUrl = 'NOT_CONFIGURED';
     }
+    
+    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'assets';
     
     const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'product';
     
