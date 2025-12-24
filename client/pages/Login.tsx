@@ -20,6 +20,8 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   // REGISTRAZIONE
   const handleRegister = async (e: React.FormEvent) => {
@@ -83,6 +85,30 @@ export default function Login() {
     }
   };
 
+  // RICHIESTA RESET PASSWORD
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!email) {
+      setError("Inserisci la tua email");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      await authAPI.requestPasswordReset(email);
+      setResetEmailSent(true);
+      setError("");
+
+    } catch (err: any) {
+      setError(err?.message || "Errore nella richiesta reset password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="max-w-md mx-auto mt-12">
@@ -91,7 +117,9 @@ export default function Login() {
         </h1>
 
         <p className="text-slate-600 mb-8">
-          {isLogin
+          {showForgotPassword
+            ? "Inserisci la tua email per ricevere il link di reset password"
+            : isLogin
             ? "Accedi al tuo account per gestire la dashboard"
             : "Crea un nuovo account per iniziare"}
         </p>
@@ -102,25 +130,45 @@ export default function Login() {
           </div>
         )}
 
-        <form
-          onSubmit={isLogin ? handleLogin : handleRegister}
-          className="space-y-4"
-        >
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              placeholder="nome@esempio.com"
-            />
+        {resetEmailSent ? (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-6">
+            <p className="font-semibold mb-2">Email inviata!</p>
+            <p className="text-sm">
+              Controlla la tua casella email ({email}) per il link di reset password.
+              Se non la trovi, controlla anche la cartella spam.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowForgotPassword(false);
+                setResetEmailSent(false);
+                setError("");
+              }}
+              className="mt-4 text-sm text-emerald-600 hover:underline"
+            >
+              Torna al login
+            </button>
           </div>
+        ) : (
+          <form
+            onSubmit={showForgotPassword ? handleForgotPassword : isLogin ? handleLogin : handleRegister}
+            className="space-y-4"
+          >
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="nome@esempio.com"
+              />
+            </div>
 
-          {!isLogin && (
+            {!showForgotPassword && !isLogin && (
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -164,42 +212,82 @@ export default function Login() {
             </>
           )}
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              placeholder={isLogin ? "La tua password" : "Minimo 8 caratteri"}
-            />
+            {!showForgotPassword && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Password
+                  </label>
+                  {isLogin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setError("");
+                      }}
+                      className="text-sm text-emerald-600 hover:underline"
+                    >
+                      Password dimenticata?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder={isLogin ? "La tua password" : "Minimo 8 caratteri"}
+                />
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {loading 
+                ? "Caricamento..." 
+                : showForgotPassword 
+                ? "Invia link reset" 
+                : isLogin 
+                ? "Accedi" 
+                : "Registrati"}
+            </Button>
+          </form>
+        )}
+
+        {!showForgotPassword && !resetEmailSent && (
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin((v) => !v);
+                setError("");
+              }}
+              className="text-sm text-emerald-600 hover:underline"
+            >
+              {isLogin ? "Non hai un account? Registrati" : "Hai già un account? Accedi"}
+            </button>
           </div>
-
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
-          >
-            {loading ? "Caricamento..." : isLogin ? "Accedi" : "Registrati"}
-          </Button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsLogin((v) => !v);
-              setError("");
-            }}
-            className="text-sm text-emerald-600 hover:underline"
-          >
-            {isLogin ? "Non hai un account? Registrati" : "Hai già un account? Accedi"}
-          </button>
-        </div>
+        )}
+        
+        {showForgotPassword && !resetEmailSent && (
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForgotPassword(false);
+                setError("");
+              }}
+              className="text-sm text-emerald-600 hover:underline"
+            >
+              Torna al login
+            </button>
+          </div>
+        )}
       </div>
     </Layout>
   );

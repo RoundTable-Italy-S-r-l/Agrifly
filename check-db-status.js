@@ -1,68 +1,78 @@
-#!/usr/bin/env node
+import { Client } from 'pg';
 
-// Script per verificare lo stato del database
-import 'dotenv/config'
-import { PrismaClient } from './generated/prisma/client.js'
-
-const prisma = new PrismaClient()
+const client = new Client({
+  host: 'aws-1-eu-central-2.pooler.supabase.com',
+  port: 6543,
+  database: 'postgres',
+  user: 'postgres.fzowfkfwriajohjjboed',
+  password: '66tY3_C_%5iAR8c',
+  ssl: { rejectUnauthorized: false }
+});
 
 async function checkDatabase() {
-  console.log('🔍 Verifica stato database...\n')
-
   try {
-    // Test connessione
-    console.log('📡 Test connessione database...')
-    await prisma.$connect()
-    console.log('✅ Database connesso!\n')
+    await client.connect();
+    console.log('✅ Database connesso');
 
-    // Conteggi tabelle principali
-    const tables = [
-      { name: 'organizations', query: () => prisma.organization.count() },
-      { name: 'users', query: () => prisma.user.count() },
-      { name: 'org_memberships', query: () => prisma.orgMembership.count() },
-      { name: 'organization_invitations', query: () => prisma.organizationInvitation.count() },
-      { name: 'products', query: () => prisma.product.count() },
-      { name: 'skus', query: () => prisma.sku.count() },
-      { name: 'vendor_catalog_items', query: () => prisma.vendorCatalogItem.count() },
-    ]
+    // Controlla se le tabelle necessarie esistono
+    const tables = await client.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name IN ('users', 'organizations', 'org_memberships', 'verification_codes')
+      ORDER BY table_name
+    `);
+    console.log('📋 Tabelle presenti:', tables.rows.map(r => r.table_name));
 
-    console.log('📊 Conteggi tabelle:')
-    for (const table of tables) {
-      try {
-        const count = await table.query()
-        console.log(`  ${table.name}: ${count}`)
-      } catch (err) {
-        console.log(`  ${table.name}: ❌ Errore - ${err.message}`)
-      }
-    }
+    // Controlla struttura tabella users
+    const userColumns = await client.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns
+      WHERE table_name = 'users' AND table_schema = 'public'
+      ORDER BY ordinal_position
+    `);
+    console.log('👤 Colonne tabella users:');
+    userColumns.rows.forEach(col => {
+      console.log(`  ${col.column_name}: ${col.data_type} ${col.is_nullable === 'YES' ? '(nullable)' : ''} default=${col.column_default}`);
+    });
 
-    // Verifica dati essenziali per le impostazioni
-    console.log('\n🔧 Verifica dati per impostazioni:')
-
-    const orgs = await prisma.organization.findMany({ take: 1 })
-    if (orgs.length > 0) {
-      console.log('✅ Organizzazioni presenti')
-
-      const memberships = await prisma.orgMembership.findMany({
-        where: { org_id: orgs[0].id },
-        include: { user: true }
-      })
-
-      console.log(`✅ Membri organizzazione "${orgs[0].legal_name}": ${memberships.length}`)
-
-      for (const membership of memberships) {
-        console.log(`  - ${membership.user.first_name} ${membership.user.last_name} (${membership.role})`)
-      }
+    // Controlla dati utente Giacomo
+    const userData = await client.query('SELECT id, email, password_hash, password_salt, status, email_verified, email_verified_at, first_name, last_name FROM users WHERE email = $1', ['giacomo.cavalcabo14@gmail.com']);
+    if (userData.rows.length > 0) {
+      const user = userData.rows[0];
+      console.log('👤 Dati Giacomo:', {
+        id: user.id,
+        email: user.email,
+        hasPasswordHash: !!user.password_hash,
+        hasPasswordSalt: !!user.password_salt,
+        passwordHashLength: user.password_hash ? user.password_hash.length : 0,
+        passwordSaltLength: user.password_salt ? user.password_salt.length : 0,
+        status: user.status,
+        emailVerified: user.email_verified,
+        emailVerifiedAt: user.email_verified_at,
+        firstName: user.first_name,
+        lastName: user.last_name
+      });
     } else {
-      console.log('❌ Nessuna organizzazione trovata')
+      console.log('❌ Utente Giacomo non trovato');
     }
 
-  } catch (error) {
-    console.error('❌ Errore database:', error.message)
-    process.exit(1)
-  } finally {
-    await prisma.$disconnect()
+    // Controlla se ci sono organizzazioni
+    const orgs = await client.query('SELECT COUNT(*) as count FROM organizations');
+    console.log('🏢 Numero organizzazioni:', orgs.rows[0].count);
+
+    // Controlla membership dell'utente
+    if (userData.rows.length > 0) {
+      const memberships = await client.query('SELECT * FROM org_memberships WHERE user_id = $1', [userData.rows[0].id]);
+      console.log('🔗 Memberships Giacomo:', memberships.rows.length);
+      memberships.rows.forEach(m => console.log('  - Org:', m.org_id, 'Role:', m.role));
+    }
+
+    await client.end();
+  } catch (err) {
+    console.log('❌ Errore:', err.message);
+    console.log('Stack:', err.stack);
   }
 }
 
-checkDatabase()
+checkDatabase();

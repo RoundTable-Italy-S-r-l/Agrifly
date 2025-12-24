@@ -13,6 +13,7 @@ import Index from "./pages/Index";
 import Catalogo from "./pages/Catalogo";
 import ServiziGIS from "./pages/ServiziGIS";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import AdminCatalog from "./pages/AdminCatalog";
@@ -40,6 +41,7 @@ const App = () => {
             <Route path="/catalogo" element={<Catalogo />} />
             <Route path="/servizi" element={<ServiziGIS />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             <Route
               path="/dashboard"
