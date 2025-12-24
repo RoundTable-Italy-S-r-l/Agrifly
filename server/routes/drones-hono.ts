@@ -91,30 +91,56 @@ app.get('/', async (c) => {
   }
 });
 
-// GET /api/drones/:id - Dettaglio prodotto per product_id (ora principale)
+// GET /api/drones/:id - Dettaglio prodotto per product_id o sku_code
 app.get('/:id', async (c) => {
   try {
-    const productId = c.req.param('id');
-    console.log('🔍 Richiesta product detail per ID:', productId);
+    const param = c.req.param('id');
+    console.log('🔍 Richiesta product detail per param:', param);
 
-    // Cerca direttamente per product_id
-    const result = await query(`
-      SELECT
-        p.id,
-        p.name,
-        p.model,
-        p.brand,
-        p.product_type,
-        p.specs_json,
-        p.images_json,
-        p.glb_files_json,
-        p.specs_core_json,
-        p.specs_extra_json,
-        p.manuals_json
-      FROM products p
-      WHERE p.id = $1 AND p.status = 'ACTIVE'
-      LIMIT 1
-    `, [productId]);
+    // Determina se è un UUID o un codice SKU
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
+
+    let querySql: string;
+    let queryParams: any[];
+
+    if (isUUID) {
+      // Cerca per product_id (UUID)
+      querySql = `
+        SELECT
+          p.id,
+          p.name,
+          p.model,
+          p.brand,
+          p.product_type,
+          p.specs_json,
+          p.images_json,
+          p.glb_files_json
+        FROM products p
+        WHERE p.id = $1 AND p.status = 'ACTIVE'
+        LIMIT 1
+      `;
+      queryParams = [param];
+    } else {
+      // Cerca per sku_code (es. prd_t25)
+      querySql = `
+        SELECT
+          p.id,
+          p.name,
+          p.model,
+          p.brand,
+          p.product_type,
+          p.specs_json,
+          p.images_json,
+          p.glb_files_json
+        FROM products p
+        JOIN skus s ON p.id = s.product_id
+        WHERE s.sku_code = $1 AND p.status = 'ACTIVE' AND s.status = 'ACTIVE'
+        LIMIT 1
+      `;
+      queryParams = [param];
+    }
+
+    const result = await query(querySql, queryParams);
 
     if (result.rows.length === 0) {
       console.log('❌ Prodotto non trovato:', productId);
@@ -180,10 +206,7 @@ app.get('/:id', async (c) => {
       brand: row.brand,
       productType: row.product_type,
       specs: row.specs_json,
-      specsCore: row.specs_core_json,
-      specsExtra: row.specs_extra_json,
       images: row.images_json,
-      manuals: row.manuals_json,
       imageUrl,
       glbUrl
     };
