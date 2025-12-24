@@ -19,6 +19,8 @@
 # Netlify serve automaticamente i file dalla cartella pubblicata (dist/spa)
 # Non serve un redirect per /glb/* se i file sono nella cartella pubblicata
 
+# Catch-all per SPA - Netlify serve automaticamente i file statici PRIMA di questo redirect
+# I file GLB devono essere nella cartella public/glb/ per essere copiati durante il build
 [[redirects]]
   from = "/*"
   to = "/index.html"
