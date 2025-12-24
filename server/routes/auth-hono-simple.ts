@@ -468,13 +468,30 @@ app.get('/debug/lenzi-catalog', async (c) => {
       LIMIT 10
     `, [lenziId]);
 
-    // Inventari
+    // Inventari dettagliati
     const inventories = await query(`
       SELECT 
         COUNT(DISTINCT i.sku_id) as sku_count,
         SUM(i.qty_on_hand) as total_stock
       FROM inventories i
       WHERE i.vendor_org_id = $1
+    `, [lenziId]);
+
+    // Inventari per SKU
+    const inventoryDetails = await query(`
+      SELECT 
+        i.sku_id,
+        s.sku_code,
+        p.name as product_name,
+        SUM(i.qty_on_hand) as qty_on_hand,
+        SUM(i.qty_reserved) as qty_reserved,
+        SUM(i.qty_on_hand) - SUM(i.qty_reserved) as qty_available
+      FROM inventories i
+      JOIN skus s ON i.sku_id = s.id
+      JOIN products p ON s.product_id = p.id
+      WHERE i.vendor_org_id = $1
+      GROUP BY i.sku_id, s.sku_code, p.name
+      ORDER BY p.name
     `, [lenziId]);
 
     // Utente Giacomo
@@ -500,7 +517,14 @@ app.get('/debug/lenzi-catalog', async (c) => {
       catalogItemsSample: catalogItems.rows.slice(0, 5),
       inventories: {
         skuCount: parseInt(inventories.rows[0].sku_count) || 0,
-        totalStock: parseInt(inventories.rows[0].total_stock) || 0
+        totalStock: parseInt(inventories.rows[0].total_stock) || 0,
+        details: inventoryDetails.rows.map(row => ({
+          skuCode: row.sku_code,
+          productName: row.product_name,
+          onHand: parseInt(row.qty_on_hand) || 0,
+          reserved: parseInt(row.qty_reserved) || 0,
+          available: parseInt(row.qty_available) || 0
+        }))
       },
       giacomoMemberships: giacomo.rows
     });
