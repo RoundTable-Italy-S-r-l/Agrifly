@@ -70,14 +70,24 @@ export default function Login() {
 
       const data = await authAPI.login(email, password);
 
+      console.log('📦 Dati login ricevuti:', { 
+        hasToken: !!data.token, 
+        hasUser: !!data.user, 
+        hasOrganization: !!data.organization 
+      });
+
       // Salva JWT e organizzazione
       localStorage.setItem("auth_token", data.token);
       localStorage.setItem('organization', JSON.stringify(data.organization));
 
       console.log('✅ Login completato, JWT e organizzazione salvati');
+      console.log('🔄 Navigazione a /dashboard...');
 
       await queryClient.invalidateQueries();
-      navigate("/dashboard");
+      
+      // Naviga alla dashboard
+      console.log('🚀 Navigazione a /dashboard...');
+      navigate("/dashboard", { replace: true });
 
     } catch (err: any) {
       setError(err?.message || "Errore nel login");

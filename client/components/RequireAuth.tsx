@@ -11,16 +11,30 @@ function isAuthenticated(): boolean {
   const organization = localStorage.getItem("organization");
 
   if (!token || !organization) {
+    console.log('🔐 Auth check: token o organization mancanti');
     return false;
   }
 
   try {
-    // Parsing semplice del JWT per verificare scadenza
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    // Il nostro JWT custom ha formato {body}.{signature} (senza header)
+    // Il body è già in base64url, non serve atob
+    const parts = token.split('.');
+    if (parts.length !== 2) {
+      console.log('🔐 Auth check: formato token invalido (parts:', parts.length, ')');
+      return false;
+    }
+
+    // Decodifica il body (base64url)
+    const body = parts[0];
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
     const now = Math.floor(Date.now() / 1000);
 
-    return payload.exp > now;
-  } catch (error) {
+    const isValid = payload.exp > now;
+    console.log('🔐 Auth check:', isValid ? '✅ valido' : '❌ scaduto', 'exp:', payload.exp, 'now:', now);
+    
+    return isValid;
+  } catch (error: any) {
+    console.log('🔐 Auth check: errore parsing token:', error.message);
     return false;
   }
 }
