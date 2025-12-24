@@ -57,18 +57,24 @@ app.route('/api/settings', settingsRoutes);
 app.get('/api/health', async (c) => {
   try {
     const { query } = await import('./utils/database');
-    await query('SELECT 1');
+    // Test semplice connessione
+    const result = await query('SELECT 1 as test');
+    console.log('Health check result:', result.rows);
+
     return c.json({
       timestamp: new Date().toISOString(),
       status: 'ok',
       database: 'connected',
-      environment: process.env.NODE_ENV
+      environment: process.env.NODE_ENV,
+      test_result: result.rows[0]
     });
   } catch (error: any) {
+    console.error('Health check error:', error);
     return c.json({
       status: 'error',
       database: 'disconnected',
-      error: error.message
+      error: error.message,
+      stack: error.stack?.substring(0, 200)
     }, 500);
   }
 });
