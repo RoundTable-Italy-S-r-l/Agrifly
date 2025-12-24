@@ -594,7 +594,7 @@ app.get('/public', async (c) => {
       if (availableStock > 0) {
         vendor.products.push({
           id: row.catalog_item_id, // catalog_item_id per compatibilità
-          productId: row.product_id, // product_id per routing corretto
+          productId: row.sku_code, // sku_code per routing (prd_t25, etc.)
           skuCode: row.sku_code,
           name: row.product_name,
           model: row.model,
