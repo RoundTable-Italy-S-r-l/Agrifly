@@ -416,6 +416,87 @@ app.post('/reset-password', async (c) => {
 });
 
 // ============================================================================
+// DEBUG: CHECK LENZI CATALOG
+// ============================================================================
+
+app.get('/debug/lenzi-catalog', async (c) => {
+  try {
+    // Trova organizzazione Lenzi
+    const lenziOrg = await query(`
+      SELECT id, legal_name, org_type, status
+      FROM organizations
+      WHERE legal_name ILIKE '%lenzi%'
+      LIMIT 1
+    `);
+
+    if (lenziOrg.rows.length === 0) {
+      return c.json({ error: 'Organizzazione Lenzi non trovata' }, 404);
+    }
+
+    const lenziId = lenziOrg.rows[0].id;
+
+    // Catalog items
+    const catalogItems = await query(`
+      SELECT 
+        vci.id,
+        vci.sku_id,
+        vci.is_for_sale,
+        vci.is_for_rent,
+        s.sku_code,
+        p.name as product_name,
+        p.brand,
+        p.model
+      FROM vendor_catalog_items vci
+      JOIN skus s ON vci.sku_id = s.id
+      JOIN products p ON s.product_id = p.id
+      WHERE vci.vendor_org_id = $1
+      LIMIT 10
+    `, [lenziId]);
+
+    // Inventari
+    const inventories = await query(`
+      SELECT 
+        COUNT(DISTINCT i.sku_id) as sku_count,
+        SUM(i.qty_on_hand) as total_stock
+      FROM inventories i
+      WHERE i.vendor_org_id = $1
+    `, [lenziId]);
+
+    // Utente Giacomo
+    const giacomo = await query(`
+      SELECT 
+        u.email,
+        om.org_id,
+        om.role,
+        o.legal_name
+      FROM users u
+      JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
+      JOIN organizations o ON om.org_id = o.id
+      WHERE u.email = 'giacomo.cavalcabo14@gmail.com'
+    `);
+
+    return c.json({
+      lenziOrg: {
+        id: lenziOrg.rows[0].id,
+        name: lenziOrg.rows[0].legal_name,
+        type: lenziOrg.rows[0].org_type
+      },
+      catalogItems: catalogItems.rows.length,
+      catalogItemsSample: catalogItems.rows.slice(0, 5),
+      inventories: {
+        skuCount: parseInt(inventories.rows[0].sku_count) || 0,
+        totalStock: parseInt(inventories.rows[0].total_stock) || 0
+      },
+      giacomoMemberships: giacomo.rows
+    });
+
+  } catch (error: any) {
+    console.error('Errore debug lenzi catalog:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// ============================================================================
 // HEALTH CHECK SEMPLIFICATO
 // ============================================================================
 
