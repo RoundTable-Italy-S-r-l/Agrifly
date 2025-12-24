@@ -587,12 +587,12 @@ app.get('/public', async (c) => {
         }
       }
 
-      // Filtra solo prodotti con stock disponibile > 0 o con prezzo definito
+      // Filtra solo prodotti con stock disponibile > 0 (basato su inventory)
       const availableStock = parseInt(row.available_stock) || 0;
       
-      // Mostra prodotti se hanno stock disponibile O prezzo (anche se stock = 0)
-      // Questo permette di vedere prodotti anche senza stock se hanno un prezzo
-      if (availableStock > 0 || priceRounded > 0) {
+      // Mostra SOLO prodotti che hanno stock disponibile > 0 (basato su inventory)
+      // I prodotti senza inventory non vengono mostrati nel catalogo pubblico
+      if (availableStock > 0) {
         vendor.products.push({
           id: row.catalog_item_id, // Usa catalog_item_id come ID univoco
           skuCode: row.sku_code,

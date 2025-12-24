@@ -18,14 +18,28 @@ export function getSupabaseUrl(): string {
 }
 
 /**
+ * Ottiene il nome del bucket da usare per i file GLB
+ * Configurabile via env var, default: "assets"
+ */
+export function getStorageBucket(): string {
+  return process.env.SUPABASE_STORAGE_BUCKET || "assets";
+}
+
+/**
  * Costruisce URL per file pubblico in Supabase Storage
- * @param bucket Nome del bucket (es. "assets")
+ * @param bucket Nome del bucket (default: da env var SUPABASE_STORAGE_BUCKET o "assets")
  * @param key Path del file nel bucket (es. "glb/t50/T50.glb" o "/glb/t50/T50.glb")
  * @returns URL completo per accedere al file
  */
-export function publicObjectUrl(bucket: string, key: string): string {
+export function publicObjectUrl(bucket?: string, key?: string): string {
   const base = getSupabaseUrl();
+  const bucketName = bucket || getStorageBucket();
   const cleanKey = (key || "").trim().replace(/^\//, ""); // Rimuovi slash iniziale se presente
-  return `${base}/storage/v1/object/public/${bucket}/${cleanKey}`;
+  
+  if (!cleanKey) {
+    throw new Error("Key (path) is required for publicObjectUrl");
+  }
+  
+  return `${base}/storage/v1/object/public/${bucketName}/${cleanKey}`;
 }
 
