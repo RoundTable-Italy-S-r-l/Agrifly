@@ -14,7 +14,7 @@ export function Layout({ children }: LayoutProps) {
   const handleLogout = () => {
     authAPI.logout();
     navigate('/login');
-  };
+    };
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-200">
@@ -75,7 +75,7 @@ export function Layout({ children }: LayoutProps) {
               <button
                 onClick={handleLogout}
                 className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
-              >
+                >
                 <span>Logout</span>
               </button>
             ) : (

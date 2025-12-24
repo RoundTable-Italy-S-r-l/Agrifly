@@ -296,6 +296,7 @@ app.get('/vendor/:orgId', async (c) => {
         images: row.images_json,
         isForSale: row.is_for_sale,
         isForRent: row.is_for_rent,
+        isActive: row.is_for_sale, // Alias per compatibilità frontend
         leadTimeDays: row.lead_time_days,
         notes: row.notes,
         stock: available, // Numero disponibile (per compatibilità frontend)

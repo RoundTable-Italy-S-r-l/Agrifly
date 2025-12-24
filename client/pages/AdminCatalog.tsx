@@ -330,9 +330,49 @@ export default function AdminCatalog() {
                             <Box className="w-4 h-4" />
                             Stock
                           </span>
-                          <span className="text-sm font-medium text-slate-900">
-                            {product.stock} unità
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={async () => {
+                                const newStock = Math.max(0, (product.stock || 0) - 1);
+                                try {
+                                  await updateMutation.mutateAsync({ 
+                                    skuId: product.id, 
+                                    updates: { stock: newStock } 
+                                  });
+                                } catch (error) {
+                                  console.error('Errore aggiornamento stock:', error);
+                                }
+                              }}
+                              disabled={updateMutation.isPending || (product.stock || 0) <= 0}
+                            >
+                              -
+                            </Button>
+                            <span className="text-sm font-medium text-slate-900 min-w-[3rem] text-center">
+                              {product.stock || 0} unità
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={async () => {
+                                const newStock = (product.stock || 0) + 1;
+                                try {
+                                  await updateMutation.mutateAsync({ 
+                                    skuId: product.id, 
+                                    updates: { stock: newStock } 
+                                  });
+                                } catch (error) {
+                                  console.error('Errore aggiornamento stock:', error);
+                                }
+                              }}
+                              disabled={updateMutation.isPending}
+                            >
+                              +
+                            </Button>
+                          </div>
                         </div>
                         {product.location && (
                           <div className="flex items-center justify-between">

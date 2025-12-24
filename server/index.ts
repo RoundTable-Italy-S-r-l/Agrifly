@@ -149,13 +149,13 @@ export function createServer() {
 
 // Avvia il server standalone quando eseguito direttamente
 // Con tsx/esm, il file viene sempre eseguito come main module
-const port = process.env.PORT || 3001;
-const server = createServer();
+  const port = process.env.PORT || 3001;
+  const server = createServer();
 
-server.listen(port, () => {
-  console.log(`🚀 Server Express running on http://localhost:${port}`);
-  console.log(`📡 API available at http://localhost:${port}/api/*`);
-});
+  server.listen(port, () => {
+    console.log(`🚀 Server Express running on http://localhost:${port}`);
+    console.log(`📡 API available at http://localhost:${port}/api/*`);
+  });
 
 server.on('error', (err: any) => {
   if (err.code === 'EADDRINUSE') {

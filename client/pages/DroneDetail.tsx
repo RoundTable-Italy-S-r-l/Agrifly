@@ -241,8 +241,8 @@ const DroneDetail = () => {
             {/* Disponibilità */}
             <div className="bg-slate-50 rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-3">
-                <CheckCircle size={20} className="text-emerald-600" />
-                <div>
+              <CheckCircle size={20} className="text-emerald-600" />
+              <div>
                   <p className="font-semibold text-slate-900">
                     {droneAny.stock > 0 ? 'Disponibile' : 'Non disponibile'}
                   </p>

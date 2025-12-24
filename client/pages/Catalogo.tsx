@@ -203,7 +203,7 @@ export default function Catalogo() {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                              <Package className="w-16 h-16 text-slate-400" />
+                            <Package className="w-16 h-16 text-slate-400" />
                             </div>
                           )}
                         </div>
