@@ -450,7 +450,7 @@ app.get('/debug/lenzi-catalog', async (c) => {
     const lenziId = lenziOrg.rows[0].id;
     console.log('✅ Lenzi ID trovato:', lenziId);
 
-    // Catalog items
+    // Catalog items con prezzi
     const catalogItems = await query(`
       SELECT 
         vci.id,
@@ -460,7 +460,19 @@ app.get('/debug/lenzi-catalog', async (c) => {
         s.sku_code,
         p.name as product_name,
         p.brand,
-        p.model
+        p.model,
+        (
+          SELECT pli.price_cents / 100.0
+          FROM price_list_items pli
+          JOIN price_lists pl ON pli.price_list_id = pl.id
+          WHERE pli.sku_id = s.id
+            AND pl.vendor_org_id = $1
+            AND pl.status = 'ACTIVE'
+            AND pl.valid_from <= NOW()
+            AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
+          ORDER BY pl.valid_from DESC
+          LIMIT 1
+        ) as price_euros
       FROM vendor_catalog_items vci
       JOIN skus s ON vci.sku_id = s.id
       JOIN products p ON s.product_id = p.id
@@ -514,7 +526,13 @@ app.get('/debug/lenzi-catalog', async (c) => {
         type: lenziOrg.rows[0].org_type
       },
       catalogItems: catalogItems.rows.length,
-      catalogItemsSample: catalogItems.rows.slice(0, 5),
+      catalogItemsSample: catalogItems.rows.slice(0, 5).map(row => ({
+        skuCode: row.sku_code,
+        productName: row.product_name,
+        isForSale: row.is_for_sale,
+        price: row.price_euros || null,
+        hasPrice: !!row.price_euros
+      })),
       inventories: {
         skuCount: parseInt(inventories.rows[0].sku_count) || 0,
         totalStock: parseInt(inventories.rows[0].total_stock) || 0,
