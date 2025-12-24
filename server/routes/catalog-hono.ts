@@ -176,7 +176,8 @@ app.get('/public', async (c) => {
       GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale, 
                vci.is_for_rent, vci.lead_time_days, vci.notes, s.sku_code, p.id, 
                p.name, p.brand, p.model, p.product_type, p.description, p.specs_json, p.images_json
-      HAVING COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) > 0
+      -- HAVING: mostra solo prodotti con stock disponibile > 0
+      -- HAVING COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) > 0
     `;
 
     // Filtro prezzo (dopo GROUP BY)
@@ -255,23 +256,30 @@ app.get('/public', async (c) => {
         }
       }
 
-      vendor.products.push({
-        id: row.catalog_item_id, // Usa catalog_item_id come ID univoco
-        skuCode: row.sku_code,
-        name: row.product_name,
-        model: row.model,
-        brand: row.brand,
-        category: row.product_type,
-        price: row.price_euros || 0,
-        currency: row.currency || 'EUR',
-        stock: parseInt(row.available_stock) || 0,
-        leadTimeDays: row.lead_time_days || null,
-        imageUrl,
-        glbUrl,
-        description: row.product_description || '',
-        specs: row.specs_json,
-        vendorNotes: row.vendor_notes
-      });
+      // Filtra solo prodotti con stock disponibile > 0 o con prezzo definito
+      const availableStock = parseInt(row.available_stock) || 0;
+      const price = row.price_euros || 0;
+      
+      // Mostra solo prodotti con stock disponibile o con prezzo (per debug)
+      if (availableStock > 0 || price > 0) {
+        vendor.products.push({
+          id: row.catalog_item_id, // Usa catalog_item_id come ID univoco
+          skuCode: row.sku_code,
+          name: row.product_name,
+          model: row.model,
+          brand: row.brand,
+          category: row.product_type,
+          price: price,
+          currency: row.currency || 'EUR',
+          stock: availableStock,
+          leadTimeDays: row.lead_time_days || null,
+          imageUrl,
+          glbUrl,
+          description: row.product_description || '',
+          specs: row.specs_json,
+          vendorNotes: row.vendor_notes
+        });
+      }
     });
 
     const vendors = Array.from(vendorsMap.values());
