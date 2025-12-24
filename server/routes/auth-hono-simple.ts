@@ -745,8 +745,6 @@ app.get('/debug/glb-paths', async (c) => {
     
     const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'product';
     
-    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'product';
-    
     return c.json({
       supabaseUrl,
       bucket: bucket,
