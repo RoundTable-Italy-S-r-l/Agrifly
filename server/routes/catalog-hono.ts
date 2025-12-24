@@ -80,7 +80,174 @@ app.get('/vendor/:orgId', async (c) => {
 
   } catch (error: any) {
     console.error('Errore get vendor catalog:', error);
-    return c.json({ error: 'Errore interno', message: error.message }, 500);
+    console.error('Stack:', error.stack);
+    return c.json({ 
+      error: 'Errore interno', 
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
+    }, 500);
+  }
+});
+
+// ============================================================================
+// TOGGLE PRODUCT (Attiva/Disattiva prodotto per vendita)
+// ============================================================================
+
+app.post('/vendor/:orgId/toggle', async (c) => {
+  try {
+    const orgId = c.req.param('orgId');
+    const { skuId, isForSale } = await c.req.json();
+
+    if (!skuId || typeof isForSale !== 'boolean') {
+      return c.json({ error: 'skuId e isForSale obbligatori' }, 400);
+    }
+
+    console.log('🔄 Toggle prodotto:', { orgId, skuId, isForSale });
+
+    // Aggiorna is_for_sale nel vendor_catalog_items
+    const result = await query(`
+      UPDATE vendor_catalog_items
+      SET is_for_sale = $1
+      WHERE vendor_org_id = $2 AND sku_id = $3
+      RETURNING id, is_for_sale, is_for_rent
+    `, [isForSale, orgId, skuId]);
+
+    if (result.rows.length === 0) {
+      return c.json({ error: 'Prodotto non trovato nel catalogo vendor' }, 404);
+    }
+
+    console.log('✅ Prodotto aggiornato:', result.rows[0]);
+
+    return c.json({ 
+      success: true,
+      catalogItem: result.rows[0]
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore toggle prodotto:', error);
+    console.error('Stack:', error.stack);
+    return c.json({ 
+      error: 'Errore interno', 
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
+    }, 500);
+  }
+});
+
+// ============================================================================
+// UPDATE PRODUCT (Aggiorna prezzo, lead time, notes, stock)
+// ============================================================================
+
+app.put('/vendor/:orgId/product', async (c) => {
+  try {
+    const orgId = c.req.param('orgId');
+    const { skuId, price, leadTimeDays, notes, stock } = await c.req.json();
+
+    if (!skuId) {
+      return c.json({ error: 'skuId obbligatorio' }, 400);
+    }
+
+    console.log('📝 Update prodotto:', { orgId, skuId, price, leadTimeDays, notes, stock });
+
+    // Aggiorna vendor_catalog_items
+    const updates: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (leadTimeDays !== undefined) {
+      updates.push(`lead_time_days = $${paramIndex}`);
+      params.push(leadTimeDays);
+      paramIndex++;
+    }
+
+    if (notes !== undefined) {
+      updates.push(`notes = $${paramIndex}`);
+      params.push(notes);
+      paramIndex++;
+    }
+
+    if (updates.length > 0) {
+      params.push(orgId, skuId);
+      const updateQuery = `
+        UPDATE vendor_catalog_items
+        SET ${updates.join(', ')}
+        WHERE vendor_org_id = $${paramIndex} AND sku_id = $${paramIndex + 1}
+        RETURNING id, lead_time_days, notes
+      `;
+      await query(updateQuery, params);
+    }
+
+    // Aggiorna prezzo nella price list attiva
+    if (price !== undefined && price > 0) {
+      // Trova price list attiva
+      const priceListResult = await query(`
+        SELECT id, currency
+        FROM price_lists
+        WHERE vendor_org_id = $1
+          AND status = 'ACTIVE'
+          AND valid_from <= NOW()
+          AND (valid_to IS NULL OR valid_to >= NOW())
+        ORDER BY valid_from DESC
+        LIMIT 1
+      `, [orgId]);
+
+      if (priceListResult.rows.length > 0) {
+        const priceListId = priceListResult.rows[0].id;
+        const priceCents = Math.round(price * 100);
+
+        // Upsert price list item
+        await query(`
+          INSERT INTO price_list_items (id, price_list_id, sku_id, price_cents, created_at)
+          VALUES (gen_random_uuid(), $1, $2, $3, NOW())
+          ON CONFLICT (price_list_id, sku_id) 
+          DO UPDATE SET price_cents = $3
+        `, [priceListId, skuId, priceCents]);
+
+        console.log('✅ Prezzo aggiornato nella price list');
+      } else {
+        console.warn('⚠️  Nessuna price list attiva trovata per aggiornare il prezzo');
+      }
+    }
+
+    // Aggiorna stock (inventario)
+    if (stock !== undefined) {
+      // Trova location principale del vendor (o crea una default)
+      const locationResult = await query(`
+        SELECT id FROM locations
+        WHERE org_id = $1
+        LIMIT 1
+      `, [orgId]);
+
+      if (locationResult.rows.length > 0) {
+        const locationId = locationResult.rows[0].id;
+
+        // Upsert inventory
+        await query(`
+          INSERT INTO inventories (id, vendor_org_id, location_id, sku_id, qty_on_hand, qty_reserved, created_at)
+          VALUES (gen_random_uuid(), $1, $2, $3, $4, 0, NOW())
+          ON CONFLICT (vendor_org_id, location_id, sku_id)
+          DO UPDATE SET qty_on_hand = $4
+        `, [orgId, locationId, skuId, stock]);
+
+        console.log('✅ Stock aggiornato');
+      } else {
+        console.warn('⚠️  Nessuna location trovata per aggiornare lo stock');
+      }
+    }
+
+    return c.json({ 
+      success: true,
+      message: 'Prodotto aggiornato con successo'
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore update prodotto:', error);
+    console.error('Stack:', error.stack);
+    return c.json({ 
+      error: 'Errore interno', 
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
+    }, 500);
   }
 });
 

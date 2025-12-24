@@ -26,7 +26,7 @@ app.get('/:orgId', async (c) => {
         status
       FROM offers
       WHERE vendor_org_id = $1
-      ORDER BY valid_from DESC, created_at DESC
+      ORDER BY valid_from DESC
     `, [orgId]);
 
     console.log(`📋 Offerte trovate nel DB: ${offersResult.rows.length}`);
