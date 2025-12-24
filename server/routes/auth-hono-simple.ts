@@ -743,7 +743,7 @@ app.get('/debug/glb-paths', async (c) => {
       supabaseUrl = 'NOT_CONFIGURED';
     }
     
-    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'assets';
+    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'product';
     
     const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'product';
     
