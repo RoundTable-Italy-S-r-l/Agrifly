@@ -412,46 +412,11 @@ app.get('/public', async (c) => {
 
     querySql += `
       GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale, 
-               vci.is_for_rent, vci.lead_time_days, vci.notes, s.sku_code, p.id, 
+               vci.is_for_rent, vci.lead_time_days, vci.notes, s.id, s.sku_code, p.id, 
                p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json
       -- HAVING: mostra solo prodotti con stock disponibile > 0
       -- HAVING COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) > 0
     `;
-
-    // Filtro prezzo (dopo GROUP BY)
-    if (minPrice !== null) {
-      querySql += ` AND (
-        SELECT pli.price_cents / 100.0
-        FROM price_list_items pli
-        JOIN price_lists pl ON pli.price_list_id = pl.id
-        WHERE pli.sku_id = s.id
-          AND pl.vendor_org_id = o.id
-          AND pl.status = 'ACTIVE'
-          AND pl.valid_from <= NOW()
-          AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
-        ORDER BY pl.valid_from DESC
-        LIMIT 1
-      ) >= $${paramIndex}`;
-      params.push(minPrice);
-      paramIndex++;
-    }
-
-    if (maxPrice !== null) {
-      querySql += ` AND (
-        SELECT pli.price_cents / 100.0
-        FROM price_list_items pli
-        JOIN price_lists pl ON pli.price_list_id = pl.id
-        WHERE pli.sku_id = s.id
-          AND pl.vendor_org_id = o.id
-          AND pl.status = 'ACTIVE'
-          AND pl.valid_from <= NOW()
-          AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
-        ORDER BY pl.valid_from DESC
-        LIMIT 1
-      ) <= $${paramIndex}`;
-      params.push(maxPrice);
-      paramIndex++;
-    }
 
     querySql += ` ORDER BY o.legal_name, p.brand, p.model, s.sku_code`;
 
@@ -459,10 +424,14 @@ app.get('/public', async (c) => {
 
     console.log(`📦 Prodotti trovati nel catalogo pubblico: ${result.rows.length}`);
 
-    // Raggruppa per vendor
+    // Raggruppa per vendor e applica filtri prezzo
     const vendorsMap = new Map<string, any>();
 
     result.rows.forEach(row => {
+      // Applica filtri prezzo in JavaScript (dopo la query)
+      const price = row.price_euros || 0;
+      if (minPrice !== null && price < minPrice) return;
+      if (maxPrice !== null && price > maxPrice) return;
       const vendorId = row.vendor_id;
       
       if (!vendorsMap.has(vendorId)) {
@@ -496,7 +465,6 @@ app.get('/public', async (c) => {
 
       // Filtra solo prodotti con stock disponibile > 0 o con prezzo definito
       const availableStock = parseInt(row.available_stock) || 0;
-      const price = row.price_euros || 0;
       
       // Mostra solo prodotti con stock disponibile o con prezzo (per debug)
       if (availableStock > 0 || price > 0) {
