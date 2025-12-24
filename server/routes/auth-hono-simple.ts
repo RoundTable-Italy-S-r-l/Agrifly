@@ -743,9 +743,19 @@ app.get('/debug/glb-paths', async (c) => {
       supabaseUrl = 'NOT_CONFIGURED';
     }
     
+    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'assets';
+    
     return c.json({
       supabaseUrl,
-      bucket: 'assets',
+      bucket: bucket,
+      note: 'Se vedi errori 400, verifica che il bucket esista e sia pubblico in Supabase Storage Dashboard',
+      troubleshooting: {
+        step1: 'Vai su Supabase Dashboard → Storage',
+        step2: `Verifica che esista il bucket "${bucket}"`,
+        step3: 'Se non esiste, crealo come bucket pubblico',
+        step4: 'Carica i file GLB nel path corretto (es. glb/t50/T50.glb)',
+        step5: 'Se il bucket ha un nome diverso, configura SUPABASE_STORAGE_BUCKET su Netlify'
+      },
       products
     });
 
