@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { hashPassword, verifyPassword, generateJWT, generateResetToken, generateVerificationCode, rateLimiter } from '../utils/auth';
+import { hashPassword, verifyPassword, generateJWT, verifyJWT, generateResetToken, generateVerificationCode, rateLimiter } from '../utils/auth';
 import { query } from '../utils/database';
 import { sendPasswordResetEmail } from '../utils/email';
 import type { UserStatus, OrgRole } from '../types';
@@ -164,6 +164,66 @@ app.post('/login', async (c) => {
 
   } catch (error: any) {
     console.error('Errore login:', error);
+    return c.json({ error: 'Errore interno' }, 500);
+  }
+});
+
+// ============================================================================
+// GET PROFILE (ME)
+// ============================================================================
+
+app.get('/me', async (c) => {
+  try {
+    // Estrai token dall'header Authorization
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const token = authHeader.substring(7);
+    const payload = verifyJWT(token);
+
+    if (!payload) {
+      return c.json({ error: 'Token invalido o scaduto' }, 401);
+    }
+
+    // Trova utente e organizzazione
+    const userResult = await query(`
+      SELECT u.*, om.role, o.id as org_id, o.legal_name
+      FROM users u
+      LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
+      LEFT JOIN organizations o ON om.org_id = o.id
+      WHERE u.id = $1 AND u.status = 'ACTIVE'
+    `, [payload.userId]);
+
+    if (userResult.rows.length === 0) {
+      return c.json({ error: 'Utente non trovato' }, 404);
+    }
+
+    const user = userResult.rows[0];
+    const orgId = user.org_id || null;
+    const role = user.role || null;
+    const orgName = user.legal_name || null;
+    const isAdmin = role === 'BUYER_ADMIN' || role === 'VENDOR_ADMIN';
+
+    return c.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email_verified: user.email_verified || false
+      },
+      organization: orgId ? {
+        id: orgId,
+        name: orgName,
+        role,
+        isAdmin
+      } : null
+    });
+
+  } catch (error: any) {
+    console.error('Errore get profile:', error);
     return c.json({ error: 'Errore interno' }, 500);
   }
 });
