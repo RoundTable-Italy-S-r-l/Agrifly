@@ -710,18 +710,13 @@ app.get('/debug/glb-paths', async (c) => {
           glbPaths = glbFiles.map(glb => glb.url || glb.filename || glb);
           
           // Costruisci URL Supabase Storage
-          const dbUrl = process.env.DATABASE_URL || '';
-          let projectRef = 'fzowfkfwriajohjjboed';
-          const match = dbUrl.match(/@db\.([^.]+)\.supabase\.co/);
-          if (match && match[1]) {
-            projectRef = match[1];
-          }
+          const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fzowfkfwriajohjjboed.supabase.co';
           
           supabaseUrls = glbPaths
-            .filter((path: string) => typeof path === 'string' && path.startsWith('/glb/'))
+            .filter((path: string) => typeof path === 'string')
             .map((path: string) => {
-              const storagePath = path.substring(1);
-              return `https://${projectRef}.supabase.co/storage/v1/object/public/assets/${storagePath}`;
+              const cleanPath = path.replace(/^\//, ''); // Rimuovi slash iniziale se presente
+              return `${supabaseUrl}/storage/v1/object/public/assets/${cleanPath}`;
             });
         }
       } catch (e) {
@@ -736,12 +731,11 @@ app.get('/debug/glb-paths', async (c) => {
       };
     });
 
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fzowfkfwriajohjjboed.supabase.co';
+    
     return c.json({
-      projectRef: (() => {
-        const dbUrl = process.env.DATABASE_URL || '';
-        const match = dbUrl.match(/@db\.([^.]+)\.supabase\.co/);
-        return match && match[1] ? match[1] : 'fzowfkfwriajohjjboed';
-      })(),
+      supabaseUrl,
+      bucket: 'assets',
       products
     });
 
