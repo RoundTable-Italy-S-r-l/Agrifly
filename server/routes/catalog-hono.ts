@@ -437,7 +437,7 @@ app.get('/public', async (c) => {
           p.specs_json,
           p.images_json,
           p.glb_files_json,
-          a.productId,
+          a."productId",
           COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) as available_stock
         FROM vendor_catalog_items vci
         JOIN organizations o ON vci.vendor_org_id = o.id
@@ -454,7 +454,7 @@ app.get('/public', async (c) => {
         GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale,
                  vci.is_for_rent, vci.lead_time_days, vci.notes, s.id, s.sku_code, p.id,
                  p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json,
-                 a.productId
+                 a."productId"
       )
       SELECT 
         cb.*,
