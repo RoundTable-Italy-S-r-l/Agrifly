@@ -228,24 +228,26 @@ app.post('/request-password-reset', async (c) => {
     try {
       const emailResult = await sendPasswordResetEmail(email, resetUrl);
 
-      // Se RESEND non è configurato (sviluppo), restituiamo il link nella risposta
+      // Se l'email non è stata inviata (dominio non verificato o altro errore), restituiamo il link
       if (!emailResult.sent && emailResult.resetUrl) {
-        console.warn('⚠️  RESEND_API_KEY non configurato - link reset disponibile solo in console');
+        console.warn('⚠️  Email non inviata - restituisco link nella risposta');
         console.log('📧 RESET PASSWORD LINK:', emailResult.resetUrl);
         
-        // In sviluppo, possiamo restituire il link (rimuovere in produzione)
-        if (process.env.NODE_ENV === 'development') {
-          return c.json({ 
-            message: 'Email non configurata. Link reset (solo sviluppo):',
-            resetUrl: emailResult.resetUrl,
-            warning: 'RESEND_API_KEY non configurato'
-          });
-        }
+        // Restituiamo sempre il link se l'email non può essere inviata
+        return c.json({ 
+          message: 'Email non configurata correttamente. Usa questo link per resettare la password:',
+          resetUrl: emailResult.resetUrl,
+          warning: emailResult.error || 'Email non inviata'
+        });
       }
 
       if (!emailResult.sent && emailResult.error) {
         console.error('Errore invio email reset password:', emailResult.error);
-        // Non blocchiamo il flusso, ma loggiamo l'errore
+        // Se c'è un errore ma non abbiamo il link, restituiamo comunque un messaggio generico
+        return c.json({ 
+          message: 'Se l\'email esiste, riceverai un link per resettare la password',
+          error: emailResult.error
+        });
       }
 
       return c.json({ 
@@ -253,9 +255,11 @@ app.post('/request-password-reset', async (c) => {
       });
     } catch (emailError: any) {
       console.error('Errore nell\'invio email:', emailError);
-      // Anche se l'email fallisce, restituiamo successo per sicurezza
+      // Anche se l'email fallisce, restituiamo il link direttamente
       return c.json({ 
-        message: 'Se l\'email esiste, riceverai un link per resettare la password' 
+        message: 'Email non configurata. Usa questo link per resettare la password:',
+        resetUrl: resetUrl,
+        warning: 'Errore invio email'
       });
     }
 

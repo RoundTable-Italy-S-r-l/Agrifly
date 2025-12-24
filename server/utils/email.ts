@@ -81,20 +81,37 @@ export async function sendPasswordResetEmail(
     }
     
     console.log('📧 Tentativo invio email reset password a:', to);
+    
+    // Usa il dominio verificato se disponibile, altrimenti usa quello di default di Resend
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Agrifly <onboarding@resend.dev>';
+    
     const result = await resend.emails.send({
-      from: 'DJI Agriculture <noreply@dji-agriculture.com>',
+      from: fromEmail,
       to,
-      subject: 'Reset password',
+      subject: 'Reset password - Agrifly',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Reset password</h2>
-          <p>Hai richiesto il reset della password. Clicca sul link qui sotto:</p>
+          <p>Hai richiesto il reset della password per il tuo account Agrifly. Clicca sul link qui sotto:</p>
           <p><a href="${resetUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Reset password</a></p>
           <p>Il link è valido per 24 ore.</p>
+          <p>Se non hai richiesto questo reset, ignora questa email.</p>
         </div>
       `,
     });
-    console.log('✅ Password reset email sent to:', to, 'Result:', result);
+    
+    // Controlla se c'è un errore nella risposta
+    if (result.error) {
+      console.error('❌ Errore Resend:', result.error);
+      // Se il dominio non è verificato, restituiamo il link per mostrarlo all'utente
+      if (result.error.statusCode === 403 && result.error.message?.includes('domain is not verified')) {
+        console.warn('⚠️  Dominio non verificato su Resend - restituisco link nella risposta');
+        return { sent: false, resetUrl, error: 'Dominio email non verificato' };
+      }
+      return { sent: false, resetUrl, error: result.error.message || 'Errore invio email' };
+    }
+    
+    console.log('✅ Password reset email sent to:', to);
     return { sent: true };
   } catch (error: any) {
     console.error('❌ Error sending password reset email:', error);
