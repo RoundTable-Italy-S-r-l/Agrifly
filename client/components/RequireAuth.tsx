@@ -17,16 +17,21 @@ function isAuthenticated(): boolean {
 
   try {
     // Il nostro JWT custom ha formato {body}.{signature} (senza header)
-    // Il body è già in base64url, non serve atob
     const parts = token.split('.');
     if (parts.length !== 2) {
       console.log('🔐 Auth check: formato token invalido (parts:', parts.length, ')');
       return false;
     }
 
-    // Decodifica il body (base64url)
+    // Decodifica il body (base64url) - funzione compatibile browser
     const body = parts[0];
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+    // Converti base64url a base64 standard
+    const base64 = body.replace(/-/g, '+').replace(/_/g, '/');
+    // Padding
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    // Decodifica
+    const decoded = atob(padded);
+    const payload = JSON.parse(decoded);
     const now = Math.floor(Date.now() / 1000);
 
     const isValid = payload.exp > now;
