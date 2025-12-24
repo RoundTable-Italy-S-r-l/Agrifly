@@ -19,10 +19,10 @@ export function getSupabaseUrl(): string {
 
 /**
  * Ottiene il nome del bucket da usare per i file GLB
- * Configurabile via env var, default: "assets"
+ * Configurabile via env var, default: "product"
  */
 export function getStorageBucket(): string {
-  return process.env.SUPABASE_STORAGE_BUCKET || "assets";
+  return process.env.SUPABASE_STORAGE_BUCKET || "product";
 }
 
 /**
