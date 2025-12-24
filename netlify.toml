@@ -6,6 +6,7 @@
 # Escludi documentazione e nuove variabili PG dalla scansione segreti
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "DATABASE_URL,PGHOST,PGPORT,PGDATABASE,PGUSER,PGPASSWORD,VITE_SUPABASE_ANON_KEY"
+  SUPABASE_STORAGE_BUCKET = "Media File"
   SECRETS_SCAN_OMIT_PATHS = "scripts/**,package-lock.json,pnpm-lock.yaml,prisma/schema.prisma,**/*.md,**/*.sh,scripts/README-DB-SETUP.md,scripts/check-db-connection.md,scripts/connect-db.sh,scripts/test-pooler.sh"
 
 # Routing per API e SPA
