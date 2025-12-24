@@ -97,7 +97,7 @@ app.get('/:id', async (c) => {
     const param = c.req.param('id');
     console.log('🔍 Richiesta product detail per param:', param);
 
-    // Determina se è un UUID o un codice SKU
+    // Determina se è un UUID o un codice prodotto
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
 
     let querySql: string;
@@ -121,7 +121,7 @@ app.get('/:id', async (c) => {
       `;
       queryParams = [param];
     } else {
-      // Cerca per sku_code (es. prd_t25)
+      // Cerca prima per productId degli assets (es. prd_t100), poi per sku_code come fallback
       querySql = `
         SELECT
           p.id,
@@ -134,7 +134,10 @@ app.get('/:id', async (c) => {
           p.glb_files_json
         FROM products p
         JOIN skus s ON p.id = s.product_id
-        WHERE s.sku_code = $1 AND p.status = 'ACTIVE' AND s.status = 'ACTIVE'
+        LEFT JOIN assets a ON s.id = a.sku_id AND a."productId" = $1
+        WHERE (a."productId" = $1 OR s.sku_code = $1)
+          AND p.status = 'ACTIVE'
+          AND s.status = 'ACTIVE'
         LIMIT 1
       `;
       queryParams = [param];
