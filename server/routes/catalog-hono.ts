@@ -197,8 +197,8 @@ app.put('/vendor/:orgId/product', async (c) => {
 
         // Upsert price list item
         await query(`
-          INSERT INTO price_list_items (id, price_list_id, sku_id, price_cents, created_at)
-          VALUES (gen_random_uuid(), $1, $2, $3, NOW())
+          INSERT INTO price_list_items (id, price_list_id, sku_id, price_cents)
+          VALUES (gen_random_uuid(), $1, $2, $3)
           ON CONFLICT (price_list_id, sku_id) 
           DO UPDATE SET price_cents = $3
         `, [priceListId, skuId, priceCents]);
