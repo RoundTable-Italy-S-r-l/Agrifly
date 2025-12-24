@@ -554,6 +554,107 @@ app.get('/debug/lenzi-catalog', async (c) => {
 });
 
 // ============================================================================
+// UPDATE LENZI PRICES (Endpoint temporaneo per aggiornare prezzi)
+// ============================================================================
+
+app.post('/debug/update-lenzi-prices', async (c) => {
+  try {
+    console.log('💰 Aggiornamento prezzi Lenzi...');
+
+    // Trova la price list attiva di Lenzi
+    const priceListResult = await query(`
+      SELECT id, name, currency
+      FROM price_lists
+      WHERE vendor_org_id = 'lenzi-org-id'
+        AND status = 'ACTIVE'
+        AND valid_from <= NOW()
+        AND (valid_to IS NULL OR valid_to >= NOW())
+      ORDER BY valid_from DESC
+      LIMIT 1
+    `);
+
+    if (priceListResult.rows.length === 0) {
+      return c.json({ error: 'Nessuna price list attiva trovata per Lenzi' }, 404);
+    }
+
+    const priceListId = priceListResult.rows[0].id;
+    console.log(`📋 Price list trovata: ${priceListResult.rows[0].name} (${priceListId})`);
+
+    // Aggiorna i prezzi basati sul modello del prodotto
+    const updateResult = await query(`
+      UPDATE price_list_items pli
+      SET price_cents = CASE
+        -- Prezzi specifici per modello drone
+        WHEN p.model ILIKE '%T50%' THEN 2850000  -- 28,500€
+        WHEN p.model ILIKE '%T30%' THEN 1650000   -- 16,500€
+        WHEN p.model ILIKE '%T70P%' THEN 3200000  -- 32,000€
+        WHEN p.model ILIKE '%T100%' THEN 4500000  -- 45,000€
+        WHEN p.model ILIKE '%T25P%' THEN 1400000  -- 14,000€
+        WHEN p.model ILIKE '%T25%' AND p.model NOT ILIKE '%T25P%' THEN 1200000   -- 12,000€
+        WHEN p.model ILIKE '%Mavic 3M%' OR p.model ILIKE '%Mavic3M%' THEN 800000  -- 8,000€
+        -- Prezzi generici per tipo prodotto (fallback)
+        WHEN p.product_type = 'DRONE' THEN 2000000  -- 20,000€ default
+        WHEN p.product_type = 'BATTERY' THEN 150000  -- 1,500€
+        WHEN p.product_type = 'SPARE' THEN 50000     -- 500€
+        ELSE pli.price_cents  -- Mantieni prezzo esistente se non match
+      END
+      FROM skus s
+      JOIN products p ON s.product_id = p.id
+      WHERE pli.price_list_id = $1
+        AND pli.sku_id = s.id
+        AND p.status = 'ACTIVE'
+      RETURNING 
+        s.sku_code,
+        p.model,
+        p.product_type,
+        pli.price_cents,
+        (pli.price_cents / 100.0) as price_euros
+    `, [priceListId]);
+
+    console.log(`✅ Prezzi aggiornati: ${updateResult.rows.length} prodotti`);
+
+    // Verifica prodotti senza prezzo
+    const missingPrices = await query(`
+      SELECT s.sku_code, p.model
+      FROM skus s
+      JOIN products p ON s.product_id = p.id
+      WHERE p.status = 'ACTIVE'
+        AND NOT EXISTS (
+          SELECT 1 FROM price_list_items pli
+          WHERE pli.price_list_id = $1
+            AND pli.sku_id = s.id
+        )
+    `, [priceListId]);
+
+    return c.json({
+      success: true,
+      priceList: {
+        id: priceListId,
+        name: priceListResult.rows[0].name,
+        currency: priceListResult.rows[0].currency
+      },
+      updated: updateResult.rows.length,
+      products: updateResult.rows.map(row => ({
+        skuCode: row.sku_code,
+        model: row.model,
+        price: row.price_euros
+      })),
+      missingPrices: missingPrices.rows.length > 0 ? missingPrices.rows.map(row => ({
+        skuCode: row.sku_code,
+        model: row.model
+      })) : []
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore aggiornamento prezzi:', error);
+    return c.json({ 
+      error: 'Errore interno', 
+      message: error.message 
+    }, 500);
+  }
+});
+
+// ============================================================================
 // HEALTH CHECK SEMPLIFICATO
 // ============================================================================
 
