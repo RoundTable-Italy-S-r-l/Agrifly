@@ -415,7 +415,7 @@ export interface QuoteEstimateResponse {
 }
 
 export const estimateQuote = async (input: QuoteEstimateInput): Promise<QuoteEstimateResponse> => {
-  const response = await fetch('/.netlify/functions/quote-estimate', {
+  const response = await fetch('/api/quote-estimate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
