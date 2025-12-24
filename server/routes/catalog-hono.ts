@@ -414,7 +414,8 @@ app.get('/public', async (c) => {
     console.log('🌐 Richiesta catalogo pubblico', { category, vendorId, minPrice, maxPrice });
 
     // Query per ottenere tutti i prodotti dei vendor con prezzi e stock
-    // Include solo prodotti con is_for_sale = true e stock disponibile
+    // Include tutti i prodotti con is_for_sale = true (indipendentemente dall'inventory)
+    // L'inventory serve solo per mostrare lo stock disponibile, non per filtrare
     // Usa CTE per evitare problemi con subquery e GROUP BY
     let querySql = `
       WITH catalog_base AS (
@@ -587,38 +588,27 @@ app.get('/public', async (c) => {
         }
       }
 
-      // Filtra solo prodotti con stock disponibile > 0 (basato su inventory)
+      // Mostra TUTTI i prodotti con is_for_sale = true, indipendentemente dall'inventory
+      // L'inventory serve solo per mostrare lo stock disponibile, non per filtrare
       const availableStock = parseInt(row.available_stock) || 0;
       
-      // Mostra SOLO prodotti che hanno stock disponibile > 0 (basato su inventory)
-      // I prodotti senza inventory non vengono mostrati nel catalogo pubblico
-      if (availableStock > 0) {
-        vendor.products.push({
-          id: row.catalog_item_id, // Usa catalog_item_id come ID univoco
-          skuCode: row.sku_code,
-          name: row.product_name,
-          model: row.model,
-          brand: row.brand,
-          category: row.product_type,
-          price: priceRounded, // Prezzo arrotondato a 2 decimali
-          currency: row.currency || 'EUR',
-          stock: availableStock,
-          leadTimeDays: row.lead_time_days || null,
-          imageUrl,
-          glbUrl,
-          description: `${row.brand} ${row.model} - ${row.product_name}`, // Costruisci description da altri campi
-          specs: row.specs_json,
-          vendorNotes: row.vendor_notes
-        });
-      } else {
-        console.log('⚠️  Prodotto escluso dal catalogo pubblico:', {
-          skuCode: row.sku_code,
-          productName: row.product_name,
-          stock: availableStock,
-          price: price,
-          isForSale: row.is_for_sale
-        });
-      }
+      vendor.products.push({
+        id: row.catalog_item_id, // Usa catalog_item_id come ID univoco
+        skuCode: row.sku_code,
+        name: row.product_name,
+        model: row.model,
+        brand: row.brand,
+        category: row.product_type,
+        price: priceRounded, // Prezzo arrotondato a 2 decimali
+        currency: row.currency || 'EUR',
+        stock: availableStock, // Stock disponibile (può essere 0)
+        leadTimeDays: row.lead_time_days || null,
+        imageUrl,
+        glbUrl,
+        description: `${row.brand} ${row.model} - ${row.product_name}`, // Costruisci description da altri campi
+        specs: row.specs_json,
+        vendorNotes: row.vendor_notes
+      });
     });
 
     const vendors = Array.from(vendorsMap.values());
