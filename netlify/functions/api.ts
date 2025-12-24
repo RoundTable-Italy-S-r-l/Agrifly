@@ -11,11 +11,9 @@ export async function handler(event: any, context: any) {
     // Verifica env variables critiche
     const hasDbUrl = !!process.env.DATABASE_URL;
     const hasJwtSecret = !!process.env.JWT_SECRET;
-    const hasSupabaseKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     console.log('✅ DATABASE_URL:', hasDbUrl ? 'presente' : 'MANCANTE');
     console.log('✅ JWT_SECRET:', hasJwtSecret ? 'presente' : 'MANCANTE');
-    console.log('✅ SUPABASE_SERVICE_ROLE_KEY:', hasSupabaseKey ? 'presente' : 'MANCANTE');
 
     if (!hasDbUrl || !hasJwtSecret) {
       console.error('❌ Env variables critiche mancanti');
@@ -26,8 +24,7 @@ export async function handler(event: any, context: any) {
           error: 'Server configuration error',
           details: {
             database: hasDbUrl,
-            jwt: hasJwtSecret,
-            supabase: hasSupabaseKey
+            jwt: hasJwtSecret
           }
         })
       };
