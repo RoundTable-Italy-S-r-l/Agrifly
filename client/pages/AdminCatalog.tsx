@@ -64,13 +64,22 @@ export default function AdminCatalog() {
   // Ottieni l'ID dell'organizzazione corrente
   useEffect(() => {
     const orgData = localStorage.getItem('organization');
+    console.log('📦 Organization data from localStorage:', orgData);
     if (orgData) {
       try {
         const org = JSON.parse(orgData);
-        setCurrentOrgId(org.id);
+        console.log('📦 Parsed organization:', org);
+        if (org && org.id) {
+          console.log('✅ Setting currentOrgId to:', org.id);
+          setCurrentOrgId(org.id);
+        } else {
+          console.error('❌ Organization object non ha id:', org);
+        }
       } catch (error) {
-        console.error('Errore nel parsing dei dati organizzazione:', error);
+        console.error('❌ Errore nel parsing dei dati organizzazione:', error);
       }
+    } else {
+      console.warn('⚠️  Nessun dato organizzazione in localStorage');
     }
   }, []);
 

@@ -161,7 +161,7 @@ app.post('/login', async (c) => {
       emailVerified: user.email_verified || false
     });
 
-    return c.json({
+    const response = {
       token,
       user: {
         id: user.id,
@@ -176,7 +176,16 @@ app.post('/login', async (c) => {
         role,
         isAdmin
       } : null
+    };
+
+    console.log('📤 Response login:', {
+      hasToken: !!response.token,
+      userId: response.user.id,
+      orgId: response.organization?.id,
+      orgName: response.organization?.name
     });
+
+    return c.json(response);
 
   } catch (error: any) {
     console.error('Errore login:', error);
