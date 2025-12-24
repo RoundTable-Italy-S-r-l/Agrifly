@@ -215,9 +215,13 @@ export default function AdminCatalog() {
   // Formatta prezzo
   const formatPrice = (price: number | null) => {
     if (!price) return 'N/D';
+    // Mostra decimali solo se necessari
+    const hasDecimals = price % 1 !== 0;
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'EUR',
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: hasDecimals ? 2 : 0
     }).format(price);
   };
 
@@ -797,9 +801,13 @@ function BundleSheet({
 }) {
   const formatPrice = (price: number | null) => {
     if (!price) return 'N/D';
+    // Mostra decimali solo se necessari
+    const hasDecimals = price % 1 !== 0;
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'EUR',
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: hasDecimals ? 2 : 0
     }).format(price);
   };
   const [form, setForm] = useState({
@@ -1039,9 +1047,13 @@ function OfferSheet({
 }) {
   const formatPrice = (price: number | null) => {
     if (!price) return 'N/D';
+    // Mostra decimali solo se necessari
+    const hasDecimals = price % 1 !== 0;
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'EUR',
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: hasDecimals ? 2 : 0
     }).format(price);
   };
   const [form, setForm] = useState({

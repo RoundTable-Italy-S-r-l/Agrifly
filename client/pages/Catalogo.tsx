@@ -217,10 +217,17 @@ export default function Catalogo() {
 
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-emerald-600">
-                              €{typeof product.price === 'number' 
-                                ? product.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                : parseFloat(product.price || '0').toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                              }
+                              €{(() => {
+                                const price = typeof product.price === 'number' 
+                                  ? product.price 
+                                  : parseFloat(product.price || '0');
+                                // Mostra decimali solo se necessari
+                                const hasDecimals = price % 1 !== 0;
+                                return price.toLocaleString('it-IT', { 
+                                  minimumFractionDigits: hasDecimals ? 2 : 0, 
+                                  maximumFractionDigits: hasDecimals ? 2 : 0 
+                                });
+                              })()}
                             </span>
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               product.stock > 0
