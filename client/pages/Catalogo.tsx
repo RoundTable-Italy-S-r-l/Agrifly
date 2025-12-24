@@ -218,14 +218,20 @@ export default function Catalogo() {
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-emerald-600">
                               €{(() => {
-                                const price = typeof product.price === 'number' 
-                                  ? product.price 
-                                  : parseFloat(product.price || '0');
+                                const rawPrice = product.price;
+                                const price = typeof rawPrice === 'number'
+                                  ? rawPrice
+                                  : (typeof rawPrice === 'string' && !isNaN(parseFloat(rawPrice)) ? parseFloat(rawPrice) : 0);
+
+                                if (price === 0 && rawPrice !== 0 && rawPrice !== '0') {
+                                  return 'N/D';
+                                }
+
                                 // Mostra decimali solo se necessari
                                 const hasDecimals = price % 1 !== 0;
-                                return price.toLocaleString('it-IT', { 
-                                  minimumFractionDigits: hasDecimals ? 2 : 0, 
-                                  maximumFractionDigits: hasDecimals ? 2 : 0 
+                                return price.toLocaleString('it-IT', {
+                                  minimumFractionDigits: hasDecimals ? 2 : 0,
+                                  maximumFractionDigits: hasDecimals ? 2 : 0
                                 });
                               })()}
                             </span>
