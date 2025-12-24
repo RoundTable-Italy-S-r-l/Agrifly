@@ -385,6 +385,53 @@ export const fetchMissions = (orgId: string, filters?: {
 };
 
 
+// ============================================================================
+// QUOTE ESTIMATE (Netlify Function)
+// ============================================================================
+
+export interface QuoteEstimateInput {
+  seller_org_id: string;
+  service_type: string;
+  area_ha: number;
+  distance_km?: number;
+  risk_key?: string;
+  month?: number;
+}
+
+export interface QuoteEstimateResponse {
+  currency: string;
+  total_estimated_cents: number;
+  breakdown: {
+    baseCents: number;
+    travelCents: number;
+    subtotalCents: number;
+    seasonalMult: number;
+    riskMult: number;
+    multipliedCents: number;
+    minCharge: number;
+    totalCents: number;
+  };
+  pricing_snapshot_json: any;
+}
+
+export const estimateQuote = async (input: QuoteEstimateInput): Promise<QuoteEstimateResponse> => {
+  const response = await fetch('/.netlify/functions/quote-estimate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || 'Quote estimation failed');
+  }
+
+  return response.json();
+};
+
+
 // Operators API
 export interface Operator {
   id: string;
