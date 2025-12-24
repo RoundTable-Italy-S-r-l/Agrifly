@@ -4,11 +4,11 @@ import { publicObjectUrl } from '../utils/storage';
 
 const app = new Hono();
 
-// GET /api/drones - Lista tutti i droni
+// GET /api/drones - Lista prodotti (per compatibilità)
 app.get('/', async (c) => {
   try {
     const result = await query(`
-      SELECT 
+      SELECT
         p.id,
         p.name,
         p.model,
@@ -16,33 +16,31 @@ app.get('/', async (c) => {
         p.product_type,
         p.specs_json,
         p.images_json,
-        p.glb_files_json,
-        p.specs_core_json,
-        p.specs_extra_json
+        p.glb_files_json
       FROM products p
       WHERE p.status = 'ACTIVE'
       ORDER BY p.brand, p.model
     `);
 
-    const drones = result.rows.map(row => {
+    const products = result.rows.map(row => {
       // Estrai GLB e immagini
       let imageUrl: string | undefined;
       let glbUrl: string | undefined;
 
       if (row.glb_files_json) {
         try {
-          const glbFiles = typeof row.glb_files_json === 'string' 
-            ? JSON.parse(row.glb_files_json) 
+          const glbFiles = typeof row.glb_files_json === 'string'
+            ? JSON.parse(row.glb_files_json)
             : row.glb_files_json;
           if (Array.isArray(glbFiles) && glbFiles.length > 0) {
             const firstGlb = glbFiles[0];
             const rawPath = firstGlb.url || firstGlb.filename || firstGlb;
-            
+
             if (typeof rawPath === 'string' && (rawPath.startsWith('http://') || rawPath.startsWith('https://'))) {
               glbUrl = rawPath;
             } else if (typeof rawPath === 'string') {
               try {
-                glbUrl = publicObjectUrl('product', rawPath);
+                glbUrl = publicObjectUrl(undefined, rawPath);
               } catch (e) {
                 console.warn('Errore costruzione URL GLB:', e);
               }
@@ -55,8 +53,8 @@ app.get('/', async (c) => {
 
       if (row.images_json) {
         try {
-          const images = typeof row.images_json === 'string' 
-            ? JSON.parse(row.images_json) 
+          const images = typeof row.images_json === 'string'
+            ? JSON.parse(row.images_json)
             : row.images_json;
           if (Array.isArray(images) && images.length > 0) {
             const normalImage = images.find((img: any) =>
@@ -80,60 +78,35 @@ app.get('/', async (c) => {
         brand: row.brand,
         productType: row.product_type,
         specs: row.specs_json,
-        specsCore: row.specs_core_json,
-        specsExtra: row.specs_extra_json,
         images: row.images_json,
         imageUrl,
         glbUrl
       };
     });
 
-    return c.json(drones);
+    return c.json(products);
   } catch (error: any) {
-    console.error('Errore get drones:', error);
+    console.error('Errore get products:', error);
     return c.json({ error: error.message }, 500);
   }
 });
 
-// GET /api/drones/:id - Dettaglio drone per catalog_item_id o product_id
+// GET /api/drones/:id - Dettaglio prodotto per product_id o sku_code
 app.get('/:id', async (c) => {
   try {
-    const id = c.req.param('id');
-    
-    // Prova prima come catalog_item_id (vendor_catalog_items)
-    // Se non trovato, prova come product_id
-    let result = await query(`
-      SELECT 
-        p.id,
-        p.name,
-        p.model,
-        p.brand,
-        p.product_type,
-        p.specs_json,
-        p.images_json,
-        p.glb_files_json,
-        p.specs_core_json,
-        p.specs_extra_json,
-        p.manuals_json,
-        vci.id as catalog_item_id,
-        vci.is_for_sale,
-        vci.is_for_rent,
-        vci.lead_time_days,
-        vci.notes as vendor_notes,
-        s.id as sku_id,
-        s.sku_code
-      FROM products p
-      JOIN skus s ON s.product_id = p.id
-      JOIN vendor_catalog_items vci ON vci.sku_id = s.id
-      WHERE vci.id = $1
-        AND p.status = 'ACTIVE'
-      LIMIT 1
-    `, [id]);
+    const param = c.req.param('id');
+    console.log('🔍 Richiesta product detail per param:', param);
 
-    // Se non trovato come catalog_item_id, prova come product_id
-    if (result.rows.length === 0) {
-      result = await query(`
-        SELECT 
+    // Determina se è un UUID o un codice prodotto
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
+
+    let querySql: string;
+    let queryParams: any[];
+
+    if (isUUID) {
+      // Cerca per product_id (UUID)
+      querySql = `
+        SELECT
           p.id,
           p.name,
           p.model,
@@ -142,29 +115,71 @@ app.get('/:id', async (c) => {
           p.specs_json,
           p.images_json,
           p.glb_files_json,
-          p.specs_core_json,
-          p.specs_extra_json,
-          p.manuals_json,
-          NULL as catalog_item_id,
-          NULL as is_for_sale,
-          NULL as is_for_rent,
-          NULL as lead_time_days,
-          NULL as vendor_notes,
-          s.id as sku_id,
           s.sku_code
         FROM products p
-        LEFT JOIN skus s ON s.product_id = p.id
-        WHERE p.id = $1
-          AND p.status = 'ACTIVE'
+        JOIN skus s ON p.id = s.product_id
+        WHERE p.id = $1 AND p.status = 'ACTIVE' AND s.status = 'ACTIVE'
         LIMIT 1
-      `, [id]);
+      `;
+      queryParams = [param];
+    } else {
+      // Cerca prima per productId degli assets (es. prd_t100), poi per sku_code come fallback
+      querySql = `
+        SELECT
+          p.id,
+          p.name,
+          p.model,
+          p.brand,
+          p.product_type,
+          p.specs_json,
+          p.images_json,
+          p.glb_files_json,
+          s.sku_code,
+          a."productId"
+        FROM products p
+        JOIN skus s ON p.id = s.product_id
+        LEFT JOIN assets a ON s.id = a.sku_id AND a."productId" = $1
+        WHERE (a."productId" = $1 OR s.sku_code = $1)
+          AND p.status = 'ACTIVE'
+          AND s.status = 'ACTIVE'
+        LIMIT 1
+      `;
+      queryParams = [param];
     }
+
+    const result = await query(querySql, queryParams);
 
     if (result.rows.length === 0) {
-      return c.json({ error: 'Drone non trovato' }, 404);
+      console.log('❌ Prodotto non trovato:', productId);
+      return c.json({ error: 'Prodotto non trovato', productId }, 404);
     }
 
+    console.log('✅ Prodotto trovato:', result.rows[0].model);
+
     const row = result.rows[0];
+
+    // Calcola prezzo dalla price list attiva
+    let price: number | undefined;
+    try {
+      const priceResult = await query(`
+        SELECT pli.price_cents / 100.0 as price_euros
+        FROM price_list_items pli
+        JOIN price_lists pl ON pli.price_list_id = pl.id
+        WHERE pli.sku_id = (SELECT id FROM skus WHERE product_id = $1 AND status = 'ACTIVE' LIMIT 1)
+          AND pl.vendor_org_id = (SELECT vendor_org_id FROM vendor_catalog_items WHERE sku_id = (SELECT id FROM skus WHERE product_id = $1 AND status = 'ACTIVE' LIMIT 1) LIMIT 1)
+          AND pl.status = 'ACTIVE'
+          AND pl.valid_from <= NOW()
+          AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
+        ORDER BY pl.valid_from DESC
+        LIMIT 1
+      `, [row.id]);
+
+      if (priceResult.rows.length > 0) {
+        price = parseFloat(priceResult.rows[0].price_euros);
+      }
+    } catch (e) {
+      console.warn('Errore calcolo prezzo:', e);
+    }
 
     // Estrai GLB e immagini
     let imageUrl: string | undefined;
@@ -172,18 +187,18 @@ app.get('/:id', async (c) => {
 
     if (row.glb_files_json) {
       try {
-        const glbFiles = typeof row.glb_files_json === 'string' 
-          ? JSON.parse(row.glb_files_json) 
+        const glbFiles = typeof row.glb_files_json === 'string'
+          ? JSON.parse(row.glb_files_json)
           : row.glb_files_json;
         if (Array.isArray(glbFiles) && glbFiles.length > 0) {
           const firstGlb = glbFiles[0];
           const rawPath = firstGlb.url || firstGlb.filename || firstGlb;
-          
+
           if (typeof rawPath === 'string' && (rawPath.startsWith('http://') || rawPath.startsWith('https://'))) {
             glbUrl = rawPath;
           } else if (typeof rawPath === 'string') {
             try {
-              glbUrl = publicObjectUrl('product', rawPath);
+              glbUrl = publicObjectUrl(undefined, rawPath);
             } catch (e) {
               console.warn('Errore costruzione URL GLB:', e);
             }
@@ -196,8 +211,8 @@ app.get('/:id', async (c) => {
 
     if (row.images_json) {
       try {
-        const images = typeof row.images_json === 'string' 
-          ? JSON.parse(row.images_json) 
+        const images = typeof row.images_json === 'string'
+          ? JSON.parse(row.images_json)
           : row.images_json;
         if (Array.isArray(images) && images.length > 0) {
           const normalImage = images.find((img: any) =>
@@ -214,31 +229,67 @@ app.get('/:id', async (c) => {
       }
     }
 
-    const drone = {
+    const product = {
       id: row.id,
       name: row.name,
       model: row.model,
       brand: row.brand,
       productType: row.product_type,
+      price,
       specs: row.specs_json,
-      specsCore: row.specs_core_json,
-      specsExtra: row.specs_extra_json,
       images: row.images_json,
-      manuals: row.manuals_json,
       imageUrl,
-      glbUrl,
-      catalogItemId: row.catalog_item_id,
-      isForSale: row.is_for_sale,
-      isForRent: row.is_for_rent,
-      leadTimeDays: row.lead_time_days,
-      vendorNotes: row.vendor_notes,
-      skuId: row.sku_id,
-      skuCode: row.sku_code
+      glbUrl
     };
 
-    return c.json(drone);
+    return c.json(product);
   } catch (error: any) {
-    console.error('Errore get drone by id:', error);
+    console.error('Errore get product by id:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// GET /api/drones/debug/tables - Debug: lista tutte le tabelle
+app.get('/debug/tables', async (c) => {
+  try {
+    console.log('🔍 Debug: richiesta lista tabelle');
+
+    const tablesResult = await query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+    );
+
+    const tables = tablesResult.rows.map(row => row.table_name);
+
+    // Controlla se esiste assets
+    const hasAssets = tables.includes('assets');
+
+    let assetsInfo = null;
+    if (hasAssets) {
+      // Struttura della tabella assets
+      const columnsResult = await query(`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_name = 'assets' AND table_schema = 'public'
+        ORDER BY ordinal_position
+      `);
+
+      // Alcuni record di esempio
+      const assetsResult = await query('SELECT * FROM assets LIMIT 3');
+
+      assetsInfo = {
+        columns: columnsResult.rows,
+        sampleRecords: assetsResult.rows
+      };
+    }
+
+    return c.json({
+      tables,
+      hasAssets,
+      assetsInfo
+    });
+
+  } catch (error: any) {
+    console.error('Errore debug tables:', error);
     return c.json({ error: error.message }, 500);
   }
 });

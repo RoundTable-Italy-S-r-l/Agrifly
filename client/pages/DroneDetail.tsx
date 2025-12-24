@@ -181,7 +181,9 @@ const DroneDetail = () => {
             {/* Prezzo */}
             <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-6 border border-emerald-200">
               <div className="flex items-baseline gap-3 mb-2">
-                <span className="text-4xl font-bold text-slate-900">€ {drone.price.toLocaleString()}</span>
+                <span className="text-4xl font-bold text-slate-900">
+                  € {typeof drone.price === 'number' ? drone.price.toLocaleString('it-IT') : 'N/D'}
+                </span>
               </div>
               <p className="text-sm text-slate-600">IVA esclusa • Kit completo</p>
             </div>
