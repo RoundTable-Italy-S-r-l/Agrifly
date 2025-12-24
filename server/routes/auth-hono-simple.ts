@@ -289,11 +289,21 @@ app.post('/reset-password', async (c) => {
       return c.json({ error: 'La password deve essere di almeno 8 caratteri' }, 400);
     }
 
+    console.log('🔐 Reset password - token ricevuto:', token.substring(0, 10) + '...');
+    
     // Trova utente con token valido
-    const userResult = await query(
-      'SELECT id, email FROM users WHERE reset_token = $1 AND reset_token_expires > NOW() AND status = $2',
-      [token, 'ACTIVE']
-    );
+    let userResult;
+    try {
+      userResult = await query(
+        'SELECT id, email FROM users WHERE reset_token = $1 AND reset_token_expires > NOW() AND status = $2',
+        [token, 'ACTIVE']
+      );
+      console.log('✅ Query reset password eseguita, risultati:', userResult.rows.length);
+    } catch (queryError: any) {
+      console.error('❌ Errore query reset password:', queryError.message);
+      console.error('❌ Error code:', queryError.code);
+      throw queryError;
+    }
 
     if (userResult.rows.length === 0) {
       return c.json({ error: 'Token invalido o scaduto' }, 400);

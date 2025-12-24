@@ -2,7 +2,7 @@ import { Client } from 'pg';
 
 // Funzione per creare una nuova connessione per ogni richiesta (serverless-friendly)
 export const getClient = () => {
-  return new Client({
+  const config = {
     host: process.env.PGHOST,
     port: Number(process.env.PGPORT ?? "6543"),
     database: process.env.PGDATABASE ?? "postgres",
@@ -10,7 +10,19 @@ export const getClient = () => {
     password: process.env.PGPASSWORD,
     ssl: { rejectUnauthorized: false }, // Necessario per Supabase
     connectionTimeoutMillis: 10000,
+  };
+  
+  // Log delle credenziali (senza password) per debug
+  console.log('🔌 Database config:', {
+    host: config.host,
+    port: config.port,
+    database: config.database,
+    user: config.user,
+    hasPassword: !!config.password,
+    passwordLength: config.password?.length || 0
   });
+  
+  return new Client(config);
 };
 
 // Utility per query sicure - crea e chiude connessione per ogni query

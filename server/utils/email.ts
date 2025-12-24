@@ -82,8 +82,8 @@ export async function sendPasswordResetEmail(
     
     console.log('📧 Tentativo invio email reset password a:', to);
     
-    // Usa il dominio verificato se disponibile, altrimenti usa quello di default di Resend
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Agrifly <onboarding@resend.dev>';
+    // Usa il dominio verificato agrifly.it
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Agrifly <noreply@agrifly.it>';
     
     const result = await resend.emails.send({
       from: fromEmail,
