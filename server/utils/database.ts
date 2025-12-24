@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 // Connection pool per PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: { rejectUnauthorized: false }, // Necessario per Supabase
   max: 5, // Limite connessioni per serverless
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
