@@ -117,18 +117,34 @@ app.post('/login', async (c) => {
 
     const user = userResult.rows[0];
 
+    console.log('🔐 Verifica password per utente:', user.email);
+    console.log('🔐 Password hash presente:', !!user.password_hash);
+    console.log('🔐 Password salt presente:', !!user.password_salt);
+
     // Verifica password
     // Controlla se l'utente ha password del vecchio sistema (hash senza salt)
     if (user.password_hash && !user.password_salt) {
+      console.warn('⚠️  Utente ha password vecchio sistema (senza salt)');
       return c.json({ 
         error: 'Password reset required',
         message: 'La tua password deve essere resettata. Usa "Password dimenticata" per creare una nuova password.'
       }, 401);
     }
 
-    if (!user.password_hash || !user.password_salt || !verifyPassword(password, user.password_hash, user.password_salt)) {
+    if (!user.password_hash || !user.password_salt) {
+      console.error('❌ Password hash o salt mancanti');
       return c.json({ error: 'Credenziali invalide' }, 401);
     }
+
+    const passwordValid = verifyPassword(password, user.password_hash, user.password_salt);
+    console.log('🔐 Password valida:', passwordValid);
+
+    if (!passwordValid) {
+      console.warn('⚠️  Password non valida');
+      return c.json({ error: 'Credenziali invalide' }, 401);
+    }
+
+    console.log('✅ Password verificata con successo');
 
     // Gestisci caso utente senza membership attiva
     const orgId = user.org_id || null;
