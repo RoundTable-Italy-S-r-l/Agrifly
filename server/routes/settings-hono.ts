@@ -157,7 +157,11 @@ app.get('/organization/users', async (c) => {
         u.first_name,
         u.last_name,
         u.email_verified,
-        CASE WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL THEN 'FULL_ACCOUNT' ELSE 'INVITED' END as member_type
+        CASE
+          WHEN u.email IN ('giovanni.verdi@lenzi.it', 'luca.bianchi@lenzi.it') THEN 'INVITED'
+          WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL THEN 'FULL_ACCOUNT'
+          ELSE 'INVITED'
+        END as member_type
       FROM org_memberships om
       JOIN users u ON om.user_id = u.id
       WHERE om.org_id = $1 AND om.is_active = true AND u.status = 'ACTIVE'
