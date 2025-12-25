@@ -189,7 +189,9 @@ export function UsersSection() {
                     <TableCell>
                       {user.first_name && user.last_name
                         ? `${user.first_name} ${user.last_name}`
-                        : 'Nome non fornito'
+                        : user.member_type === 'PENDING_SETUP'
+                        ? `${roleLabels[user.role] || user.role} (in attesa)`
+                        : 'Membro'
                       }
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -199,28 +201,34 @@ export function UsersSection() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.member_type === 'FULL_ACCOUNT' ? 'default' : 'outline'}>
-                        {user.member_type === 'FULL_ACCOUNT' ? 'Account Completo' : 'Solo Email'}
+                      <Badge variant={user.member_type === 'ACTIVE' ? 'default' : 'outline'}>
+                        {user.member_type === 'ACTIVE' ? 'Attivo' : 'In Attesa'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       {new Date(user.created_at).toLocaleDateString('it-IT')}
                     </TableCell>
                     <TableCell>
-                      {user.member_type === 'INVITED' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            // Pre-compila il form di invito con i dati esistenti
-                            form.setValue('email', user.email);
-                            form.setValue('role', user.role);
-                            setInviteDialogOpen(true);
-                          }}
-                        >
-                          <Mail className="w-4 h-4 mr-1" />
-                          Re-invita
-                        </Button>
+                      {user.member_type === 'PENDING_SETUP' && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // Pre-compila il form di invito con i dati esistenti
+                              form.setValue('email', user.email);
+                              form.setValue('role', user.role);
+                              setInviteDialogOpen(true);
+                            }}
+                          >
+                            <Mail className="w-4 h-4 mr-1" />
+                            Re-invita
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <UserPlus2 className="w-4 h-4 mr-1" />
+                            Gestisci
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -232,7 +240,7 @@ export function UsersSection() {
       </Card>
 
       {/* Pending Members Section - Membri invitati ma senza account completo */}
-      {users.some((user: any) => user.member_type === 'INVITED') && (
+      {users.some((user: any) => user.member_type === 'PENDING_SETUP') && (
         <Card>
           <CardHeader>
             <CardTitle>Membri In Attesa di Attivazione</CardTitle>
@@ -252,7 +260,7 @@ export function UsersSection() {
               </TableHeader>
               <TableBody>
                 {users
-                  .filter((user: any) => user.member_type === 'INVITED')
+                  .filter((user: any) => user.member_type === 'PENDING_SETUP')
                   .map((user: any) => (
                     <TableRow key={user.id}>
                       <TableCell>{user.email}</TableCell>

@@ -158,12 +158,12 @@ app.get('/organization/users', async (c) => {
         u.last_name,
         u.email_verified,
         CASE
-          WHEN u.first_name = '' OR u.first_name IS NULL OR u.last_name = '' OR u.last_name IS NULL THEN 'INTERNAL_MEMBER'
-          ELSE 'FULL_ACCOUNT'
+          WHEN u.first_name = '' OR u.first_name IS NULL OR u.last_name = '' OR u.last_name IS NULL THEN 'PENDING_SETUP'
+          ELSE 'ACTIVE'
         END as member_type,
         CASE
-          WHEN u.first_name = '' OR u.first_name IS NULL OR u.last_name = '' OR u.last_name IS NULL THEN 'internal'
-          ELSE 'user'
+          WHEN u.first_name = '' OR u.first_name IS NULL OR u.last_name = '' OR u.last_name IS NULL THEN 'pending'
+          ELSE 'active'
         END as member_source
       FROM org_memberships om
       JOIN users u ON om.user_id = u.id
