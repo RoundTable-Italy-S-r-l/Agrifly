@@ -188,9 +188,7 @@ export function UsersSection() {
                     <TableCell>
                       {user.first_name && user.last_name
                         ? `${user.first_name} ${user.last_name}`
-                        : user.member_type === 'PENDING_SETUP'
-                        ? `${roleLabels[user.role] || user.role} (in attesa)`
-                        : 'Membro'
+                        : roleLabels[user.role] || user.role
                       }
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
