@@ -214,12 +214,10 @@ export function GeneralSection() {
                   accept="image/png,image/jpeg,image/jpg"
                   onChange={handleLogoUpload}
                   className="flex-1"
-                  disabled
                 />
                 {uploadingLogo && (
                   <div className="text-sm text-slate-600">Caricamento...</div>
                 )}
-                <p className="text-sm text-slate-500">Temporaneamente non disponibile</p>
               </div>
               {(form.watch('logo_url') || currentLogoUrl) && (
                 <div className="mt-2">
@@ -242,9 +240,7 @@ export function GeneralSection() {
                 {...form.register('phone')}
                 placeholder="+39 123 456 7890"
                 type="tel"
-                disabled
               />
-              <p className="text-sm text-slate-500">Temporaneamente non disponibile</p>
             </div>
 
             <div className="space-y-2">
@@ -254,9 +250,7 @@ export function GeneralSection() {
                 {...form.register('support_email')}
                 placeholder="support@azienda.com"
                 type="email"
-                disabled
               />
-              <p className="text-sm text-slate-500">Temporaneamente non disponibile</p>
               {form.formState.errors.support_email && (
                 <p className="text-sm text-red-600">{form.formState.errors.support_email.message}</p>
               )}
@@ -382,9 +376,7 @@ export function GeneralSection() {
                   id="postal_code"
                   {...form.register('postal_code')}
                   placeholder="20100"
-                  disabled
                 />
-                <p className="text-sm text-slate-500">Temporaneamente non disponibile</p>
               </div>
             </div>
           </div>

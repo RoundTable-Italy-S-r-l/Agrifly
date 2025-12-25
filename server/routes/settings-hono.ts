@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
-// import { createClient } from '@supabase/supabase-js'; // Temporaneamente commentato
+// import { createClient } from '@supabase/supabase-js'; // TODO: installare il pacchetto
 
 const app = new Hono();
 
@@ -20,11 +20,12 @@ app.get('/organization/general', async (c) => {
 
     console.log('📋 Richiesta impostazioni generali per org:', organizationId);
 
-    // Query per ottenere i dati dell'organizzazione (solo colonne esistenti nel DB)
+    // Query per ottenere i dati dell'organizzazione
     const result = await query(`
       SELECT
         id,
         legal_name,
+        logo_url,
         vat_number,
         tax_code,
         org_type,
@@ -32,7 +33,10 @@ app.get('/organization/general', async (c) => {
         city,
         province,
         region,
-        country
+        country,
+        phone,
+        support_email,
+        postal_code
       FROM organizations
       WHERE id = $1 AND status = 'ACTIVE'
       LIMIT 1
@@ -74,11 +78,10 @@ app.patch('/organization/general', async (c) => {
     const values = [];
     let paramIndex = 1;
 
-    // Solo i campi che esistono realmente nel database Supabase
     const allowedFields = [
-      'legal_name', 'vat_number', 'tax_code', 'org_type',
-      'address_line', 'city', 'province', 'region', 'country'
-      // Nota: logo_url, phone, support_email, postal_code non esistono nel DB
+      'legal_name', 'logo_url', 'vat_number', 'tax_code', 'org_type',
+      'address_line', 'city', 'province', 'region', 'country',
+      'phone', 'support_email', 'postal_code'
     ];
 
     for (const field of allowedFields) {
@@ -488,10 +491,11 @@ app.post('/organization/upload-logo', async (c) => {
     }
 
     // Inizializza Supabase client
+    // TODO: installare @supabase/supabase-js
     // const supabaseUrl = process.env.SUPABASE_URL!;
     // const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     // const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    return c.json({ error: 'Upload logo temporaneamente disabilitato' }, 503);
+    return c.json({ error: 'Upload logo non disponibile - installare @supabase/supabase-js' }, 503);
 
     // Genera nome file univoco
     const fileExt = file.type === 'image/png' ? 'png' : 'jpg';
