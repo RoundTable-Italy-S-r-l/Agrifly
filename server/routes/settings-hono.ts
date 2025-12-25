@@ -158,11 +158,11 @@ app.get('/organization/users', async (c) => {
         u.last_name,
         u.email_verified,
         CASE
-          WHEN u.first_name = '' OR u.first_name IS NULL OR u.last_name = '' OR u.last_name IS NULL THEN 'PENDING_SETUP'
+          WHEN u.email_verified = false THEN 'PENDING_SETUP'
           ELSE 'ACTIVE'
         END as member_type,
         CASE
-          WHEN u.first_name = '' OR u.first_name IS NULL OR u.last_name = '' OR u.last_name IS NULL THEN 'pending'
+          WHEN u.email_verified = false THEN 'pending'
           ELSE 'active'
         END as member_source
       FROM org_memberships om
