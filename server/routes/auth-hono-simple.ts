@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { hashPassword, verifyPassword, generateJWT, verifyJWT, generateResetToken, generateVerificationCode, rateLimiter } from '../utils/auth';
 import { query } from '../utils/database';
-import { sendPasswordResetEmail } from '../utils/email';
+import { sendPasswordResetEmail, sendVerificationCodeEmail } from '../utils/email';
 import { publicObjectUrl } from '../utils/storage';
 import type { UserStatus, OrgRole } from '../types';
 
@@ -61,6 +61,15 @@ app.post('/register', async (c) => {
       'INSERT INTO verification_codes (user_id, email, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)',
       [userId, email, code, 'EMAIL_VERIFICATION', new Date(Date.now() + 10 * 60 * 1000)]
     );
+
+    // Invia email di verifica
+    try {
+      await sendVerificationCodeEmail(email, code, 10);
+      console.log('✅ Email di verifica inviata a:', email);
+    } catch (emailError: any) {
+      console.error('⚠️  Errore invio email verifica (registrazione continua):', emailError.message);
+      // Non blocchiamo la registrazione se l'email fallisce
+    }
 
     // Genera JWT
     const token = generateJWT({
@@ -190,6 +199,156 @@ app.post('/login', async (c) => {
 
   } catch (error: any) {
     console.error('Errore login:', error);
+    return c.json({ error: 'Errore interno' }, 500);
+  }
+});
+
+// ============================================================================
+// VERIFICA EMAIL CON CODICE
+// ============================================================================
+
+app.post('/verify-email', async (c) => {
+  try {
+    // Estrai token JWT
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const token = authHeader.substring(7);
+    const payload = verifyJWT(token);
+
+    if (!payload) {
+      return c.json({ error: 'Token invalido o scaduto' }, 401);
+    }
+
+    const { code } = await c.req.json();
+
+    if (!code) {
+      return c.json({ error: 'Codice obbligatorio' }, 400);
+    }
+
+    // Rate limiting per prevenire brute force
+    const rateLimit = rateLimiter.check(`verify_${payload.userId}`, 10, 15 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      return c.json({ error: 'Troppi tentativi. Riprova tra 15 minuti' }, 429);
+    }
+
+    console.log('🔍 Verifica codice per utente:', payload.userId);
+
+    // Trova codice valido
+    const codeResult = await query(`
+      SELECT id, user_id, expires_at
+      FROM verification_codes
+      WHERE user_id = $1
+        AND code = $2
+        AND purpose = 'EMAIL_VERIFICATION'
+        AND expires_at > NOW()
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [payload.userId, code]);
+
+    if (codeResult.rows.length === 0) {
+      console.warn('⚠️  Codice invalido o scaduto');
+      return c.json({ error: 'Codice invalido o scaduto' }, 400);
+    }
+
+    // Aggiorna email_verified
+    await query(
+      'UPDATE users SET email_verified = true WHERE id = $1',
+      [payload.userId]
+    );
+
+    // Elimina il codice usato
+    await query(
+      'DELETE FROM verification_codes WHERE id = $1',
+      [codeResult.rows[0].id]
+    );
+
+    console.log('✅ Email verificata per utente:', payload.userId);
+
+    return c.json({
+      message: 'Email verificata con successo'
+    });
+
+  } catch (error: any) {
+    console.error('Errore verifica email:', error);
+    return c.json({ error: 'Errore interno' }, 500);
+  }
+});
+
+// ============================================================================
+// REINVIA CODICE VERIFICA EMAIL
+// ============================================================================
+
+app.post('/resend-verification', async (c) => {
+  try {
+    // Estrai token JWT
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const token = authHeader.substring(7);
+    const payload = verifyJWT(token);
+
+    if (!payload) {
+      return c.json({ error: 'Token invalido o scaduto' }, 401);
+    }
+
+    // Rate limiting
+    const rateLimit = rateLimiter.check(`resend_${payload.userId}`, 3, 60 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      return c.json({ error: 'Troppi tentativi. Riprova tra 1 ora' }, 429);
+    }
+
+    // Trova utente
+    const userResult = await query(
+      'SELECT id, email, email_verified FROM users WHERE id = $1 AND status = $2',
+      [payload.userId, 'ACTIVE']
+    );
+
+    if (userResult.rows.length === 0) {
+      return c.json({ error: 'Utente non trovato' }, 404);
+    }
+
+    const user = userResult.rows[0];
+
+    // Controlla se email già verificata
+    if (user.email_verified) {
+      return c.json({ error: 'Email già verificata' }, 400);
+    }
+
+    console.log('🔄 Reinvio codice verifica per:', user.email);
+
+    // Elimina codici precedenti
+    await query(
+      'DELETE FROM verification_codes WHERE user_id = $1 AND purpose = $2',
+      [user.id, 'EMAIL_VERIFICATION']
+    );
+
+    // Genera nuovo codice
+    const code = generateVerificationCode();
+    await query(
+      'INSERT INTO verification_codes (user_id, email, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)',
+      [user.id, user.email, code, 'EMAIL_VERIFICATION', new Date(Date.now() + 10 * 60 * 1000)]
+    );
+
+    // Invia email
+    try {
+      await sendVerificationCodeEmail(user.email, code, 10);
+      console.log('✅ Codice verifica reinviato a:', user.email);
+    } catch (emailError: any) {
+      console.error('⚠️  Errore invio email:', emailError.message);
+      // Restituiamo comunque successo per non rivelare errori di configurazione
+    }
+
+    return c.json({
+      message: 'Codice di verifica inviato. Controlla la tua email.'
+    });
+
+  } catch (error: any) {
+    console.error('Errore reinvio codice:', error);
     return c.json({ error: 'Errore interno' }, 500);
   }
 });

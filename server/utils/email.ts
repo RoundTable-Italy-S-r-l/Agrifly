@@ -104,11 +104,12 @@ export async function sendPasswordResetEmail(
     if (result.error) {
       console.error('❌ Errore Resend:', result.error);
       // Se il dominio non è verificato, restituiamo il link per mostrarlo all'utente
-      if (result.error.statusCode === 403 && result.error.message?.includes('domain is not verified')) {
+      const errorObj = result.error as any;
+      if (errorObj.statusCode === 403 && errorObj.message?.includes('domain is not verified')) {
         console.warn('⚠️  Dominio non verificato su Resend - restituisco link nella risposta');
         return { sent: false, resetUrl, error: 'Dominio email non verificato' };
       }
-      return { sent: false, resetUrl, error: result.error.message || 'Errore invio email' };
+      return { sent: false, resetUrl, error: errorObj.message || 'Errore invio email' };
     }
     
     console.log('✅ Password reset email sent to:', to);
