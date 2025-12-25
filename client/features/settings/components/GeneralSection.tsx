@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { useOrganizationGeneral, useUpdateOrganizationGeneral } from '../hooks'
+import { provinces, majorCities, getProvincesByRegion, getCitiesByProvince, getProvinceName } from '@/lib/italian-addresses'
 
 const organizationSchema = z.object({
   legal_name: z.string().min(1, 'Nome legale obbligatorio'),
@@ -38,6 +39,16 @@ export function GeneralSection() {
 
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>('')
+
+  // Stati per gestione cascata indirizzo
+  const selectedRegion = form.watch('region')
+  const selectedProvince = form.watch('province')
+  const availableProvinces = selectedRegion ? getProvincesByRegion(selectedRegion) : []
+  const availableCities = selectedProvince ? getCitiesByProvince(selectedProvince) : []
+  const [allowCustomCity, setAllowCustomCity] = useState(false)
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -151,6 +162,16 @@ export function GeneralSection() {
         country: organization.country || 'IT',
       })
       setCurrentLogoUrl(organization.logo_url || '')
+
+      // Controlla se la città corrente è nella lista delle città disponibili
+      const currentProvince = organization.province
+      const currentCity = organization.city
+      if (currentProvince && currentCity) {
+        const citiesForProvince = getCitiesByProvince(currentProvince)
+        if (!citiesForProvince.includes(currentCity)) {
+          setAllowCustomCity(true)
+        }
+      }
     }
   }, [organization, form])
 
@@ -297,12 +318,52 @@ export function GeneralSection() {
 
             <div className="space-y-2">
               <Label htmlFor="address_line">Indirizzo *</Label>
-              <Textarea
-                id="address_line"
-                {...form.register('address_line')}
-                placeholder="Via/Piazza, Numero civico"
-                rows={2}
-              />
+              <div className="relative">
+                <Textarea
+                  id="address_line"
+                  {...form.register('address_line')}
+                  placeholder="Via/Piazza, Numero civico (digita per suggerimenti)"
+                  rows={2}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    form.setValue('address_line', value);
+                    debouncedSearch(value);
+                  }}
+                  onBlur={() => {
+                    // Ritarda la chiusura per permettere click sui suggerimenti
+                    setTimeout(() => setShowSuggestions(false), 200);
+                  }}
+                  onFocus={() => {
+                    if (addressSuggestions.length > 0) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                />
+                {showSuggestions && addressSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {addressSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none text-sm"
+                        onClick={() => {
+                          form.setValue('address_line', suggestion);
+                          setShowSuggestions(false);
+                          setAddressSuggestions([]);
+                        }}
+                      >
+                        📍 {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="absolute right-2 top-2 text-xs text-slate-400">
+                  💡 Digita per suggerimenti automatici
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                Suggerimenti automatici di indirizzi italiani tramite OpenStreetMap
+              </p>
               {form.formState.errors.address_line && (
                 <p className="text-sm text-red-600">{form.formState.errors.address_line.message}</p>
               )}
@@ -311,11 +372,52 @@ export function GeneralSection() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="city">Città *</Label>
-                <Input
-                  id="city"
-                  {...form.register('city')}
-                  placeholder="Città"
-                />
+                {!allowCustomCity ? (
+                  <Select
+                    value={form.watch('city')}
+                    onValueChange={(value) => {
+                      if (value === 'other') {
+                        setAllowCustomCity(true)
+                        form.setValue('city', '')
+                      } else {
+                        form.setValue('city', value)
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona città" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                      {availableCities.length > 0 && (
+                        <SelectItem value="other">Altra città...</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      id="city"
+                      {...form.register('city')}
+                      placeholder="Inserisci città"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setAllowCustomCity(false)
+                        form.setValue('city', '')
+                      }}
+                    >
+                      ← Torna alla lista
+                    </Button>
+                  </div>
+                )}
                 {form.formState.errors.city && (
                   <p className="text-sm text-red-600">{form.formState.errors.city.message}</p>
                 )}
@@ -323,11 +425,25 @@ export function GeneralSection() {
 
               <div className="space-y-2">
                 <Label htmlFor="province">Provincia *</Label>
-                <Input
-                  id="province"
-                  {...form.register('province')}
-                  placeholder="Provincia"
-                />
+                <Select
+                  value={form.watch('province')}
+                  onValueChange={(value) => {
+                    form.setValue('province', value)
+                    // Reset città quando cambia provincia
+                    form.setValue('city', '')
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona provincia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableProvinces.map((province) => (
+                      <SelectItem key={province.code} value={province.code}>
+                        {province.name} ({province.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {form.formState.errors.province && (
                   <p className="text-sm text-red-600">{form.formState.errors.province.message}</p>
                 )}
@@ -337,7 +453,13 @@ export function GeneralSection() {
                 <Label htmlFor="region">Regione *</Label>
                 <Select
                   value={form.watch('region')}
-                  onValueChange={(value) => form.setValue('region', value as any)}
+                  onValueChange={(value) => {
+                    form.setValue('region', value as any)
+                    // Reset provincia e città quando cambia regione
+                    form.setValue('province', '')
+                    form.setValue('city', '')
+                    setAllowCustomCity(false)
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona regione" />
@@ -375,8 +497,11 @@ export function GeneralSection() {
                 <Input
                   id="postal_code"
                   {...form.register('postal_code')}
-                  placeholder="20100"
+                  placeholder="40100"
+                  maxLength={5}
+                  pattern="[0-9]{5}"
                 />
+                <p className="text-xs text-slate-500">Codice di avviamento postale (5 cifre)</p>
               </div>
             </div>
           </div>
@@ -394,4 +519,47 @@ export function GeneralSection() {
       </CardContent>
     </Card>
   )
+
+  // Funzione per cercare suggerimenti indirizzo con debounce
+  const searchAddressSuggestions = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      // Usa Nominatim (OpenStreetMap) per geocoding gratuito
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&limit=5&q=${encodeURIComponent(query)}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Errore nella ricerca indirizzi');
+      }
+
+      const data = await response.json();
+
+      const suggestions = data.map((item: any) => item.display_name);
+      setAddressSuggestions(suggestions);
+      setShowSuggestions(suggestions.length > 0);
+    } catch (error) {
+      console.error('Errore ricerca indirizzi:', error);
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, []);
+
+  // Funzione con debounce per evitare troppe chiamate API
+  const debouncedSearch = useCallback((query: string) => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      searchAddressSuggestions(query);
+    }, 500); // 500ms di debounce
+
+    setSearchTimeout(timeout);
+  }, [searchAddressSuggestions, searchTimeout]);
 }
