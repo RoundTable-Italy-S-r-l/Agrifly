@@ -36,6 +36,76 @@ export function GeneralSection() {
   const { data: organization, isLoading } = useOrganizationGeneral()
   const updateMutation = useUpdateOrganizationGeneral()
 
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [currentLogoUrl, setCurrentLogoUrl] = useState<string>('')
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Verifica tipo file
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg']
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: 'Errore',
+        description: 'Solo file PNG e JPEG sono supportati.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Verifica dimensione (max 2MB)
+    const maxSize = 2 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast({
+        title: 'Errore',
+        description: 'File troppo grande. Massimo 2MB.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setUploadingLogo(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('logo', file)
+
+      const response = await fetch('/api/settings/organization/upload-logo', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Errore upload')
+      }
+
+      // Aggiorna il form con il nuovo URL del logo
+      form.setValue('logo_url', result.logo_url)
+      setCurrentLogoUrl(result.logo_url)
+
+      toast({
+        title: 'Successo',
+        description: 'Logo caricato con successo!',
+      })
+
+    } catch (error: any) {
+      console.error('Errore upload logo:', error)
+      toast({
+        title: 'Errore',
+        description: error.message || 'Si è verificato un errore durante l\'upload.',
+        variant: 'destructive',
+      })
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
   const form = useForm<OrganizationForm>({
     resolver: zodResolver(organizationSchema),
     defaultValues: {
@@ -73,6 +143,7 @@ export function GeneralSection() {
         postal_code: organization.postal_code || '',
         country: organization.country || 'IT',
       })
+      setCurrentLogoUrl(organization.logo_url || '')
     }
   }, [organization, form])
 
@@ -128,17 +199,23 @@ export function GeneralSection() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="logo_url">Logo Organizzazione</Label>
-              <Input
-                id="logo_url"
-                {...form.register('logo_url')}
-                placeholder="URL del logo (https://...)"
-                type="url"
-              />
-              {form.watch('logo_url') && (
+              <Label htmlFor="logo">Logo Organizzazione</Label>
+              <div className="flex items-center space-x-4">
+                <Input
+                  id="logo"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleLogoUpload}
+                  className="flex-1"
+                />
+                {uploadingLogo && (
+                  <div className="text-sm text-slate-600">Caricamento...</div>
+                )}
+              </div>
+              {(form.watch('logo_url') || currentLogoUrl) && (
                 <div className="mt-2">
                   <img
-                    src={form.watch('logo_url')}
+                    src={form.watch('logo_url') || currentLogoUrl}
                     alt="Logo preview"
                     className="h-16 w-16 object-contain border border-gray-200 rounded"
                     onError={(e) => {

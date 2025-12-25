@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
+import { createClient } from '@supabase/supabase-js';
 
 const app = new Hono();
 
@@ -482,6 +483,101 @@ app.patch('/notifications', async (c) => {
 
   } catch (error: any) {
     console.error('❌ Errore update notifications:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// ============================================================================
+// UPLOAD LOGO ORGANIZZAZIONE
+// ============================================================================
+
+app.post('/organization/upload-logo', async (c) => {
+  try {
+    // Ottieni l'ID dell'organizzazione dal token JWT
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const payload = JSON.parse(atob(authHeader.split('.')[1]));
+    const organizationId = payload.organization?.id;
+
+    if (!organizationId) {
+      return c.json({ error: 'Organization ID mancante nel token' }, 401);
+    }
+
+    console.log('📤 Upload logo per organizzazione:', organizationId);
+
+    // Ottieni il file dal form data
+    const formData = await c.req.formData();
+    const file = formData.get('logo') as File;
+
+    if (!file) {
+      return c.json({ error: 'Nessun file fornito' }, 400);
+    }
+
+    // Verifica che sia un'immagine PNG o JPEG
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      return c.json({ error: 'Solo file PNG e JPEG sono supportati' }, 400);
+    }
+
+    // Verifica dimensione file (max 2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      return c.json({ error: 'File troppo grande. Massimo 2MB' }, 400);
+    }
+
+    // Inizializza Supabase client
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Genera nome file univoco
+    const fileExt = file.type === 'image/png' ? 'png' : 'jpg';
+    const fileName = `org-logos/${organizationId}/logo-${Date.now()}.${fileExt}`;
+
+    // Converti il file in ArrayBuffer
+    const fileBuffer = await file.arrayBuffer();
+    const fileUint8 = new Uint8Array(fileBuffer);
+
+    // Upload su Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('assets')
+      .upload(fileName, fileUint8, {
+        contentType: file.type,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('❌ Errore upload Supabase:', uploadError);
+      return c.json({ error: 'Errore upload file' }, 500);
+    }
+
+    // Ottieni URL pubblico
+    const { data: { publicUrl } } = supabase.storage
+      .from('assets')
+      .getPublicUrl(fileName);
+
+    // Aggiorna il logo_url dell'organizzazione
+    await query(
+      'UPDATE organizations SET logo_url = $1, updated_at = NOW() WHERE id = $2',
+      [publicUrl, organizationId]
+    );
+
+    console.log('✅ Logo caricato con successo:', publicUrl);
+
+    return c.json({
+      success: true,
+      logo_url: publicUrl,
+      message: 'Logo caricato con successo'
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore upload logo:', error);
     return c.json({
       error: 'Errore interno',
       message: error.message
