@@ -22,7 +22,9 @@ const organizationSchema = z.object({
   address_line: z.string().min(1, 'Indirizzo obbligatorio'),
   city: z.string().min(1, 'Città obbligatoria'),
   province: z.string().min(1, 'Provincia obbligatoria'),
-  region: z.enum(['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'], 'Regione obbligatoria'),
+  region: z.enum(['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'], {
+    errorMap: () => ({ message: 'Regione obbligatoria' })
+  }),
   postal_code: z.string().optional(),
   country: z.string().default('IT'),
 })
@@ -251,7 +253,7 @@ export function GeneralSection() {
                 <Label htmlFor="region">Regione *</Label>
                 <Select
                   value={form.watch('region')}
-                  onValueChange={(value) => form.setValue('region', value)}
+                  onValueChange={(value) => form.setValue('region', value as any)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona regione" />
