@@ -79,14 +79,34 @@ const api = {
     apiRequest<T>(endpoint, { method: 'DELETE' }),
 };
 
+// Helper function to get organization ID from localStorage
+function getCurrentOrgId(): string | null {
+  try {
+    const orgData = localStorage.getItem('organization');
+    if (orgData) {
+      const org = JSON.parse(orgData);
+      return org.id;
+    }
+  } catch (error) {
+    console.error('Error parsing organization data:', error);
+  }
+  return null;
+}
+
 // Organization General Settings
 export function useOrganizationGeneral() {
+  const orgId = getCurrentOrgId();
+
   return useQuery({
     queryKey: ['organization', 'general'],
     queryFn: async () => {
-      const response = await api.get<Organization>('/settings/organization/general')
+      if (!orgId) {
+        throw new Error('Organization ID not found');
+      }
+      const response = await api.get<Organization>(`/settings/organization/general?orgId=${orgId}`)
       return response
     },
+    enabled: !!orgId,
     retry: (failureCount, error: any) => {
       // Don't retry on auth errors
       if (error?.status === 401 || error?.status === 403) {
@@ -100,10 +120,14 @@ export function useOrganizationGeneral() {
 
 export function useUpdateOrganizationGeneral() {
   const queryClient = useQueryClient()
+  const orgId = getCurrentOrgId()
 
   return useMutation({
     mutationFn: async (data: Partial<Organization>) => {
-      const response = await api.patch<{ data: Organization }>('/settings/organization/general', data)
+      if (!orgId) {
+        throw new Error('Organization ID not found');
+      }
+      const response = await api.patch<{ data: Organization }>(`/settings/organization/general?orgId=${orgId}`, data)
       return response.data
     },
     onSuccess: () => {

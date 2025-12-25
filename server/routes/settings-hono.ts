@@ -11,19 +11,11 @@ const app = new Hono();
 // GET /settings/organization/general - Ottieni impostazioni generali organizzazione
 app.get('/organization/general', async (c) => {
   try {
-    // Ottieni l'ID dell'organizzazione dal token JWT
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Token mancante' }, 401);
-    }
-
-    // Per ora usiamo un approccio semplificato - prendiamo l'ID dal localStorage del frontend
-    // In produzione dovremmo decodificare il JWT per ottenere l'organization_id
-    const payload = JSON.parse(atob(authHeader.split('.')[1]));
-    const organizationId = payload.organization?.id;
+    // Ottieni l'ID dell'organizzazione dal parametro query (più semplice e affidabile)
+    const organizationId = c.req.query('orgId');
 
     if (!organizationId) {
-      return c.json({ error: 'Organization ID mancante nel token' }, 401);
+      return c.json({ error: 'Organization ID mancante. Usa ?orgId=...' }, 400);
     }
 
     console.log('📋 Richiesta impostazioni generali per org:', organizationId);
@@ -71,17 +63,11 @@ app.get('/organization/general', async (c) => {
 // PATCH /settings/organization/general - Aggiorna impostazioni generali organizzazione
 app.patch('/organization/general', async (c) => {
   try {
-    // Ottieni l'ID dell'organizzazione dal token JWT
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Token mancante' }, 401);
-    }
-
-    const payload = JSON.parse(atob(authHeader.split('.')[1]));
-    const organizationId = payload.organization?.id;
+    // Ottieni l'ID dell'organizzazione dal parametro query
+    const organizationId = c.req.query('orgId');
 
     if (!organizationId) {
-      return c.json({ error: 'Organization ID mancante nel token' }, 401);
+      return c.json({ error: 'Organization ID mancante. Usa ?orgId=...' }, 400);
     }
 
     const body = await c.req.json();
@@ -496,17 +482,11 @@ app.patch('/notifications', async (c) => {
 
 app.post('/organization/upload-logo', async (c) => {
   try {
-    // Ottieni l'ID dell'organizzazione dal token JWT
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Token mancante' }, 401);
-    }
-
-    const payload = JSON.parse(atob(authHeader.split('.')[1]));
-    const organizationId = payload.organization?.id;
+    // Ottieni l'ID dell'organizzazione dal parametro query
+    const organizationId = c.req.query('orgId');
 
     if (!organizationId) {
-      return c.json({ error: 'Organization ID mancante nel token' }, 401);
+      return c.json({ error: 'Organization ID mancante. Usa ?orgId=...' }, 400);
     }
 
     console.log('📤 Upload logo per organizzazione:', organizationId);

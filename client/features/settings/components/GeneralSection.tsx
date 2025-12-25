@@ -71,7 +71,14 @@ export function GeneralSection() {
       const formData = new FormData()
       formData.append('logo', file)
 
-      const response = await fetch('/api/settings/organization/upload-logo', {
+      // Get organization ID from localStorage
+      const orgData = localStorage.getItem('organization');
+      if (!orgData) {
+        throw new Error('Organization data not found');
+      }
+      const org = JSON.parse(orgData);
+
+      const response = await fetch(`/api/settings/organization/upload-logo?orgId=${org.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
