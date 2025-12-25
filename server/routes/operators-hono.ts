@@ -18,28 +18,31 @@ app.get('/:orgId', async (c) => {
     console.log('👥 Richiesta lista operatori per org:', orgId);
 
     // Query per ottenere tutti gli operatori dell'organizzazione
+    // Include sia profili operatori che membri dell'organizzazione
     const operatorsQuery = `
       SELECT
-        op.id,
-        op.user_id,
-        op.org_id,
+        COALESCE(op.id, 'member_' || om.id) as id,
+        COALESCE(op.user_id, om.user_id) as user_id,
+        COALESCE(op.org_id, om.org_id) as org_id,
         op.home_location_id,
         op.max_hours_per_day,
         op.max_ha_per_day,
         op.service_tags,
         op.default_service_area_set_id,
         op.service_area_mode,
-        op.status,
+        COALESCE(op.status, 'ACTIVE') as status,
         u.first_name,
         u.last_name,
         u.email,
         l.name as home_location_name,
-        s.name as service_area_set_name
-      FROM operator_profiles op
-      LEFT JOIN users u ON op.user_id = u.id
+        s.name as service_area_set_name,
+        CASE WHEN op.id IS NOT NULL THEN 'profile' ELSE 'member' END as source_type
+      FROM org_memberships om
+      LEFT JOIN operator_profiles op ON om.user_id = op.user_id AND om.org_id = op.org_id
+      LEFT JOIN users u ON om.user_id = u.id
       LEFT JOIN locations l ON op.home_location_id = l.id
       LEFT JOIN service_area_sets s ON op.default_service_area_set_id = s.id
-      WHERE op.org_id = $1
+      WHERE om.org_id = $1 AND om.is_active = true AND om.role IN ('PILOT', 'DISPATCHER')
       ORDER BY u.first_name, u.last_name
     `;
 
