@@ -14,13 +14,16 @@ import { useOrganizationGeneral, useUpdateOrganizationGeneral } from '../hooks'
 const organizationSchema = z.object({
   legal_name: z.string().min(1, 'Nome legale obbligatorio'),
   logo_url: z.string().optional(),
+  phone: z.string().optional(),
+  support_email: z.string().email('Email non valida').optional().or(z.literal('')),
   vat_number: z.string().optional(),
   tax_code: z.string().optional(),
   org_type: z.enum(['FARM', 'VENDOR', 'OPERATOR_PROVIDER']),
   address_line: z.string().min(1, 'Indirizzo obbligatorio'),
   city: z.string().min(1, 'Città obbligatoria'),
   province: z.string().min(1, 'Provincia obbligatoria'),
-  region: z.string().min(1, 'Regione obbligatoria'),
+  region: z.enum(['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'], 'Regione obbligatoria'),
+  postal_code: z.string().optional(),
   country: z.string().default('IT'),
 })
 
@@ -36,13 +39,16 @@ export function GeneralSection() {
     defaultValues: {
       legal_name: '',
       logo_url: '',
+      phone: '',
+      support_email: '',
       vat_number: '',
       tax_code: '',
       org_type: 'FARM',
       address_line: '',
       city: '',
       province: '',
-      region: '',
+      region: 'Lombardia',
+      postal_code: '',
       country: 'IT',
     },
   })
@@ -53,13 +59,16 @@ export function GeneralSection() {
       form.reset({
         legal_name: organization.legal_name || '',
         logo_url: organization.logo_url || '',
+        phone: organization.phone || '',
+        support_email: organization.support_email || '',
         vat_number: organization.vat_number || '',
         tax_code: organization.tax_code || '',
         org_type: organization.org_type || 'FARM',
         address_line: organization.address_line || '',
         city: organization.city || '',
         province: organization.province || '',
-        region: organization.region || '',
+        region: organization.region || 'Lombardia',
+        postal_code: organization.postal_code || '',
         country: organization.country || 'IT',
       })
     }
@@ -135,6 +144,29 @@ export function GeneralSection() {
                     }}
                   />
                 </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefono</Label>
+              <Input
+                id="phone"
+                {...form.register('phone')}
+                placeholder="+39 123 456 7890"
+                type="tel"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="support_email">Email di Supporto</Label>
+              <Input
+                id="support_email"
+                {...form.register('support_email')}
+                placeholder="support@azienda.com"
+                type="email"
+              />
+              {form.formState.errors.support_email && (
+                <p className="text-sm text-red-600">{form.formState.errors.support_email.message}</p>
               )}
             </div>
 
@@ -217,14 +249,48 @@ export function GeneralSection() {
 
               <div className="space-y-2">
                 <Label htmlFor="region">Regione *</Label>
-                <Input
-                  id="region"
-                  {...form.register('region')}
-                  placeholder="Regione"
-                />
+                <Select
+                  value={form.watch('region')}
+                  onValueChange={(value) => form.setValue('region', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona regione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Abruzzo">Abruzzo</SelectItem>
+                    <SelectItem value="Basilicata">Basilicata</SelectItem>
+                    <SelectItem value="Calabria">Calabria</SelectItem>
+                    <SelectItem value="Campania">Campania</SelectItem>
+                    <SelectItem value="Emilia-Romagna">Emilia-Romagna</SelectItem>
+                    <SelectItem value="Friuli-Venezia Giulia">Friuli-Venezia Giulia</SelectItem>
+                    <SelectItem value="Lazio">Lazio</SelectItem>
+                    <SelectItem value="Liguria">Liguria</SelectItem>
+                    <SelectItem value="Lombardia">Lombardia</SelectItem>
+                    <SelectItem value="Marche">Marche</SelectItem>
+                    <SelectItem value="Molise">Molise</SelectItem>
+                    <SelectItem value="Piemonte">Piemonte</SelectItem>
+                    <SelectItem value="Puglia">Puglia</SelectItem>
+                    <SelectItem value="Sardegna">Sardegna</SelectItem>
+                    <SelectItem value="Sicilia">Sicilia</SelectItem>
+                    <SelectItem value="Toscana">Toscana</SelectItem>
+                    <SelectItem value="Trentino-Alto Adige">Trentino-Alto Adige</SelectItem>
+                    <SelectItem value="Umbria">Umbria</SelectItem>
+                    <SelectItem value="Valle d'Aosta">Valle d'Aosta</SelectItem>
+                    <SelectItem value="Veneto">Veneto</SelectItem>
+                  </SelectContent>
+                </Select>
                 {form.formState.errors.region && (
                   <p className="text-sm text-red-600">{form.formState.errors.region.message}</p>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="postal_code">CAP</Label>
+                <Input
+                  id="postal_code"
+                  {...form.register('postal_code')}
+                  placeholder="20100"
+                />
               </div>
             </div>
           </div>

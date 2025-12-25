@@ -57,19 +57,22 @@ enum UserStatus {
 }
 
 model Organization {
-  id           String    @id @default(cuid()) @map("id")
-  legal_name   String    @map("legal_name")
-  logo_url     String?   @map("logo_url")
-  vat_number   String?   @map("vat_number")
-  tax_code     String?   @map("tax_code")
-  org_type     OrgType   @map("org_type")
-  address_line String    @map("address_line")
-  city         String    @map("city")
-  province     String    @map("province")
-  region       String    @map("region")
-  country      String    @default("IT") @map("country")
-  status       OrgStatus @default(ACTIVE) @map("status")
-  created_at   DateTime  @default(now()) @map("created_at")
+  id            String    @id @default(cuid()) @map("id")
+  legal_name    String    @map("legal_name")
+  logo_url      String?   @map("logo_url")
+  phone         String?   @map("phone")
+  support_email String?   @map("support_email")
+  vat_number    String?   @map("vat_number")
+  tax_code      String?   @map("tax_code")
+  org_type      OrgType   @map("org_type")
+  address_line  String    @map("address_line")
+  city          String    @map("city")
+  province      String    @map("province")
+  region        String    @map("region")
+  postal_code   String?   @map("postal_code")
+  country       String    @default("IT") @map("country")
+  status        OrgStatus @default(ACTIVE) @map("status")
+  created_at    DateTime  @default(now()) @map("created_at")
 
   org_memberships                OrgMembership[]
   organization_invitations       OrganizationInvitation[]
