@@ -11,6 +11,29 @@ export function Layout({ children }: LayoutProps) {
   const isActive = (path: string) => location.pathname === path;
   const isAuthenticated = authAPI.isAuthenticated();
 
+  // Funzione per ottenere il ruolo dell'utente
+  const getUserRole = () => {
+    try {
+      const orgData = localStorage.getItem('organization');
+      if (orgData) {
+        const org = JSON.parse(orgData);
+        return org.role;
+      }
+    } catch (e) {
+      console.warn('Errore lettura ruolo utente:', e);
+    }
+    return null;
+  };
+
+  // Funzione per ottenere il path della dashboard in base al ruolo
+  const getDashboardPath = () => {
+    const role = getUserRole();
+    if (role && role.includes('ADMIN')) {
+      return '/admin';
+    }
+    return '/dashboard'; // Reindirizza automaticamente
+  };
+
   const handleLogout = () => {
     authAPI.logout();
     navigate('/login');
@@ -72,12 +95,20 @@ export function Layout({ children }: LayoutProps) {
 
           <div className="flex items-center gap-2 md:gap-3">
             {isAuthenticated ? (
-              <button
-                onClick={handleLogout}
-                className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+              <>
+                <Link
+                  to={getDashboardPath()}
+                  className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
                 >
-                <span>Logout</span>
-              </button>
+                  <span>Dashboard</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                  >
+                  <span>Logout</span>
+                </button>
+              </>
             ) : (
               <Link
                 to="/login"

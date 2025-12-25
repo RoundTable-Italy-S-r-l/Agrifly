@@ -13,6 +13,7 @@ import { useOrganizationGeneral, useUpdateOrganizationGeneral } from '../hooks'
 
 const organizationSchema = z.object({
   legal_name: z.string().min(1, 'Nome legale obbligatorio'),
+  logo_url: z.string().optional(),
   vat_number: z.string().optional(),
   tax_code: z.string().optional(),
   org_type: z.enum(['FARM', 'VENDOR', 'OPERATOR_PROVIDER']),
@@ -34,6 +35,7 @@ export function GeneralSection() {
     resolver: zodResolver(organizationSchema),
     defaultValues: {
       legal_name: '',
+      logo_url: '',
       vat_number: '',
       tax_code: '',
       org_type: 'FARM',
@@ -50,6 +52,7 @@ export function GeneralSection() {
     if (organization) {
       form.reset({
         legal_name: organization.legal_name || '',
+        logo_url: organization.logo_url || '',
         vat_number: organization.vat_number || '',
         tax_code: organization.tax_code || '',
         org_type: organization.org_type || 'FARM',
@@ -110,6 +113,28 @@ export function GeneralSection() {
               />
               {form.formState.errors.legal_name && (
                 <p className="text-sm text-red-600">{form.formState.errors.legal_name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="logo_url">Logo Organizzazione</Label>
+              <Input
+                id="logo_url"
+                {...form.register('logo_url')}
+                placeholder="URL del logo (https://...)"
+                type="url"
+              />
+              {form.watch('logo_url') && (
+                <div className="mt-2">
+                  <img
+                    src={form.watch('logo_url')}
+                    alt="Logo preview"
+                    className="h-16 w-16 object-contain border border-gray-200 rounded"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
               )}
             </div>
 

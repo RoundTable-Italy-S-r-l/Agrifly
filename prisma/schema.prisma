@@ -59,6 +59,7 @@ enum UserStatus {
 model Organization {
   id           String    @id @default(cuid()) @map("id")
   legal_name   String    @map("legal_name")
+  logo_url     String?   @map("logo_url")
   vat_number   String?   @map("vat_number")
   tax_code     String?   @map("tax_code")
   org_type     OrgType   @map("org_type")

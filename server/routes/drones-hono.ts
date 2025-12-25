@@ -113,6 +113,8 @@ app.get('/:id', async (c) => {
           p.brand,
           p.product_type,
           p.specs_json,
+          p.specs_core_json,
+          p.specs_extra_json,
           p.images_json,
           p.glb_files_json,
           s.sku_code
@@ -132,6 +134,8 @@ app.get('/:id', async (c) => {
           p.brand,
           p.product_type,
           p.specs_json,
+          p.specs_core_json,
+          p.specs_extra_json,
           p.images_json,
           p.glb_files_json,
           s.sku_code,
@@ -229,6 +233,21 @@ app.get('/:id', async (c) => {
       }
     }
 
+    // Usa i veri specs_core_json e specs_extra_json dal database
+    // Fallback: trasforma specs_json se specs_core_json è vuoto
+    let specs_core_json = row.specs_core_json;
+    let specs_extra_json = row.specs_extra_json;
+
+    // Se specs_core_json è null ma abbiamo specs_json, convertilo
+    if (!specs_core_json && row.specs_json) {
+      specs_core_json = Object.entries(row.specs_json).map(([key, value]) => ({
+        key,
+        value: String(value),
+        section: 'general',
+        source_text: `${key}: ${value}`
+      }));
+    }
+
     const product = {
       id: row.id,
       name: row.name,
@@ -237,6 +256,8 @@ app.get('/:id', async (c) => {
       productType: row.product_type,
       price,
       specs: row.specs_json,
+      specs_core_json,
+      specs_extra_json,
       images: row.images_json,
       imageUrl,
       glbUrl

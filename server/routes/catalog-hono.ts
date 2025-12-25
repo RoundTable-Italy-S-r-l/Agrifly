@@ -418,9 +418,10 @@ app.get('/public', async (c) => {
     // Usa CTE per evitare problemi con subquery e GROUP BY
     let querySql = `
       WITH catalog_base AS (
-        SELECT 
+        SELECT
           o.id as vendor_id,
           o.legal_name as vendor_name,
+          o.logo_url as vendor_logo_url,
           vci.id as catalog_item_id,
           vci.sku_id,
           vci.is_for_sale,
@@ -451,7 +452,7 @@ app.get('/public', async (c) => {
           AND vci.is_for_sale = true
           AND s.status = 'ACTIVE'
           AND p.status = 'ACTIVE'
-        GROUP BY o.id, o.legal_name, vci.id, vci.sku_id, vci.is_for_sale,
+        GROUP BY o.id, o.legal_name, o.logo_url, vci.id, vci.sku_id, vci.is_for_sale,
                  vci.is_for_rent, vci.lead_time_days, vci.notes, s.id, s.sku_code, p.id,
                  p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json,
                  a."productId"
@@ -527,7 +528,7 @@ app.get('/public', async (c) => {
         vendorsMap.set(vendorId, {
           id: vendorId,
           name: row.vendor_name,
-          logo: '', // TODO: aggiungere logo quando disponibile
+          logo: row.vendor_logo_url || '', // Logo dell'organizzazione
           description: '', // Organizations non ha description, usare valore vuoto o costruire da address
           products: []
         });

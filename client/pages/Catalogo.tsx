@@ -155,8 +155,21 @@ export default function Catalogo() {
                 {/* Header Vendor */}
                 <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                      <Building className="w-6 h-6 text-emerald-600" />
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center">
+                      {vendor.logo ? (
+                        <img
+                          src={vendor.logo}
+                          alt={`Logo ${vendor.name}`}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            // Fallback all'icona se il logo non carica
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement!.innerHTML = '<div class="w-6 h-6 text-slate-400"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L19 6.6C18.8 6.2 18.5 5.9 18.2 5.7L19 4L17 2L15.7 2.8C15.5 2.5 15.2 2.2 14.8 2L14 0H10L9.2 2C8.8 2.2 8.5 2.5 8.2 2.8L6 2L4 4L4.8 5.7C4.5 5.9 4.2 6.2 4 6.6L2 7V9L4 9.4C4.2 9.8 4.5 10.1 4.8 10.3L4 12L6 14L7.2 13.2C7.5 13.5 7.8 13.8 8.2 14L10 16H14L14.8 14C15.2 13.8 15.5 13.5 15.7 13.2L17 14L19 12L18.2 10.3C18.5 10.1 18.8 9.8 19 9.4L21 9ZM12 8C13.66 8 15 9.34 15 11C15 12.66 13.66 14 12 14C10.34 14 9 12.66 9 11C9 9.34 10.34 8 12 8Z"/></svg></div>';
+                          }}
+                        />
+                      ) : (
+                        <Building className="w-6 h-6 text-slate-400" />
+                      )}
                     </div>
                     <div>
                       <h2 className="text-xl font-bold text-slate-900">{vendor.name}</h2>

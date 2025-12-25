@@ -25,7 +25,7 @@ import { Layout } from '@/components/Layout';
 const DroneDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'specs' | 'gallery' | 'manuals'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'specs' | 'gallery' | 'manuals' | 'faq'>('overview');
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
   const { data: drone, isLoading, error } = useQuery({
@@ -287,7 +287,8 @@ const DroneDetail = () => {
               { id: 'overview', label: 'Panoramica', icon: Settings },
               { id: 'specs', label: 'Specifiche', icon: BookOpen },
               { id: 'gallery', label: 'Gallery', icon: ImageIcon },
-              { id: 'manuals', label: 'Manuali', icon: Download }
+              { id: 'manuals', label: 'Manuali', icon: Download },
+              { id: 'faq', label: 'FAQ', icon: CheckCircle }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -481,6 +482,126 @@ const DroneDetail = () => {
                     <p>Nessun manuale disponibile</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'faq' && (
+              <div className="space-y-6">
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Domande Frequenti</h2>
+                  <p className="text-slate-600">Risposte alle domande più comuni sui nostri droni agricoli</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} className="text-emerald-600" />
+                      Quanto dura la batteria in volo?
+                    </h3>
+                    <p className="text-slate-700 leading-relaxed">
+                      La durata della batteria dipende dal modello e dal carico di lavoro. In condizioni ottimali,
+                      i nostri droni possono volare da 10 a 25 minuti. La batteria agli ioni di litio ad alta densità
+                      garantisce prestazioni costanti durante tutto il volo.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} className="text-emerald-600" />
+                      Qual è l'area massima che posso coprire?
+                    </h3>
+                    <p className="text-slate-700 leading-relaxed">
+                      L'area di copertura dipende dal modello e dalla configurazione. I nostri droni possono coprire
+                      da 10 a 50 ettari per ora, con una larghezza di lavoro che va da 3 a 13 metri.
+                      L'efficienza può raggiungere fino a 40 ettari/ora con i modelli più avanzati.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} className="text-emerald-600" />
+                      È difficile da pilotare?
+                    </h3>
+                    <p className="text-slate-700 leading-relaxed">
+                      Assolutamente no! I nostri droni sono dotati di sistemi di pilotaggio automatico avanzati.
+                      Con l'app dedicata, puoi pianificare missioni precise, impostare percorsi automatici e
+                      monitorare il volo in tempo reale. Anche gli operatori alle prime armi possono utilizzarli
+                      dopo un breve training.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} className="text-emerald-600" />
+                      Cosa succede se perdo il segnale?
+                    </h3>
+                    <p className="text-slate-700 leading-relaxed">
+                      I nostri droni sono equipaggiati con sistemi di sicurezza avanzati. In caso di perdita di segnale,
+                      il drone attiva automaticamente la modalità RTH (Return to Home) e torna al punto di partenza.
+                      Inoltre, i sistemi radar e di visione artificiale garantiscono un volo sicuro anche in condizioni
+                      di scarsa visibilità.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} className="text-emerald-600" />
+                      Quanto costa la manutenzione?
+                    </h3>
+                    <p className="text-slate-700 leading-relaxed">
+                      I nostri droni richiedono una manutenzione minima. I componenti principali hanno una durata
+                      elevata e sono progettati per resistere alle condizioni agricole più difficili.
+                      Offriamo contratti di manutenzione preventiva e supporto tecnico dedicato.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} className="text-emerald-600" />
+                      È sicuro per l'ambiente?
+                    </h3>
+                    <p className="text-slate-700 leading-relaxed">
+                      Sì! I nostri droni utilizzano tecnologie di precisione che riducono significativamente l'uso
+                      di prodotti chimici. La distribuzione mirata permette di applicare solo dove necessario,
+                      proteggendo l'ambiente e riducendo i costi operativi fino al 30%.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} className="text-emerald-600" />
+                      Posso personalizzare le configurazioni?
+                    </h3>
+                    <p className="text-slate-700 leading-relaxed">
+                      Certamente! Offriamo diverse configurazioni per adattarci alle tue esigenze specifiche.
+                      Puoi scegliere tra serbatoi di diverse capacità, sistemi di distribuzione multipli,
+                      e accessori speciali per diversi tipi di colture e terreni.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} className="text-emerald-600" />
+                      Qual è il ROI (ritorno sull'investimento)?
+                    </h3>
+                    <p className="text-slate-700 leading-relaxed">
+                      Il ritorno sull'investimento varia dai 6 ai 24 mesi, a seconda del modello e dell'utilizzo.
+                      I nostri clienti tipicamente risparmiano sui costi di manodopera, riducono l'uso di prodotti
+                      chimici e aumentano la produttività. Molti clienti raggiungono il break-even entro il primo anno.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50 rounded-lg p-6 border border-emerald-200 mt-8">
+                  <h3 className="font-semibold text-emerald-900 mb-2">Hai altre domande?</h3>
+                  <p className="text-emerald-800 mb-4">
+                    Il nostro team di esperti è a tua disposizione per rispondere a qualsiasi domanda
+                    sui nostri droni agricoli e aiutarti a scegliere la soluzione migliore per le tue esigenze.
+                  </p>
+                  <button className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-medium">
+                    Contattaci
+                  </button>
+                </div>
               </div>
             )}
           </div>
