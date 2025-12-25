@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
-// import { createClient } from '@supabase/supabase-js'; // TODO: installare il pacchetto
+import { createClient } from '@supabase/supabase-js';
 
 const app = new Hono();
 
@@ -491,11 +491,9 @@ app.post('/organization/upload-logo', async (c) => {
     }
 
     // Inizializza Supabase client
-    // TODO: installare @supabase/supabase-js
-    // const supabaseUrl = process.env.SUPABASE_URL!;
-    // const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    // const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    return c.json({ error: 'Upload logo non disponibile - installare @supabase/supabase-js' }, 503);
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Genera nome file univoco
     const fileExt = file.type === 'image/png' ? 'png' : 'jpg';
