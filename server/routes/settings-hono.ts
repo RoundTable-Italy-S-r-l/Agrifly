@@ -145,7 +145,7 @@ app.get('/organization/users', async (c) => {
 
     console.log('👥 Richiesta membri organizzazione:', organizationId);
 
-    // Query per ottenere membri dell'organizzazione con dettagli utente
+    // Query per ottenere membri dell'organizzazione
     const result = await query(`
       SELECT
         om.id,
@@ -158,17 +158,22 @@ app.get('/organization/users', async (c) => {
         u.last_name,
         u.email_verified,
         CASE
-          WHEN u.email IN ('giovanni.verdi@lenzi.it', 'luca.bianchi@lenzi.it') THEN 'INVITED'
-          WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL THEN 'FULL_ACCOUNT'
-          ELSE 'INVITED'
-        END as member_type
+          WHEN u.first_name = '' OR u.first_name IS NULL OR u.last_name = '' OR u.last_name IS NULL THEN 'INTERNAL_MEMBER'
+          ELSE 'FULL_ACCOUNT'
+        END as member_type,
+        CASE
+          WHEN u.first_name = '' OR u.first_name IS NULL OR u.last_name = '' OR u.last_name IS NULL THEN 'internal'
+          ELSE 'user'
+        END as member_source
       FROM org_memberships om
       JOIN users u ON om.user_id = u.id
       WHERE om.org_id = $1 AND om.is_active = true AND u.status = 'ACTIVE'
       ORDER BY om.created_at DESC
     `, [organizationId]);
 
-    console.log('✅ Membri organizzazione recuperati:', result.rows.length);
+    const allMembers = result.rows;
+
+    console.log('✅ Membri organizzazione recuperati:', allMembers.length);
 
     return c.json(result.rows);
 
