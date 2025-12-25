@@ -135,16 +135,10 @@ app.patch('/organization/general', async (c) => {
 // GET /settings/organization/users - Ottieni membri dell'organizzazione
 app.get('/organization/users', async (c) => {
   try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Token mancante' }, 401);
-    }
-
-    const payload = JSON.parse(atob(authHeader.split('.')[1]));
-    const organizationId = payload.organization?.id;
+    const organizationId = c.req.query('orgId');
 
     if (!organizationId) {
-      return c.json({ error: 'Organization ID mancante nel token' }, 401);
+      return c.json({ error: 'Organization ID mancante. Usa ?orgId=...' }, 400);
     }
 
     console.log('👥 Richiesta membri organizzazione:', organizationId);
@@ -187,16 +181,10 @@ app.get('/organization/users', async (c) => {
 // GET /settings/organization/invitations - Ottieni inviti pendenti
 app.get('/organization/invitations', async (c) => {
   try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Token mancante' }, 401);
-    }
-
-    const payload = JSON.parse(atob(authHeader.split('.')[1]));
-    const organizationId = payload.organization?.id;
+    const organizationId = c.req.query('orgId');
 
     if (!organizationId) {
-      return c.json({ error: 'Organization ID mancante nel token' }, 401);
+      return c.json({ error: 'Organization ID mancante. Usa ?orgId=...' }, 400);
     }
 
     console.log('📧 Richiesta inviti organizzazione:', organizationId);
@@ -232,18 +220,15 @@ app.get('/organization/invitations', async (c) => {
 // POST /settings/organization/invitations/invite - Invia invito
 app.post('/organization/invitations/invite', async (c) => {
   try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Token mancante' }, 401);
+    const organizationId = c.req.query('orgId');
+
+    if (!organizationId) {
+      return c.json({ error: 'Organization ID mancante. Usa ?orgId=...' }, 400);
     }
 
-    const payload = JSON.parse(atob(authHeader.split('.')[1]));
-    const organizationId = payload.organization?.id;
-    const currentUserId = payload.sub;
-
-    if (!organizationId || !currentUserId) {
-      return c.json({ error: 'Dati mancanti nel token' }, 401);
-    }
+    // Per ora prendiamo currentUserId dal localStorage o da un altro modo
+    // In produzione dovremmo avere un modo migliore per identificare l'utente corrente
+    const currentUserId = 'current-user-id'; // TODO: implementare correttamente
 
     const body = await c.req.json();
     const { email, role } = body;
@@ -319,17 +304,11 @@ app.post('/organization/invitations/invite', async (c) => {
 // POST /settings/organization/invitations/revoke/:id - Revoca invito
 app.post('/organization/invitations/revoke/:id', async (c) => {
   try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Token mancante' }, 401);
-    }
-
-    const payload = JSON.parse(atob(authHeader.split('.')[1]));
-    const organizationId = payload.organization?.id;
+    const organizationId = c.req.query('orgId');
     const invitationId = c.req.param('id');
 
     if (!organizationId || !invitationId) {
-      return c.json({ error: 'Dati mancanti' }, 400);
+      return c.json({ error: 'Organization ID mancante. Usa ?orgId=...' }, 400);
     }
 
     console.log('🚫 Revoca invito:', invitationId, 'org:', organizationId);
