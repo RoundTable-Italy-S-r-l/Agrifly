@@ -18,10 +18,11 @@ export async function sendVerificationCodeEmail(
     return;
   }
   try {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Agrifly <noreply@agrifly.it>';
     await resend.emails.send({
-      from: 'DJI Agriculture <noreply@dji-agriculture.com>',
+      from: fromEmail,
       to,
-      subject: 'Codice di verifica email',
+      subject: 'Codice di verifica email - Agrifly',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Verifica la tua email</h2>
@@ -50,10 +51,11 @@ export async function sendWelcomeEmail(
     return;
   }
   try {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Agrifly <noreply@agrifly.it>';
     await resend.emails.send({
-      from: 'DJI Agriculture <noreply@dji-agriculture.com>',
+      from: fromEmail,
       to,
-      subject: 'Benvenuto in DJI Agriculture',
+      subject: 'Benvenuto in Agrifly',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Benvenuto, ${userName}!</h2>
@@ -134,10 +136,11 @@ export async function sendOrganizationInvitationEmail(
     return;
   }
   try {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Agrifly <noreply@agrifly.it>';
     await resend.emails.send({
-      from: 'DJI Agriculture <noreply@dji-agriculture.com>',
+      from: fromEmail,
       to,
-      subject: `Invito a ${organizationName}`,
+      subject: `Invito a ${organizationName} - Agrifly`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Sei stato invitato</h2>
