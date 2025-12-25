@@ -138,12 +138,18 @@ export function useUpdateOrganizationGeneral() {
 
 // Organization Users
 export function useOrganizationUsers() {
+  const orgId = getCurrentOrgId();
+
   return useQuery({
     queryKey: ['organization', 'users'],
     queryFn: async () => {
-      const response = await api.get<Array<OrgMembership & { user: User }>>('/settings/organization/users')
+      if (!orgId) {
+        throw new Error('Organization ID not found');
+      }
+      const response = await api.get<Array<OrgMembership & { user: User }>>(`/settings/organization/users?orgId=${orgId}`)
       return response
     },
+    enabled: !!orgId,
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.status === 403) {
         return false
@@ -156,12 +162,18 @@ export function useOrganizationUsers() {
 
 // Organization Invitations
 export function useOrganizationInvitations() {
+  const orgId = getCurrentOrgId();
+
   return useQuery({
     queryKey: ['organization', 'invitations'],
     queryFn: async () => {
-      const response = await api.get<any[]>('/settings/organization/invitations')
+      if (!orgId) {
+        throw new Error('Organization ID not found');
+      }
+      const response = await api.get<any[]>(`/settings/organization/invitations?orgId=${orgId}`)
       return response
     },
+    enabled: !!orgId,
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.status === 403) {
         return false
