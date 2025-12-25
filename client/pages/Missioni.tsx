@@ -86,11 +86,11 @@ export default function Missioni() {
   });
 
   // Filtra missioni per ricerca
-  const filteredMissions = missions.filter(mission =>
+  const filteredMissions = (missions || []).filter(mission =>
     searchQuery === '' ||
-    mission.buyer_org_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mission.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mission.id.toLowerCase().includes(searchQuery.toLowerCase())
+    mission.buyer_org_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    mission.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    mission.id?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const formatDate = (dateString: string) => {

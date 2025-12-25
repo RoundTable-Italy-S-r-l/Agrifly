@@ -30,6 +30,7 @@ app.get('/stats', async (c) => {
 
     const result = await query(statsQuery, [orgId]);
 
+    // Se non ci sono missioni, restituisci valori di default
     if (result.rows.length === 0) {
       return c.json({
         totalMissions: 0,
@@ -98,7 +99,7 @@ app.get('/active', async (c) => {
 
     console.log('✅ Missioni attive recuperate:', result.rows.length);
 
-    return c.json(result.rows);
+    return c.json(result.rows || []);
 
   } catch (error: any) {
     console.error('❌ Errore get active missions:', error);
@@ -148,7 +149,7 @@ app.get('/', async (c) => {
 
     console.log('✅ Missioni recuperate:', result.rows.length);
 
-    return c.json(result.rows);
+    return c.json(result.rows || []);
 
   } catch (error: any) {
     console.error('❌ Errore get missions:', error);
