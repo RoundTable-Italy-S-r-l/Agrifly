@@ -454,6 +454,46 @@ export const fetchOperators = (orgId: string): Promise<Operator[]> =>
 export const fetchOperator = (orgId: string, operatorId: string): Promise<any> =>
   apiRequest(`/operators/${orgId}/${operatorId}`);
 
+export const createOperator = (orgId: string, operatorData: CreateOperatorRequest): Promise<{ operator_id: string }> =>
+  apiRequest(`/operators/${orgId}`, {
+    method: 'POST',
+    body: JSON.stringify(operatorData)
+  });
+
+export const updateOperator = (orgId: string, operatorId: string, operatorData: UpdateOperatorRequest): Promise<{ success: boolean }> =>
+  apiRequest(`/operators/${orgId}/${operatorId}`, {
+    method: 'PUT',
+    body: JSON.stringify(operatorData)
+  });
+
+export const deleteOperator = (orgId: string, operatorId: string): Promise<{ success: boolean }> =>
+  apiRequest(`/operators/${orgId}/${operatorId}`, {
+    method: 'DELETE'
+  });
+
+// Tipi per le richieste
+export interface CreateOperatorRequest {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  service_tags?: string[];
+  max_hours_per_day?: number;
+  max_ha_per_day?: number;
+  home_location_id?: string;
+  default_service_area_set_id?: string;
+  user_id?: string; // Opzionale - collega a user esistente
+}
+
+export interface UpdateOperatorRequest {
+  service_tags?: string[];
+  max_hours_per_day?: number;
+  max_ha_per_day?: number;
+  home_location_id?: string;
+  default_service_area_set_id?: string;
+  service_area_mode?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+}
+
 // Bookings API
 export interface Booking {
   id: string;

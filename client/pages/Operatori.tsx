@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/AdminLayout';
-import { fetchOperators, fetchOperator, Operator } from '@/lib/api';
+import { toast } from 'sonner';
+import { fetchOperators, fetchOperator, createOperator, updateOperator, deleteOperator, Operator, CreateOperatorRequest, UpdateOperatorRequest } from '@/lib/api';
 import {
   Users,
   MapPin,
@@ -31,6 +32,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const serviceTypeIcons = {
   SPRAY: Droplet,
@@ -42,6 +46,9 @@ export default function Operatori() {
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
   const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
+  const [editingOperator, setEditingOperator] = useState<Operator | null>(null);
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'operators' | 'availability'>('operators');
 
   useEffect(() => {
@@ -56,6 +63,8 @@ export default function Operatori() {
     }
   }, []);
 
+  const queryClient = useQueryClient();
+
   const { data: operators = [], isLoading } = useQuery({
     queryKey: ['operators', currentOrgId],
     queryFn: () => currentOrgId ? fetchOperators(currentOrgId) : Promise.resolve([]),
@@ -63,6 +72,48 @@ export default function Operatori() {
   });
 
   const activeOperators = operators.filter(op => op.status === 'ACTIVE').length;
+
+  // Mutation per creare operatore
+  const createOperatorMutation = useMutation({
+    mutationFn: (data: CreateOperatorRequest) =>
+      currentOrgId ? createOperator(currentOrgId, data) : Promise.reject('No org ID'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operators', currentOrgId] });
+      setCreateSheetOpen(false);
+      toast.success('Operatore creato con successo!');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Errore nella creazione dell\'operatore');
+    }
+  });
+
+  // Mutation per aggiornare operatore
+  const updateOperatorMutation = useMutation({
+    mutationFn: ({ operatorId, data }: { operatorId: string, data: UpdateOperatorRequest }) =>
+      currentOrgId ? updateOperator(currentOrgId, operatorId, data) : Promise.reject('No org ID'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operators', currentOrgId] });
+      setEditSheetOpen(false);
+      setEditingOperator(null);
+      toast.success('Operatore aggiornato con successo!');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Errore nell\'aggiornamento dell\'operatore');
+    }
+  });
+
+  // Mutation per eliminare operatore
+  const deleteOperatorMutation = useMutation({
+    mutationFn: (operatorId: string) =>
+      currentOrgId ? deleteOperator(currentOrgId, operatorId) : Promise.reject('No org ID'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operators', currentOrgId] });
+      toast.success('Operatore eliminato con successo!');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Errore nell\'eliminazione dell\'operatore');
+    }
+  });
 
   const handleOpenDetail = async (operator: Operator) => {
     if (!currentOrgId) return;
@@ -135,6 +186,18 @@ export default function Operatori() {
 
           {/* Tab: Operatori */}
           <TabsContent value="operators" className="space-y-4">
+            {/* Header con pulsante aggiungi */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Operatori dell'organizzazione</h2>
+                <p className="text-sm text-slate-600">Gestisci capacità, disponibilità e copertura territoriale</p>
+              </div>
+              <Button onClick={() => setCreateSheetOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Aggiungi operatore
+              </Button>
+            </div>
+
             {isLoading ? (
               <div className="text-center py-8">
                 <div className="inline-flex items-center gap-2 text-slate-600">
@@ -146,7 +209,7 @@ export default function Operatori() {
               <Card>
                 <CardContent className="py-12 text-center">
                   <p className="text-slate-600 mb-4">Nessun operatore configurato</p>
-                  <Button>
+                  <Button onClick={() => setCreateSheetOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Aggiungi operatore
                   </Button>
@@ -192,11 +255,52 @@ export default function Operatori() {
             open={detailSheetOpen}
             onOpenChange={setDetailSheetOpen}
             orgId={currentOrgId}
+            onEdit={handleEditOperator}
+            onDelete={handleDeleteOperator}
+          />
+        )}
+
+        {/* Sheet creazione operatore */}
+        <CreateOperatorSheet
+          open={createSheetOpen}
+          onOpenChange={setCreateSheetOpen}
+          onSubmit={handleCreateOperator}
+          isLoading={createOperatorMutation.isPending}
+        />
+
+        {/* Sheet modifica operatore */}
+        {editingOperator && (
+          <EditOperatorSheet
+            operator={editingOperator}
+            open={editSheetOpen}
+            onOpenChange={setEditSheetOpen}
+            onSubmit={handleUpdateOperator}
+            isLoading={updateOperatorMutation.isPending}
           />
         )}
       </div>
     </AdminLayout>
   );
+
+  // Funzioni helper
+  function handleEditOperator(operator: Operator) {
+    setEditingOperator(operator);
+    setEditSheetOpen(true);
+  }
+
+  function handleDeleteOperator(operatorId: string) {
+    if (confirm('Sei sicuro di voler eliminare questo operatore?')) {
+      deleteOperatorMutation.mutate(operatorId);
+    }
+  }
+
+  function handleCreateOperator(data: CreateOperatorRequest) {
+    createOperatorMutation.mutate(data);
+  }
+
+  function handleUpdateOperator(operatorId: string, data: UpdateOperatorRequest) {
+    updateOperatorMutation.mutate({ operatorId, data });
+  }
 }
 
 // Componente Card Operatore
@@ -286,11 +390,15 @@ function OperatorDetailSheet({
   open,
   onOpenChange,
   orgId,
+  onEdit,
+  onDelete,
 }: {
   operator: Operator;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orgId: string;
+  onEdit: (operator: Operator) => void;
+  onDelete: (operatorId: string) => void;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -382,11 +490,19 @@ function OperatorDetailSheet({
           <div>
             <h3 className="font-semibold text-slate-900 mb-3">Azioni</h3>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => onEdit(operator)}
+              >
                 <Edit className="w-4 h-4 mr-2" />
                 Modifica
               </Button>
-              <Button variant="outline" className="flex-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => onDelete(operator.id)}
+              >
                 {operator.status === 'ACTIVE' ? (
                   <>
                     <PowerOff className="w-4 h-4 mr-2" />
@@ -395,7 +511,7 @@ function OperatorDetailSheet({
                 ) : (
                   <>
                     <Power className="w-4 h-4 mr-2" />
-                    Attiva
+                    Elimina
                   </>
                 )}
               </Button>
@@ -408,6 +524,349 @@ function OperatorDetailSheet({
             Chiudi
           </Button>
         </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// Componente Sheet creazione operatore
+function CreateOperatorSheet({
+  open,
+  onOpenChange,
+  onSubmit,
+  isLoading,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (data: CreateOperatorRequest) => void;
+  isLoading: boolean;
+}) {
+  const [formData, setFormData] = useState<CreateOperatorRequest>({
+    first_name: '',
+    last_name: '',
+    email: '',
+    service_tags: [],
+    max_hours_per_day: undefined,
+    max_ha_per_day: undefined,
+  });
+
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      ...formData,
+      service_tags: selectedServices,
+    });
+  };
+
+  const toggleService = (service: string) => {
+    setSelectedServices(prev =>
+      prev.includes(service)
+        ? prev.filter(s => s !== service)
+        : [...prev, service]
+    );
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Aggiungi Operatore Interno</SheetTitle>
+          <SheetDescription>
+            Crea un nuovo operatore interno. Potrai invitare l'operatore ad accedere più tardi se necessario.
+          </SheetDescription>
+        </SheetHeader>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+          {/* Informazioni base */}
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">Informazioni Personali</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="first_name">Nome</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                    placeholder="Nome operatore"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Cognome</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                    placeholder="Cognome operatore"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="email">Email (opzionale)</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="email@esempio.com"
+                />
+                <p className="text-sm text-slate-500 mt-1">
+                  Opzionale - puoi invitare l'operatore più tardi se vuoi che acceda al sistema
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Servizi */}
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">Servizi Abilitati</h3>
+            <div className="space-y-2">
+              {[
+                { key: 'SPRAY', label: 'Trattamenti con drone', icon: Droplet },
+                { key: 'SPREAD', label: 'Spargimento prodotti', icon: Package },
+                { key: 'MAPPING', label: 'Mappatura territoriale', icon: MapIcon },
+              ].map(({ key, label, icon: Icon }) => (
+                <div key={key} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`service-${key}`}
+                    checked={selectedServices.includes(key)}
+                    onChange={() => toggleService(key)}
+                    className="rounded border-slate-300"
+                  />
+                  <Label htmlFor={`service-${key}`} className="flex items-center gap-2 cursor-pointer">
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Capacità */}
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">Capacità Giornaliere</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="max_hours">Ore massime al giorno</Label>
+                <Input
+                  id="max_hours"
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={formData.max_hours_per_day || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    max_hours_per_day: e.target.value ? parseFloat(e.target.value) : undefined
+                  }))}
+                  placeholder="8"
+                />
+              </div>
+              <div>
+                <Label htmlFor="max_ha">Ettari massimi al giorno</Label>
+                <Input
+                  id="max_ha"
+                  type="number"
+                  min="1"
+                  value={formData.max_ha_per_day || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    max_ha_per_day: e.target.value ? parseFloat(e.target.value) : undefined
+                  }))}
+                  placeholder="50"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-3 pt-6 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1"
+            >
+              Annulla
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1"
+            >
+              {isLoading ? 'Creazione...' : 'Crea Operatore'}
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// Componente Sheet modifica operatore
+function EditOperatorSheet({
+  operator,
+  open,
+  onOpenChange,
+  onSubmit,
+  isLoading,
+}: {
+  operator: Operator;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (operatorId: string, data: UpdateOperatorRequest) => void;
+  isLoading: boolean;
+}) {
+  const [formData, setFormData] = useState<UpdateOperatorRequest>({
+    service_tags: operator.service_tags,
+    max_hours_per_day: operator.max_hours_per_day,
+    max_ha_per_day: operator.max_ha_per_day,
+    status: operator.status,
+  });
+
+  const [selectedServices, setSelectedServices] = useState<string[]>(operator.service_tags);
+
+  React.useEffect(() => {
+    if (operator) {
+      setFormData({
+        service_tags: operator.service_tags,
+        max_hours_per_day: operator.max_hours_per_day,
+        max_ha_per_day: operator.max_ha_per_day,
+        status: operator.status,
+      });
+      setSelectedServices(operator.service_tags);
+    }
+  }, [operator]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(operator.id, {
+      ...formData,
+      service_tags: selectedServices,
+    });
+  };
+
+  const toggleService = (service: string) => {
+    setSelectedServices(prev =>
+      prev.includes(service)
+        ? prev.filter(s => s !== service)
+        : [...prev, service]
+    );
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Modifica Operatore</SheetTitle>
+          <SheetDescription>
+            {operator.first_name} {operator.last_name}
+          </SheetDescription>
+        </SheetHeader>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+          {/* Servizi */}
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">Servizi Abilitati</h3>
+            <div className="space-y-2">
+              {[
+                { key: 'SPRAY', label: 'Trattamenti con drone', icon: Droplet },
+                { key: 'SPREAD', label: 'Spargimento prodotti', icon: Package },
+                { key: 'MAPPING', label: 'Mappatura territoriale', icon: MapIcon },
+              ].map(({ key, label, icon: Icon }) => (
+                <div key={key} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`edit-service-${key}`}
+                    checked={selectedServices.includes(key)}
+                    onChange={() => toggleService(key)}
+                    className="rounded border-slate-300"
+                  />
+                  <Label htmlFor={`edit-service-${key}`} className="flex items-center gap-2 cursor-pointer">
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Capacità */}
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">Capacità Giornaliere</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-max_hours">Ore massime al giorno</Label>
+                <Input
+                  id="edit-max_hours"
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={formData.max_hours_per_day || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    max_hours_per_day: e.target.value ? parseFloat(e.target.value) : undefined
+                  }))}
+                  placeholder="8"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-max_ha">Ettari massimi al giorno</Label>
+                <Input
+                  id="edit-max_ha"
+                  type="number"
+                  min="1"
+                  value={formData.max_ha_per_day || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    max_ha_per_day: e.target.value ? parseFloat(e.target.value) : undefined
+                  }))}
+                  placeholder="50"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">Stato</h3>
+            <Select
+              value={formData.status}
+              onValueChange={(value: 'ACTIVE' | 'INACTIVE') =>
+                setFormData(prev => ({ ...prev, status: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE">Attivo</SelectItem>
+                <SelectItem value="INACTIVE">Inattivo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-3 pt-6 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1"
+            >
+              Annulla
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1"
+            >
+              {isLoading ? 'Salvataggio...' : 'Salva Modifiche'}
+            </Button>
+          </div>
+        </form>
       </SheetContent>
     </Sheet>
   );
