@@ -40,16 +40,6 @@ export function GeneralSection() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>('')
 
-  // Stati per gestione cascata indirizzo
-  const selectedRegion = form.watch('region')
-  const selectedProvince = form.watch('province')
-  const availableProvinces = selectedRegion ? getProvincesByRegion(selectedRegion) : []
-  const availableCities = selectedProvince ? getCitiesByProvince(selectedProvince) : []
-  const [allowCustomCity, setAllowCustomCity] = useState(false)
-  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
-
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -174,6 +164,16 @@ export function GeneralSection() {
       }
     }
   }, [organization, form])
+
+  // Stati per gestione cascata indirizzo (dopo la dichiarazione del form)
+  const selectedRegion = form.watch('region')
+  const selectedProvince = form.watch('province')
+  const availableProvinces = selectedRegion ? getProvincesByRegion(selectedRegion) : []
+  const availableCities = selectedProvince ? getCitiesByProvince(selectedProvince) : []
+  const [allowCustomCity, setAllowCustomCity] = useState(false)
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const onSubmit = async (data: OrganizationForm) => {
     try {
