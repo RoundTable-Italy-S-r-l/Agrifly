@@ -78,10 +78,12 @@ app.patch('/organization/general', async (c) => {
     const values = [];
     let paramIndex = 1;
 
+    // Logo viene gestito separatamente tramite upload-logo endpoint
     const allowedFields = [
-      'legal_name', 'logo_url', 'vat_number', 'tax_code', 'org_type',
+      'legal_name', 'vat_number', 'tax_code', 'org_type',
       'address_line', 'city', 'province', 'region', 'country',
       'phone', 'support_email', 'postal_code'
+      // 'logo_url' escluso - gestito da upload-logo endpoint
     ];
 
     for (const field of allowedFields) {
@@ -493,6 +495,8 @@ app.post('/organization/upload-logo', async (c) => {
     // Inizializza Supabase client
     const supabaseUrl = process.env.SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const bucketName = 'Media FIle'; // Hardcoded per test
+    console.log('🔧 Bucket name:', bucketName);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Genera nome file univoco
@@ -505,7 +509,7 @@ app.post('/organization/upload-logo', async (c) => {
 
     // Upload su Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('assets')
+      .from(bucketName)
       .upload(fileName, fileUint8, {
         contentType: file.type,
         upsert: true
@@ -518,7 +522,7 @@ app.post('/organization/upload-logo', async (c) => {
 
     // Ottieni URL pubblico
     const { data: { publicUrl } } = supabase.storage
-      .from('assets')
+      .from(bucketName)
       .getPublicUrl(fileName);
 
     // Aggiorna il logo_url dell'organizzazione
