@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useOrganizationUsers, useOrganizationInvitations, useInviteUser, useRevokeInvitation } from '../hooks'
-import { UserPlus2 } from 'lucide-react'
 import { Mail, UserPlus, X, Clock, Check, AlertCircle } from 'lucide-react'
 
 const inviteSchema = z.object({
@@ -210,25 +209,19 @@ export function UsersSection() {
                     </TableCell>
                     <TableCell>
                       {user.member_type === 'PENDING_SETUP' && (
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // Pre-compila il form di invito con i dati esistenti
-                              form.setValue('email', user.email);
-                              form.setValue('role', user.role);
-                              setInviteDialogOpen(true);
-                            }}
-                          >
-                            <Mail className="w-4 h-4 mr-1" />
-                            Re-invita
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <UserPlus2 className="w-4 h-4 mr-1" />
-                            Gestisci
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Pre-compila il form di invito con i dati esistenti
+                            form.setValue('email', user.email);
+                            form.setValue('role', user.role);
+                            setInviteDialogOpen(true);
+                          }}
+                        >
+                          <Mail className="w-4 h-4 mr-1" />
+                          Re-invita
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
@@ -273,24 +266,18 @@ export function UsersSection() {
                         {new Date(user.created_at).toLocaleDateString('it-IT')}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              form.setValue('email', user.email);
-                              form.setValue('role', user.role);
-                              setInviteDialogOpen(true);
-                            }}
-                          >
-                            <Mail className="w-4 h-4 mr-1" />
-                            Re-invita
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <UserPlus2 className="w-4 h-4 mr-1" />
-                            Gestisci
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            form.setValue('email', user.email);
+                            form.setValue('role', user.role);
+                            setInviteDialogOpen(true);
+                          }}
+                        >
+                          <Mail className="w-4 h-4 mr-1" />
+                          Re-invita
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
