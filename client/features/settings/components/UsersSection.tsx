@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useOrganizationUsers, useOrganizationInvitations, useInviteUser, useRevokeInvitation } from '../hooks'
+import { UserPlus2 } from 'lucide-react'
 import { Mail, UserPlus, X, Clock, Check, AlertCircle } from 'lucide-react'
 
 const inviteSchema = z.object({
@@ -177,21 +178,50 @@ export function UsersSection() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Ruolo</TableHead>
+                  <TableHead>Stato</TableHead>
                   <TableHead>Data Iscrizione</TableHead>
+                  <TableHead>Azioni</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((user: any) => (
                   <TableRow key={user.id}>
-                    <TableCell>{user.first_name} {user.last_name}</TableCell>
+                    <TableCell>
+                      {user.first_name && user.last_name
+                        ? `${user.first_name} ${user.last_name}`
+                        : 'Nome non fornito'
+                      }
+                    </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {roleLabels[user.membership?.role] || user.membership?.role}
+                        {roleLabels[user.role] || user.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(user.membership?.created_at).toLocaleDateString('it-IT')}
+                      <Badge variant={user.member_type === 'FULL_ACCOUNT' ? 'default' : 'outline'}>
+                        {user.member_type === 'FULL_ACCOUNT' ? 'Account Completo' : 'Solo Email'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(user.created_at).toLocaleDateString('it-IT')}
+                    </TableCell>
+                    <TableCell>
+                      {user.member_type === 'INVITED' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Pre-compila il form di invito con i dati esistenti
+                            form.setValue('email', user.email);
+                            form.setValue('role', user.role);
+                            setInviteDialogOpen(true);
+                          }}
+                        >
+                          <Mail className="w-4 h-4 mr-1" />
+                          Re-invita
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -200,6 +230,67 @@ export function UsersSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pending Members Section - Membri invitati ma senza account completo */}
+      {users.some((user: any) => user.member_type === 'INVITED') && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Membri In Attesa di Attivazione</CardTitle>
+            <p className="text-sm text-slate-600">
+              Utenti invitati che devono ancora completare la registrazione
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Ruolo</TableHead>
+                  <TableHead>Data Invito</TableHead>
+                  <TableHead>Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users
+                  .filter((user: any) => user.member_type === 'INVITED')
+                  .map((user: any) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {roleLabels[user.role] || user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(user.created_at).toLocaleDateString('it-IT')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              form.setValue('email', user.email);
+                              form.setValue('role', user.role);
+                              setInviteDialogOpen(true);
+                            }}
+                          >
+                            <Mail className="w-4 h-4 mr-1" />
+                            Re-invita
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <UserPlus2 className="w-4 h-4 mr-1" />
+                            Gestisci
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Invitations Section */}
       <Card>
