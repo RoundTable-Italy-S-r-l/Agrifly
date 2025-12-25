@@ -93,33 +93,69 @@ app.get('/:orgId/:operatorId', async (c) => {
     console.log('👤 Richiesta dettaglio operatore:', operatorId, 'org:', orgId);
 
     // Query per ottenere il dettaglio dell'operatore
-    const operatorQuery = `
-      SELECT
-        op.id,
-        op.user_id,
-        op.org_id,
-        op.home_location_id,
-        op.max_hours_per_day,
-        op.max_ha_per_day,
-        op.service_tags,
-        op.default_service_area_set_id,
-        op.service_area_mode,
-        op.status,
-        u.first_name,
-        u.last_name,
-        u.email,
-        l.name as home_location_name,
-        l.latitude,
-        l.longitude,
-        s.name as service_area_set_name
-      FROM operator_profiles op
-      LEFT JOIN users u ON op.user_id = u.id
-      LEFT JOIN locations l ON op.home_location_id = l.id
-      LEFT JOIN service_area_sets s ON op.default_service_area_set_id = s.id
-      WHERE op.id = $1 AND op.org_id = $2
-    `;
+    // Gestisce sia operatori con profilo che membri senza profilo
+    let operatorQuery;
+    let queryParams;
 
-    const result = await query(operatorQuery, [operatorId, orgId]);
+    if (operatorId.startsWith('member_')) {
+      // È un membro senza profilo operatore dedicato
+      operatorQuery = `
+        SELECT
+          om.id,
+          om.user_id,
+          om.role,
+          om.is_active,
+          om.created_at,
+          u.first_name,
+          u.last_name,
+          u.email,
+          NULL as home_location_id,
+          NULL as max_hours_per_day,
+          NULL as max_ha_per_day,
+          ARRAY[]::text[] as service_tags,
+          NULL as default_service_area_set_id,
+          NULL as service_area_mode,
+          'ACTIVE' as status,
+          NULL as home_location_name,
+          NULL as latitude,
+          NULL as longitude,
+          NULL as service_area_set_name
+        FROM org_memberships om
+        JOIN users u ON om.user_id = u.id
+        WHERE om.org_id = $1 AND om.id = $2
+      `;
+      queryParams = [orgId, operatorId.replace('member_', '')];
+    } else {
+      // È un operatore con profilo dedicato
+      operatorQuery = `
+        SELECT
+          op.id,
+          op.user_id,
+          op.org_id,
+          op.home_location_id,
+          op.max_hours_per_day,
+          op.max_ha_per_day,
+          op.service_tags,
+          op.default_service_area_set_id,
+          op.service_area_mode,
+          op.status,
+          u.first_name,
+          u.last_name,
+          u.email,
+          l.name as home_location_name,
+          l.latitude,
+          l.longitude,
+          s.name as service_area_set_name
+        FROM operator_profiles op
+        LEFT JOIN users u ON op.user_id = u.id
+        LEFT JOIN locations l ON op.home_location_id = l.id
+        LEFT JOIN service_area_sets s ON op.default_service_area_set_id = s.id
+        WHERE op.id = $1 AND op.org_id = $2
+      `;
+      queryParams = [operatorId, orgId];
+    }
+
+    const result = await query(operatorQuery, queryParams);
 
     if (result.rows.length === 0) {
       return c.json({ error: 'Operatore non trovato' }, 404);

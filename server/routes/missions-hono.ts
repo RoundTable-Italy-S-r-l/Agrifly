@@ -18,14 +18,17 @@ app.get('/stats', async (c) => {
     console.log('📊 Richiesta statistiche missioni per org:', orgId);
 
     // Query per ottenere le statistiche delle missioni
+    // Nota: La tabella missions attuale ha una struttura diversa, restituiamo valori di default
     const statsQuery = `
       SELECT
         COUNT(*) as total_missions,
-        COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as active_missions,
-        COUNT(CASE WHEN status = 'completed' AND completed_at >= DATE_TRUNC('month', NOW()) THEN 1 END) as completed_this_month,
-        COALESCE(SUM(area_treated_ha), 0) as total_area_treated
-      FROM missions
-      WHERE organization_id = $1
+        0 as active_missions,
+        0 as completed_this_month,
+        COALESCE(SUM(actual_area_ha), 0) as total_area_treated
+      FROM missions m
+      JOIN booking_slots bs ON m.booking_slot_id = bs.id
+      JOIN bookings b ON bs.booking_id = b.id
+      WHERE b.buyer_org_id = $1 OR b.seller_org_id = $1
     `;
 
     const result = await query(statsQuery, [orgId]);
@@ -77,21 +80,28 @@ app.get('/active', async (c) => {
     console.log('🎯 Richiesta missioni attive per org:', orgId);
 
     // Query per ottenere le missioni attive
+    // Adattata alla struttura reale della tabella missions
     const activeMissionsQuery = `
       SELECT
-        id,
-        name,
-        status,
-        area_treated_ha,
-        estimated_duration_hours,
-        assigned_operator_id,
-        scheduled_date,
-        started_at,
-        completed_at,
-        created_at
-      FROM missions
-      WHERE organization_id = $1 AND status = 'in_progress'
-      ORDER BY created_at DESC
+        m.id,
+        'Missione ' || m.id as name,
+        CASE
+          WHEN m.executed_end_at IS NULL THEN 'in_progress'
+          ELSE 'completed'
+        END as status,
+        m.actual_area_ha as area_treated_ha,
+        m.actual_hours as estimated_duration_hours,
+        NULL as assigned_operator_id,
+        m.executed_start_at as scheduled_date,
+        m.executed_start_at as started_at,
+        m.executed_end_at as completed_at,
+        m.id as created_at
+      FROM missions m
+      JOIN booking_slots bs ON m.booking_slot_id = bs.id
+      JOIN bookings b ON bs.booking_id = b.id
+      WHERE (b.buyer_org_id = $1 OR b.seller_org_id = $1)
+      AND m.executed_end_at IS NULL
+      ORDER BY m.id DESC
       LIMIT 10
     `;
 
@@ -127,21 +137,27 @@ app.get('/', async (c) => {
     console.log('📋 Richiesta lista missioni per org:', orgId, 'limit:', limit, 'offset:', offset);
 
     // Query per ottenere la lista delle missioni
+    // Adattata alla struttura reale della tabella missions
     const missionsQuery = `
       SELECT
-        id,
-        name,
-        status,
-        area_treated_ha,
-        estimated_duration_hours,
-        assigned_operator_id,
-        scheduled_date,
-        started_at,
-        completed_at,
-        created_at
-      FROM missions
-      WHERE organization_id = $1
-      ORDER BY created_at DESC
+        m.id,
+        'Missione ' || m.id as name,
+        CASE
+          WHEN m.executed_end_at IS NULL THEN 'in_progress'
+          ELSE 'completed'
+        END as status,
+        m.actual_area_ha as area_treated_ha,
+        m.actual_hours as estimated_duration_hours,
+        NULL as assigned_operator_id,
+        m.executed_start_at as scheduled_date,
+        m.executed_start_at as started_at,
+        m.executed_end_at as completed_at,
+        m.id as created_at
+      FROM missions m
+      JOIN booking_slots bs ON m.booking_slot_id = bs.id
+      JOIN bookings b ON bs.booking_id = b.id
+      WHERE (b.buyer_org_id = $1 OR b.seller_org_id = $1)
+      ORDER BY m.id DESC
       LIMIT $2 OFFSET $3
     `;
 
