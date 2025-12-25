@@ -141,4 +141,352 @@ app.patch('/organization/general', async (c) => {
   }
 });
 
+// ============================================================================
+// ORGANIZATION USERS
+// ============================================================================
+
+// GET /settings/organization/users - Ottieni membri dell'organizzazione
+app.get('/organization/users', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const payload = JSON.parse(atob(authHeader.split('.')[1]));
+    const organizationId = payload.organization?.id;
+
+    if (!organizationId) {
+      return c.json({ error: 'Organization ID mancante nel token' }, 401);
+    }
+
+    console.log('👥 Richiesta membri organizzazione:', organizationId);
+
+    // Query per ottenere membri dell'organizzazione con dettagli utente
+    const result = await query(`
+      SELECT
+        om.id,
+        om.role,
+        om.status,
+        om.created_at,
+        u.id as user_id,
+        u.email,
+        u.first_name,
+        u.last_name,
+        u.email_verified
+      FROM org_memberships om
+      JOIN users u ON om.user_id = u.id
+      WHERE om.organization_id = $1 AND om.status = 'ACTIVE' AND u.status = 'ACTIVE'
+      ORDER BY om.created_at DESC
+    `, [organizationId]);
+
+    console.log('✅ Membri organizzazione recuperati:', result.rows.length);
+
+    return c.json(result.rows);
+
+  } catch (error: any) {
+    console.error('❌ Errore get organization users:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// ============================================================================
+// ORGANIZATION INVITATIONS
+// ============================================================================
+
+// GET /settings/organization/invitations - Ottieni inviti pendenti
+app.get('/organization/invitations', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const payload = JSON.parse(atob(authHeader.split('.')[1]));
+    const organizationId = payload.organization?.id;
+
+    if (!organizationId) {
+      return c.json({ error: 'Organization ID mancante nel token' }, 401);
+    }
+
+    console.log('📧 Richiesta inviti organizzazione:', organizationId);
+
+    // Query per ottenere inviti pendenti
+    const result = await query(`
+      SELECT
+        oi.id,
+        oi.email,
+        oi.role,
+        oi.status,
+        oi.created_at,
+        oi.expires_at,
+        oi.invited_by_user_id
+      FROM organization_invitations oi
+      WHERE oi.organization_id = $1 AND oi.status = 'PENDING'
+      ORDER BY oi.created_at DESC
+    `, [organizationId]);
+
+    console.log('✅ Inviti pendenti recuperati:', result.rows.length);
+
+    return c.json(result.rows);
+
+  } catch (error: any) {
+    console.error('❌ Errore get organization invitations:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// POST /settings/organization/invitations/invite - Invia invito
+app.post('/organization/invitations/invite', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const payload = JSON.parse(atob(authHeader.split('.')[1]));
+    const organizationId = payload.organization?.id;
+    const currentUserId = payload.sub;
+
+    if (!organizationId || !currentUserId) {
+      return c.json({ error: 'Dati mancanti nel token' }, 401);
+    }
+
+    const body = await c.req.json();
+    const { email, role } = body;
+
+    if (!email || !role) {
+      return c.json({ error: 'Email e ruolo obbligatori' }, 400);
+    }
+
+    console.log('📧 Invito utente:', email, 'ruolo:', role, 'org:', organizationId);
+
+    // Verifica se l'utente ha i permessi per invitare
+    const membershipResult = await query(
+      'SELECT role FROM org_memberships WHERE organization_id = $1 AND user_id = $2 AND status = $3',
+      [organizationId, currentUserId, 'ACTIVE']
+    );
+
+    if (membershipResult.rows.length === 0) {
+      return c.json({ error: 'Non sei membro di questa organizzazione' }, 403);
+    }
+
+    const userRole = membershipResult.rows[0].role;
+    if (!userRole.includes('ADMIN')) {
+      return c.json({ error: 'Solo gli amministratori possono invitare utenti' }, 403);
+    }
+
+    // Verifica se l'invito già esiste
+    const existingInvite = await query(
+      'SELECT id FROM organization_invitations WHERE organization_id = $1 AND email = $2 AND status = $3',
+      [organizationId, email, 'PENDING']
+    );
+
+    if (existingInvite.rows.length > 0) {
+      return c.json({ error: 'Invito già esistente per questa email' }, 400);
+    }
+
+    // Verifica se l'utente è già membro
+    const existingUser = await query(`
+      SELECT u.id FROM users u
+      JOIN org_memberships om ON u.id = om.user_id
+      WHERE u.email = $1 AND om.organization_id = $2 AND om.status = $3
+    `, [email, organizationId, 'ACTIVE']);
+
+    if (existingUser.rows.length > 0) {
+      return c.json({ error: 'Utente già membro dell\'organizzazione' }, 400);
+    }
+
+    // Crea l'invito
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 giorni
+
+    const result = await query(`
+      INSERT INTO organization_invitations (organization_id, email, role, invited_by_user_id, expires_at)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, email, role, created_at
+    `, [organizationId, email, role, currentUserId, expiresAt]);
+
+    console.log('✅ Invito creato:', result.rows[0]);
+
+    return c.json({
+      data: result.rows[0],
+      message: 'Invito inviato con successo'
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore create invitation:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// POST /settings/organization/invitations/revoke/:id - Revoca invito
+app.post('/organization/invitations/revoke/:id', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const payload = JSON.parse(atob(authHeader.split('.')[1]));
+    const organizationId = payload.organization?.id;
+    const invitationId = c.req.param('id');
+
+    if (!organizationId || !invitationId) {
+      return c.json({ error: 'Dati mancanti' }, 400);
+    }
+
+    console.log('🚫 Revoca invito:', invitationId, 'org:', organizationId);
+
+    // Aggiorna lo status dell'invito
+    const result = await query(`
+      UPDATE organization_invitations
+      SET status = 'REVOKED', updated_at = NOW()
+      WHERE id = $1 AND organization_id = $2 AND status = 'PENDING'
+      RETURNING id, email, status
+    `, [invitationId, organizationId]);
+
+    if (result.rows.length === 0) {
+      return c.json({ error: 'Invito non trovato o già revocato' }, 404);
+    }
+
+    console.log('✅ Invito revocato:', result.rows[0]);
+
+    return c.json({
+      data: result.rows[0],
+      message: 'Invito revocato con successo'
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore revoke invitation:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// ============================================================================
+// NOTIFICATIONS SETTINGS
+// ============================================================================
+
+// GET /settings/notifications - Ottieni preferenze notifiche utente
+app.get('/notifications', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const payload = JSON.parse(atob(authHeader.split('.')[1]));
+    const userId = payload.sub;
+
+    if (!userId) {
+      return c.json({ error: 'User ID mancante nel token' }, 401);
+    }
+
+    console.log('🔔 Richiesta preferenze notifiche per user:', userId);
+
+    // Ottieni preferenze notifiche
+    const result = await query(`
+      SELECT
+        email_orders,
+        email_payments,
+        email_updates,
+        inapp_orders,
+        inapp_messages
+      FROM user_notification_preferences
+      WHERE user_id = $1
+      LIMIT 1
+    `, [userId]);
+
+    // Se non esistono preferenze, restituisci valori di default
+    const preferences = result.rows.length > 0 ? result.rows[0] : {
+      email_orders: true,
+      email_payments: true,
+      email_updates: false,
+      inapp_orders: true,
+      inapp_messages: true
+    };
+
+    console.log('✅ Preferenze notifiche recuperate');
+
+    return c.json(preferences);
+
+  } catch (error: any) {
+    console.error('❌ Errore get notifications:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// PATCH /settings/notifications - Aggiorna preferenze notifiche utente
+app.patch('/notifications', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Token mancante' }, 401);
+    }
+
+    const payload = JSON.parse(atob(authHeader.split('.')[1]));
+    const userId = payload.sub;
+
+    if (!userId) {
+      return c.json({ error: 'User ID mancante nel token' }, 401);
+    }
+
+    const body = await c.req.json();
+    console.log('📝 Aggiornamento preferenze notifiche per user:', userId, body);
+
+    // Costruisci la query di upsert
+    const upsertQuery = `
+      INSERT INTO user_notification_preferences (
+        user_id, email_orders, email_payments, email_updates, inapp_orders, inapp_messages
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (user_id) DO UPDATE SET
+        email_orders = EXCLUDED.email_orders,
+        email_payments = EXCLUDED.email_payments,
+        email_updates = EXCLUDED.email_updates,
+        inapp_orders = EXCLUDED.inapp_orders,
+        inapp_messages = EXCLUDED.inapp_messages,
+        updated_at = NOW()
+      RETURNING *
+    `;
+
+    const result = await query(upsertQuery, [
+      userId,
+      body.email_orders ?? true,
+      body.email_payments ?? true,
+      body.email_updates ?? false,
+      body.inapp_orders ?? true,
+      body.inapp_messages ?? true
+    ]);
+
+    console.log('✅ Preferenze notifiche aggiornate');
+
+    return c.json({
+      data: result.rows[0],
+      message: 'Preferenze notifiche aggiornate con successo'
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore update notifications:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
 export default app;
