@@ -17,34 +17,69 @@ app.get('/:orgId', async (c) => {
 
     console.log('👥 Richiesta lista operatori per org:', orgId);
 
-    // Query per ottenere tutti gli operatori dell'organizzazione
-    // Include sia profili operatori che membri dell'organizzazione
-    const operatorsQuery = `
-      SELECT
-        COALESCE(op.id, 'member_' || om.id) as id,
-        COALESCE(op.user_id, om.user_id) as user_id,
-        COALESCE(op.org_id, om.org_id) as org_id,
-        op.home_location_id,
-        op.max_hours_per_day,
-        op.max_ha_per_day,
-        op.service_tags,
-        op.default_service_area_set_id,
-        op.service_area_mode,
-        COALESCE(op.status, 'ACTIVE') as status,
-        u.first_name,
-        u.last_name,
-        u.email,
-        l.name as home_location_name,
-        s.name as service_area_set_name,
-        CASE WHEN op.id IS NOT NULL THEN 'profile' ELSE 'member' END as source_type
-      FROM org_memberships om
-      LEFT JOIN operator_profiles op ON om.user_id = op.user_id AND om.org_id = op.org_id
-      LEFT JOIN users u ON om.user_id = u.id
-      LEFT JOIN locations l ON op.home_location_id = l.id
-      LEFT JOIN service_area_sets s ON op.default_service_area_set_id = s.id
-      WHERE om.org_id = $1 AND om.is_active = true AND om.role IN ('PILOT', 'DISPATCHER')
-      ORDER BY u.first_name, u.last_name
-    `;
+    // Controlla se l'organizzazione vuole mostrare operatori individuali
+    const orgSettingsQuery = `SELECT show_individual_operators FROM organizations WHERE id = $1`;
+    const orgResult = await query(orgSettingsQuery, [orgId]);
+    const showIndividualOperators = orgResult.rows[0]?.show_individual_operators ?? true;
+
+    let operatorsQuery;
+    let queryParams;
+
+    if (!showIndividualOperators) {
+      // Se l'azienda non vuole mostrare operatori individuali,
+      // restituisci un operatore "virtuale" che rappresenta l'azienda
+      operatorsQuery = `
+        SELECT
+          'company_' || o.id as id,
+          NULL as user_id,
+          o.id as org_id,
+          NULL as home_location_id,
+          NULL as max_hours_per_day,
+          NULL as max_ha_per_day,
+          ARRAY['SPRAY', 'SPREAD', 'MAPPING']::text[] as service_tags,
+          NULL as default_service_area_set_id,
+          'ORG_DEFAULT' as service_area_mode,
+          'ACTIVE' as status,
+          o.legal_name as first_name,
+          '' as last_name,
+          o.support_email as email,
+          NULL as home_location_name,
+          NULL as service_area_set_name,
+          'company' as source_type
+        FROM organizations o
+        WHERE o.id = $1 AND o.status = 'ACTIVE'
+      `;
+      queryParams = [orgId];
+    } else {
+      // Mostra operatori individuali come prima
+      operatorsQuery = `
+        SELECT
+          COALESCE(op.id, 'member_' || om.id) as id,
+          COALESCE(op.user_id, om.user_id) as user_id,
+          COALESCE(op.org_id, om.org_id) as org_id,
+          op.home_location_id,
+          op.max_hours_per_day,
+          op.max_ha_per_day,
+          op.service_tags,
+          op.default_service_area_set_id,
+          op.service_area_mode,
+          COALESCE(op.status, 'ACTIVE') as status,
+          u.first_name,
+          u.last_name,
+          u.email,
+          l.name as home_location_name,
+          s.name as service_area_set_name,
+          CASE WHEN op.id IS NOT NULL THEN 'profile' ELSE 'member' END as source_type
+        FROM org_memberships om
+        LEFT JOIN operator_profiles op ON om.user_id = op.user_id AND om.org_id = op.org_id
+        LEFT JOIN users u ON om.user_id = u.id
+        LEFT JOIN locations l ON op.home_location_id = l.id
+        LEFT JOIN service_area_sets s ON op.default_service_area_set_id = s.id
+        WHERE om.org_id = $1 AND om.is_active = true AND om.role IN ('PILOT', 'DISPATCHER')
+        ORDER BY u.first_name, u.last_name
+      `;
+      queryParams = [orgId];
+    }
 
     const result = await query(operatorsQuery, [orgId]);
 
@@ -93,11 +128,36 @@ app.get('/:orgId/:operatorId', async (c) => {
     console.log('👤 Richiesta dettaglio operatore:', operatorId, 'org:', orgId);
 
     // Query per ottenere il dettaglio dell'operatore
-    // Gestisce sia operatori con profilo che membri senza profilo
+    // Gestisce operatori individuali, membri senza profilo, e operatori "company"
     let operatorQuery;
     let queryParams;
 
-    if (operatorId.startsWith('member_')) {
+    if (operatorId.startsWith('company_')) {
+      // È l'operatore "company" (rappresenta l'azienda)
+      operatorQuery = `
+        SELECT
+          'company_' || o.id as id,
+          NULL as user_id,
+          o.id as org_id,
+          NULL as home_location_id,
+          NULL as max_hours_per_day,
+          NULL as max_ha_per_day,
+          ARRAY['SPRAY', 'SPREAD', 'MAPPING']::text[] as service_tags,
+          NULL as default_service_area_set_id,
+          'ORG_DEFAULT' as service_area_mode,
+          'ACTIVE' as status,
+          o.legal_name as first_name,
+          '' as last_name,
+          o.support_email as email,
+          NULL as home_location_name,
+          NULL as latitude,
+          NULL as longitude,
+          NULL as service_area_set_name
+        FROM organizations o
+        WHERE o.id = $1 AND o.status = 'ACTIVE'
+      `;
+      queryParams = [orgId];
+    } else if (operatorId.startsWith('member_')) {
       // È un membro senza profilo operatore dedicato
       operatorQuery = `
         SELECT

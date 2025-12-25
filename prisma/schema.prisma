@@ -72,6 +72,7 @@ model Organization {
   postal_code   String?   @map("postal_code")
   country       String    @default("IT") @map("country")
   status        OrgStatus @default(ACTIVE) @map("status")
+  show_individual_operators Boolean @default(true) @map("show_individual_operators")
   created_at    DateTime  @default(now()) @map("created_at")
 
   org_memberships                OrgMembership[]

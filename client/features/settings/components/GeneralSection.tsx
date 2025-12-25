@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
 import { useOrganizationGeneral, useUpdateOrganizationGeneral } from '../hooks'
 import { provinces, majorCities, getProvincesByRegion, getCitiesByProvince, getProvinceName } from '@/lib/italian-addresses'
@@ -28,6 +29,7 @@ const organizationSchema = z.object({
   }),
   postal_code: z.string().optional(),
   country: z.string().default('IT'),
+  show_individual_operators: z.boolean().default(true),
 })
 
 type OrganizationForm = z.infer<typeof organizationSchema>
@@ -130,6 +132,7 @@ export function GeneralSection() {
       region: 'Lombardia',
       postal_code: '',
       country: 'IT',
+      show_individual_operators: true,
     },
   })
 
@@ -150,6 +153,7 @@ export function GeneralSection() {
         region: organization.region || 'Lombardia',
         postal_code: organization.postal_code || '', // Campo non esistente nel DB, lasciato vuoto
         country: organization.country || 'IT',
+        show_individual_operators: organization.show_individual_operators ?? true,
       })
       setCurrentLogoUrl(organization.logo_url || '')
 
@@ -275,6 +279,22 @@ export function GeneralSection() {
               {form.formState.errors.support_email && (
                 <p className="text-sm text-red-600">{form.formState.errors.support_email.message}</p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="show_individual_operators">Mostra Operatori Individuali</Label>
+                  <p className="text-sm text-slate-500">
+                    Se disattivato, i clienti vedranno solo il nome dell'azienda invece dei singoli operatori
+                  </p>
+                </div>
+                <Switch
+                  id="show_individual_operators"
+                  checked={form.watch('show_individual_operators')}
+                  onCheckedChange={(checked) => form.setValue('show_individual_operators', checked)}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
