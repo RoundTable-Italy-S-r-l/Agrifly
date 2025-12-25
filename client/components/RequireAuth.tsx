@@ -16,15 +16,15 @@ function isAuthenticated(): boolean {
   }
 
   try {
-    // Il nostro JWT custom ha formato {body}.{signature} (senza header)
+    // Supporta sia JWT custom ({body}.{signature}) che JWT standard ({header}.{body}.{signature})
     const parts = token.split('.');
-    if (parts.length !== 2) {
+    if (parts.length !== 2 && parts.length !== 3) {
       console.log('🔐 Auth check: formato token invalido (parts:', parts.length, ')');
       return false;
     }
 
-    // Decodifica il body (base64url) - funzione compatibile browser
-    const body = parts[0];
+    // Per JWT standard, prendi la seconda parte (body), per custom prendi la prima
+    const body = parts.length === 3 ? parts[1] : parts[0];
     // Converti base64url a base64 standard
     const base64 = body.replace(/-/g, '+').replace(/_/g, '/');
     // Padding

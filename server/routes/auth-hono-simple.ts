@@ -96,12 +96,12 @@ app.post('/login', async (c) => {
       return c.json({ error: 'Email e password obbligatorie' }, 400);
     }
 
-    // Rate limiting
-    const clientIP = c.req.header('x-forwarded-for') || 'unknown';
-    const rateLimit = rateLimiter.check(`login_${clientIP}_${email}`, 5, 15 * 60 * 1000);
-    if (!rateLimit.allowed) {
-      return c.json({ error: 'Troppe richieste' }, 429);
-    }
+    // Rate limiting (disabilitato per sviluppo locale)
+    // const clientIP = c.req.header('x-forwarded-for') || 'unknown';
+    // const rateLimit = rateLimiter.check(`login_${clientIP}_${email}`, 5, 15 * 60 * 1000);
+    // if (!rateLimit.allowed) {
+    //   return c.json({ error: 'Troppe richieste' }, 429);
+    // }
 
     // Trova utente
     const userResult = await query(`
