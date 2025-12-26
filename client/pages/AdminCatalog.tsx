@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/AdminLayout';
 import { fetchVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, VendorCatalogItem, fetchOffers, createOffer, updateOffer, deleteOffer, Offer } from '@/lib/api';
+import { authAPI } from '@/lib/auth';
+import EmailVerificationBanner from '@/components/EmailVerificationBanner';
 import {
   Package,
   Edit,
@@ -48,6 +50,13 @@ export default function AdminCatalog() {
   const [activeTab, setActiveTab] = useState('prodotti');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<VendorCatalogItem | null>(null);
+
+  // Query per profilo utente (per verificare email_verified)
+  const { data: userProfile, refetch: refetchProfile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: () => authAPI.getProfile(),
+    retry: 1
+  });
   const [editForm, setEditForm] = useState({
     price: '',
     leadTimeDays: '',
@@ -228,6 +237,14 @@ export default function AdminCatalog() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Email Verification Banner */}
+        {userProfile && !userProfile.user.email_verified && (
+          <EmailVerificationBanner
+            userEmail={userProfile.user.email}
+            onVerified={() => refetchProfile()}
+          />
+        )}
+
         {/* Header con KPI semplificati */}
         <div className="flex items-center justify-between">
           <div>

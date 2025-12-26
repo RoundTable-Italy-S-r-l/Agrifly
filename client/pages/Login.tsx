@@ -45,11 +45,7 @@ export default function Login() {
       localStorage.setItem("auth_token", data.token);
       localStorage.setItem('organization', JSON.stringify(data.organization));
 
-      setError(
-        "Registrazione completata! Controlla la tua email per il codice di verifica."
-      );
-
-      // Reindirizza alla dashboard (verifica email opzionale)
+      // Reindirizza alla dashboard (mostreraà banner per verifica email)
       await queryClient.invalidateQueries();
       navigate("/dashboard");
 

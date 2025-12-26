@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/AdminLayout';
 import { fetchOrderStats, fetchOrders, fetchActiveMissions, fetchMissionsStats, Order, OrderStats, Mission, MissionsStats } from '@/lib/api';
+import { authAPI } from '@/lib/auth';
+import EmailVerificationBanner from '@/components/EmailVerificationBanner';
 import {
   TrendingUp,
   DollarSign,
@@ -20,6 +22,13 @@ import {
 export default function DashboardAdmin() {
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('month');
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+
+  // Query per profilo utente (per verificare email_verified)
+  const { data: userProfile, refetch: refetchProfile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: () => authAPI.getProfile(),
+    retry: 1
+  });
 
   // Ottieni l'ID dell'organizzazione corrente dall'utente autenticato
   useEffect(() => {
@@ -83,6 +92,14 @@ export default function DashboardAdmin() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto">
+        {/* Email Verification Banner */}
+        {userProfile && !userProfile.user.email_verified && (
+          <EmailVerificationBanner
+            userEmail={userProfile.user.email}
+            onVerified={() => refetchProfile()}
+          />
+        )}
+
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
