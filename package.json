@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build:client",
-    "build:client": "vite build",
+    "build:client": "prisma migrate deploy && prisma generate && vite build",
     "build:server": "vite build --config vite.config.server.ts",
     "start": "node dist/server/node-build.mjs",
     "test": "vitest --run",
