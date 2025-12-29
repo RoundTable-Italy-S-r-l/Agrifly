@@ -171,12 +171,14 @@ export default function Missioni() {
   }
 
   const filteredOffers = statusFilteredOffers?.filter(offer =>
-    searchQuery === '' ||
-    offer.job.buyer_org.legal_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    offer.operator_org.legal_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    offer.job.field_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    offer.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    offer && offer.job && offer.job.buyer_org && offer.operator_org && (
+      searchQuery === '' ||
+      offer.job.buyer_org.legal_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      offer.operator_org.legal_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      offer.job.field_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      offer.id?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  ) || [];
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
@@ -607,9 +609,9 @@ export default function Missioni() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOffers.map((offer) => {
-                  const config = serviceTypeConfig[offer.job.service_type];
-                  const Icon = config.icon;
+                {filteredOffers.filter(offer => offer && offer.total_cents != null && offer.job && offer.job.buyer_org).map((offer) => {
+                  const config = serviceTypeConfig[offer.job?.service_type as keyof typeof serviceTypeConfig];
+                  const Icon = config?.icon || Package;
 
                   const getOfferStatusLabel = (status: string) => {
                     switch (status) {
@@ -632,19 +634,19 @@ export default function Missioni() {
                       {/* Campo e area */}
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 p-1.5 rounded ${config.color}`}>
+                          <div className={`w-8 h-8 p-1.5 rounded ${config?.color || 'bg-slate-50'}`}>
                             <Icon className="w-5 h-5" />
                           </div>
                           <div>
-                            <div className="font-medium text-slate-900">{offer.job.field_name}</div>
-                            <div className="text-sm text-slate-500">{offer.job.area_ha} ha</div>
+                            <div className="font-medium text-slate-900">{offer.job?.field_name || 'N/A'}</div>
+                            <div className="text-sm text-slate-500">{offer.job?.area_ha || 0} ha</div>
                           </div>
                         </div>
                       </TableCell>
 
                       {/* Servizio */}
                       <TableCell className="hidden sm:table-cell">
-                        <div className="text-sm font-medium text-slate-900">{config.label}</div>
+                        <div className="text-sm font-medium text-slate-900">{config?.label || offer.job?.service_type || 'N/A'}</div>
                         <div className="text-xs text-slate-500">{formatDate(offer.created_at)}</div>
                       </TableCell>
 
@@ -657,14 +659,14 @@ export default function Missioni() {
                       {/* Cliente (solo per operatori) */}
                       {isOperatorView && (
                         <TableCell className="hidden lg:table-cell">
-                          <div className="text-sm font-medium text-slate-900">{offer.job.buyer_org.legal_name}</div>
+                          <div className="text-sm font-medium text-slate-900">{offer.job?.buyer_org?.legal_name || 'N/A'}</div>
                         </TableCell>
                       )}
 
                       {/* Prezzo */}
                       <TableCell className="text-right">
                         <div className="text-lg font-bold text-slate-900">
-                          €{(offer.total_cents / 100).toFixed(2)}
+                          {offer.total_cents != null ? `€${(offer.total_cents / 100).toFixed(2)}` : 'N/A'}
                         </div>
                       </TableCell>
 
@@ -796,31 +798,33 @@ export default function Missioni() {
 
                   return (
                     <div className="space-y-4">
-                      {acceptedOffersList.map((offer) => {
+                      {acceptedOffersList.filter(offer => offer && offer.total_cents != null && offer.job && offer.job.buyer_org).map((offer) => {
                         const booking = (bookingsData.bookings || []).find((b: any) => b.accepted_offer_id === offer.id);
-                        const config = serviceTypeConfig[offer.job.service_type];
-                        const Icon = config.icon;
+                        const config = serviceTypeConfig[offer.job?.service_type as keyof typeof serviceTypeConfig];
+                        const Icon = config?.icon || Package;
+
+                        if (!offer.job) return null;
 
                         return (
                           <Card key={offer.id} className="p-4 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <div className={`p-2 rounded-lg ${config.color}`}>
+                                  <div className={`p-2 rounded-lg ${config?.color || 'bg-slate-50'}`}>
                                     <Icon className="w-4 h-4" />
                                   </div>
-                                  <h3 className="font-semibold">{offer.job.field_name}</h3>
-                                  <Badge variant="outline">{config.label}</Badge>
+                                  <h3 className="font-semibold">{offer.job.field_name || 'N/A'}</h3>
+                                  <Badge variant="outline">{config?.label || offer.job.service_type}</Badge>
                                   <Badge className="bg-green-100 text-green-800">Accettata</Badge>
                                   {booking?.payment_status === 'PAID' && (
                                     <Badge className="bg-blue-100 text-blue-800">Pagata</Badge>
                                   )}
                                 </div>
                                 <div className="text-sm text-muted-foreground space-y-1">
-                                  <p>Cliente: {offer.job.buyer_org.legal_name}</p>
-                                  <p>Area: {offer.job.area_ha} ha</p>
+                                  <p>Cliente: {offer.job.buyer_org?.legal_name || 'N/A'}</p>
+                                  <p>Area: {offer.job.area_ha || 0} ha</p>
                                   <p className="font-semibold text-slate-900">
-                                    Preventivo accettato: €{(offer.total_cents / 100).toFixed(2)}
+                                    Preventivo accettato: {offer.total_cents != null ? `€${(offer.total_cents / 100).toFixed(2)}` : 'N/A'}
                                   </p>
                                   <p>Data accettazione: {formatDate(offer.updated_at || offer.created_at)}</p>
                                   {booking?.payment_status && (
@@ -842,7 +846,7 @@ export default function Missioni() {
                                 >
                                   Vedi Dettagli
                                 </Button>
-                                {booking?.payment_status === 'PAID' && (
+                                {booking?.payment_status === 'PAID' && booking?.job?.conversation?.id && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -899,7 +903,7 @@ export default function Missioni() {
 
                   return (
                     <div className="space-y-4">
-                      {completedBookings.map((booking: any) => {
+                      {completedBookings.filter((booking: any) => booking && booking.job).map((booking: any) => {
                         const config = serviceTypeConfig[booking.service_type as keyof typeof serviceTypeConfig];
                         const Icon = config?.icon || Package;
                         
@@ -920,12 +924,12 @@ export default function Missioni() {
                                 <div className="text-sm text-muted-foreground space-y-1">
                                   <p>
                                     {orgCapabilities?.can_operate 
-                                      ? `Cliente: ${booking.buyer_org.legal_name}`
-                                      : `Operatore: ${booking.executor_org.legal_name}`}
+                                      ? `Cliente: ${booking.buyer_org?.legal_name || 'N/A'}`
+                                      : `Operatore: ${booking.executor_org?.legal_name || 'N/A'}`}
                                   </p>
-                                  <p>Area: {booking.job.area_ha?.toFixed(1) || 'N/A'} ha</p>
-                                  <p>Preventivo: €{(booking.accepted_offer.total_cents / 100).toFixed(2)}</p>
-                                  <p>Completata: {new Date(booking.created_at).toLocaleDateString('it-IT')}</p>
+                                  <p>Area: {booking.job?.area_ha ? booking.job.area_ha.toFixed(1) : 'N/A'} ha</p>
+                                  <p>Preventivo: {booking.accepted_offer?.total_cents ? `€${(booking.accepted_offer.total_cents / 100).toFixed(2)}` : 'N/A'}</p>
+                                  <p>Completata: {booking.created_at ? new Date(booking.created_at).toLocaleDateString('it-IT') : 'N/A'}</p>
                                   {booking.payment_status && (
                                     <p>
                                       Pagamento:{' '}
