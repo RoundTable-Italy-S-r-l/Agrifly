@@ -19,7 +19,12 @@
   to = "/.netlify/functions/services"
   status = 200
 
-# Route specifiche per funzioni dedicate
+# Route specifiche per funzioni dedicate (solo quelle critiche che danno problemi)
+[[redirects]]
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login-pg"
+  status = 200
+
 [[redirects]]
   from = "/api/catalog/public"
   to = "/.netlify/functions/catalog-public"

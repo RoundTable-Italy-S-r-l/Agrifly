@@ -1,6 +1,7 @@
 import { Client } from 'pg';
-// Lazy import per better-sqlite3 (solo se necessario, non su Netlify)
+// Import condizionale better-sqlite3 - mai su Netlify
 let Database: any = null;
+const isNetlify = process.env.NETLIFY || process.env.NETLIFY_BUILD || process.env.LAMBDA_TASK_ROOT;
 
 // Funzione per creare una nuova connessione per ogni richiesta (serverless-friendly)
 export const getClient = () => {
