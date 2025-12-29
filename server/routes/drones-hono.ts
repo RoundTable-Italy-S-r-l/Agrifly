@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
-import { publicObjectUrl } from '../utils/storage';
+import { publicObjectUrl, getSupabaseUrl, getStorageBucket } from '../utils/storage';
+import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 
@@ -41,48 +42,24 @@ app.get('/', async (c) => {
             if (typeof rawPath === 'string' && (rawPath.startsWith('http://') || rawPath.startsWith('https://'))) {
               glbUrl = rawPath;
             } else if (typeof rawPath === 'string') {
-            // Se il path inizia con /glb/, servilo come file statico locale
-            if (rawPath.startsWith('/glb/')) {
-              const glbPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', rawPath);
-              console.log('🔍 Checking GLB file:', { rawPath, glbPath, exists: fs.existsSync(glbPath) });
-              if (fs.existsSync(glbPath)) {
-                // Per sviluppo locale, usa un endpoint che serve i file statici
-                // rawPath è tipo "/glb/t25p/t25p.glb", quindi rimuoviamo il primo "/glb/"
-                const relativePath = rawPath.replace(/^\/glb\//, '');
-                glbUrl = `/api/drones/glb/${relativePath}`;
-                console.log('✅ Using local GLB:', glbUrl);
-              } else {
-                console.warn('⚠️  Local GLB not found, using Supabase fallback');
-                try {
-                  glbUrl = publicObjectUrl(undefined, rawPath);
-                } catch (e) {
-                  console.warn('Errore costruzione URL GLB:', e);
-                }
-              }
-            } else if (rawPath.startsWith('/images/') || rawPath.startsWith('/manuals/') || rawPath.startsWith('/pdf/')) {
-              // Gestisci immagini e manuali locali
-              const localPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', rawPath);
-              if (fs.existsSync(localPath)) {
-                if (rawPath.startsWith('/images/')) {
-                  const relativePath = rawPath.replace(/^\/images\//, '');
-                  glbUrl = `/api/drones/images/${relativePath}`;
-                } else if (rawPath.startsWith('/manuals/') || rawPath.startsWith('/pdf/')) {
-                  const relativePath = rawPath.replace(/^\/(manuals|pdf)\//, '');
-                  glbUrl = `/api/drones/manuals/${relativePath}`;
-                }
-                console.log('✅ Using local media:', glbUrl);
-              } else {
-                try {
-                  glbUrl = publicObjectUrl(undefined, rawPath);
-                } catch (e) {
-                  console.warn('Errore costruzione URL media:', e);
-                }
-              }
-            } else {
-                try {
-                  glbUrl = publicObjectUrl(undefined, rawPath);
-                } catch (e) {
-                  console.warn('Errore costruzione URL GLB:', e);
+              // PRIORITÀ: Usa sempre Supabase Storage (bucket "Media File")
+              try {
+                const storagePath = rawPath.startsWith('/glb/') 
+                  ? rawPath.replace(/^\/glb\//, 'glb/') 
+                  : rawPath.startsWith('/') 
+                    ? rawPath.substring(1) 
+                    : rawPath;
+                glbUrl = publicObjectUrl(undefined, storagePath);
+                console.log('✅ Using Supabase Storage GLB:', glbUrl);
+              } catch (e) {
+                // Fallback: solo in sviluppo locale
+                if (process.env.NODE_ENV === 'development' && rawPath.startsWith('/glb/')) {
+                  const glbPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', rawPath);
+                  if (fs.existsSync(glbPath)) {
+                    const relativePath = rawPath.replace(/^\/glb\//, '');
+                    glbUrl = `/api/drones/glb/${relativePath}`;
+                    console.log('✅ Using local GLB fallback:', glbUrl);
+                  }
                 }
               }
             }
@@ -159,6 +136,7 @@ app.get('/:id', async (c) => {
           p.specs_core_json,
           p.specs_extra_json,
           p.images_json,
+          COALESCE(p.videos_json, NULL) as videos_json,
           p.glb_files_json,
           p.manuals_pdf_json,
           s.sku_code
@@ -181,6 +159,7 @@ app.get('/:id', async (c) => {
           p.specs_core_json,
           p.specs_extra_json,
           p.images_json,
+          COALESCE(p.videos_json, NULL) as videos_json,
           p.glb_files_json,
           p.manuals_pdf_json,
           s.sku_code,
@@ -255,31 +234,30 @@ app.get('/:id', async (c) => {
           const rawPath = firstGlb.url || firstGlb.filename || firstGlb;
 
           if (typeof rawPath === 'string' && (rawPath.startsWith('http://') || rawPath.startsWith('https://'))) {
+            // URL completo, usa direttamente
             glbUrl = rawPath;
           } else if (typeof rawPath === 'string') {
-            // Se il path inizia con /glb/, servilo come file statico locale
-            if (rawPath.startsWith('/glb/')) {
-              // Costruisci URL locale per file GLB nella cartella DJI KB
-              const glbPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', rawPath);
-              if (fs.existsSync(glbPath)) {
-                // Per sviluppo locale, usa un endpoint che serve i file statici
-                // rawPath è tipo "/glb/t25p/t25p.glb", quindi rimuoviamo il primo "/glb/"
-                const relativePath = rawPath.replace(/^\/glb\//, '');
-                glbUrl = `/api/drones/glb/${relativePath}`;
-              } else {
-                // Fallback a Supabase se il file locale non esiste
-                try {
-                  glbUrl = publicObjectUrl(undefined, rawPath);
-                } catch (e) {
-                  console.warn('Errore costruzione URL GLB:', e);
+            // PRIORITÀ: Usa sempre Supabase Storage (bucket "Media File")
+            // Fallback a file locale solo in sviluppo se Supabase non disponibile
+            try {
+              // Costruisci URL Supabase Storage (rimuovi /glb/ iniziale se presente)
+              const storagePath = rawPath.startsWith('/glb/') 
+                ? rawPath.replace(/^\/glb\//, 'glb/') 
+                : rawPath.startsWith('/') 
+                  ? rawPath.substring(1) 
+                  : rawPath;
+              glbUrl = publicObjectUrl(undefined, storagePath);
+              console.log('✅ Using Supabase Storage GLB:', glbUrl);
+            } catch (e) {
+              console.warn('⚠️ Supabase Storage unavailable, trying local file:', e);
+              // Fallback: solo in sviluppo locale, controlla file locale
+              if (process.env.NODE_ENV === 'development' && rawPath.startsWith('/glb/')) {
+                const glbPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', rawPath);
+                if (fs.existsSync(glbPath)) {
+                  const relativePath = rawPath.replace(/^\/glb\//, '');
+                  glbUrl = `/api/drones/glb/${relativePath}`;
+                  console.log('✅ Using local GLB fallback:', glbUrl);
                 }
-              }
-            } else {
-              // Altri path, prova Supabase
-              try {
-                glbUrl = publicObjectUrl(undefined, rawPath);
-              } catch (e) {
-                console.warn('Errore costruzione URL GLB:', e);
               }
             }
           }
@@ -357,7 +335,7 @@ app.get('/:id', async (c) => {
       }
     }
 
-    // Parse images_json se è una stringa e converti path locali in URL endpoint
+    // Parse images_json se è una stringa e converti path in URL Supabase Storage
     let images_json = row.images_json;
     if (images_json && typeof images_json === 'string') {
       try {
@@ -366,27 +344,248 @@ app.get('/:id', async (c) => {
         console.warn('Errore parsing images_json:', e);
       }
     }
-    // Converti path locali in URL endpoint per immagini
+    
+    // Se images_json è vuoto, prova a caricare dinamicamente dal bucket Supabase
+    if ((!images_json || (Array.isArray(images_json) && images_json.length === 0)) && row.id) {
+      try {
+        // Estrai il nome del prodotto dal model o id (es. "t25p" da "prd_t25p" o "DJI Agras T25P")
+        const productId = row.id.toLowerCase();
+        const modelName = row.model?.toLowerCase() || '';
+        
+        // Prova diversi pattern per trovare la cartella immagini
+        const possiblePaths = [];
+        if (productId.includes('t25p')) possiblePaths.push('images/t25p');
+        else if (productId.includes('t25')) possiblePaths.push('images/t25');
+        else if (productId.includes('t50')) possiblePaths.push('images/t50');
+        else if (productId.includes('t70p')) possiblePaths.push('images/t70p');
+        else if (productId.includes('t100')) possiblePaths.push('images/t100');
+        else if (productId.includes('mavic-3-m') || productId.includes('mavic3m')) possiblePaths.push('images/mavic-3-m');
+        
+        if (modelName.includes('t25p')) possiblePaths.push('images/t25p');
+        else if (modelName.includes('t25') && !modelName.includes('t25p')) possiblePaths.push('images/t25');
+        else if (modelName.includes('t50')) possiblePaths.push('images/t50');
+        else if (modelName.includes('t70p')) possiblePaths.push('images/t70p');
+        else if (modelName.includes('t100')) possiblePaths.push('images/t100');
+        else if (modelName.includes('mavic-3-m') || modelName.includes('mavic3m')) possiblePaths.push('images/mavic-3-m');
+        
+        // Se non trovato, usa il productId senza prefisso
+        if (possiblePaths.length === 0) {
+          const cleanId = productId.replace(/^prd_/, '').replace(/^product_/, '');
+          possiblePaths.push(`images/${cleanId}`);
+        }
+        
+        // Prova a caricare dinamicamente le immagini dal bucket Supabase
+        const bucketName = getStorageBucket();
+        const supabaseUrl = getSupabaseUrl();
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+        
+        if (supabaseUrl && supabaseKey && possiblePaths.length > 0) {
+          try {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+            
+            // Prova ogni path possibile finché non trova immagini
+            for (const imgPath of possiblePaths) {
+              const { data: files, error } = await supabase.storage
+                .from(bucketName)
+                .list(imgPath, {
+                  limit: 50,
+                  sortBy: { column: 'name', order: 'asc' }
+                });
+              
+              if (!error && files && files.length > 0) {
+                // Filtra solo file immagine
+                const imageFiles = files.filter(f => 
+                  f.id !== null && 
+                  (f.name.toLowerCase().endsWith('.jpg') || 
+                   f.name.toLowerCase().endsWith('.jpeg') || 
+                   f.name.toLowerCase().endsWith('.png') || 
+                   f.name.toLowerCase().endsWith('.webp'))
+                );
+                
+                if (imageFiles.length > 0) {
+                  const dynamicImages = imageFiles.map((file, idx) => {
+                    const fullPath = `${imgPath}/${file.name}`;
+                    const supabaseUrl = publicObjectUrl(undefined, fullPath);
+
+                    return {
+                      url: supabaseUrl,
+                      alt: `${row.model} - ${file.name}`,
+                      is_primary: idx === 0
+                    };
+                  });
+                  
+                  console.log(`✅ Caricate ${dynamicImages.length} immagini dinamicamente per ${row.model} da bucket Supabase (${imgPath})`);
+                  images_json = dynamicImages;
+                  break; // Usa la prima cartella che ha immagini
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Errore caricamento immagini dinamiche dal bucket:', e);
+          }
+        }
+      } catch (e) {
+        console.warn('Errore caricamento immagini dinamiche:', e);
+      }
+    }
+    
+    // Converti path in URL Supabase Storage (priorità) o endpoint locale (fallback sviluppo)
     if (Array.isArray(images_json)) {
       images_json = images_json.map((img: any) => {
         const imgUrl = typeof img === 'string' ? img : (img.url || img);
-        if (typeof imgUrl === 'string' && (imgUrl.startsWith('/images/') || imgUrl.startsWith('/manuals/') || imgUrl.startsWith('/pdf/'))) {
-          const localPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', imgUrl);
-          if (fs.existsSync(localPath)) {
-            if (imgUrl.startsWith('/images/')) {
-              const relativePath = imgUrl.replace(/^\/images\//, '');
-              return typeof img === 'string' ? `/api/drones/images/${relativePath}` : { ...img, url: `/api/drones/images/${relativePath}` };
-            } else {
-              const relativePath = imgUrl.replace(/^\/(manuals|pdf)\//, '');
-              return typeof img === 'string' ? `/api/drones/manuals/${relativePath}` : { ...img, url: `/api/drones/manuals/${relativePath}` };
+        if (typeof imgUrl === 'string' && !imgUrl.startsWith('http://') && !imgUrl.startsWith('https://')) {
+          try {
+            // PRIORITÀ: Usa Supabase Storage
+            const storagePath = imgUrl.startsWith('/images/') 
+              ? imgUrl.replace(/^\/images\//, 'images/') 
+              : imgUrl.startsWith('/') 
+                ? imgUrl.substring(1) 
+                : imgUrl;
+            const supabaseUrl = publicObjectUrl(undefined, storagePath);
+            return typeof img === 'string' ? supabaseUrl : { ...img, url: supabaseUrl };
+          } catch (e) {
+            // Fallback: solo in sviluppo locale
+            if (process.env.NODE_ENV === 'development' && imgUrl.startsWith('/images/')) {
+              const localPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', imgUrl);
+              if (fs.existsSync(localPath)) {
+                const relativePath = imgUrl.replace(/^\/images\//, '');
+                return typeof img === 'string' ? `/api/drones/images/${relativePath}` : { ...img, url: `/api/drones/images/${relativePath}` };
+              }
             }
           }
         }
         return img;
       });
     }
+    if (!Array.isArray(images_json)) {
+      images_json = [];
+    }
 
-    // Parse manuals_pdf_json se è una stringa e converti path locali in URL endpoint
+    // Parse videos_json se è una stringa e converti path in URL Supabase Storage
+    let videos_json = row.videos_json;
+    if (videos_json && typeof videos_json === 'string') {
+      try {
+        videos_json = JSON.parse(videos_json);
+      } catch (e) {
+        console.warn('Errore parsing videos_json:', e);
+      }
+    }
+    
+    // Se videos_json è vuoto, prova a caricare dinamicamente dal bucket Supabase
+    if ((!videos_json || (Array.isArray(videos_json) && videos_json.length === 0)) && row.id) {
+      try {
+        // Estrai il nome del prodotto dal model o id (es. "t25p" da "prd_t25p")
+        const productId = row.id.toLowerCase();
+        const modelName = row.model?.toLowerCase() || '';
+        
+        // Prova diversi pattern per trovare la cartella video
+        const possiblePaths = [];
+        if (productId.includes('t25p')) possiblePaths.push('videos/t25p');
+        else if (productId.includes('t25')) possiblePaths.push('videos/t25');
+        else if (productId.includes('t50')) possiblePaths.push('videos/t50');
+        else if (productId.includes('t70p')) possiblePaths.push('videos/t70p');
+        else if (productId.includes('t100')) possiblePaths.push('videos/t100');
+        else if (productId.includes('mavic-3-m') || productId.includes('mavic3m')) possiblePaths.push('videos/mavic-3-m');
+        
+        if (modelName.includes('t25p')) possiblePaths.push('videos/t25p');
+        else if (modelName.includes('t25') && !modelName.includes('t25p')) possiblePaths.push('videos/t25');
+        else if (modelName.includes('t50')) possiblePaths.push('videos/t50');
+        else if (modelName.includes('t70p')) possiblePaths.push('videos/t70p');
+        else if (modelName.includes('t100')) possiblePaths.push('videos/t100');
+        else if (modelName.includes('mavic-3-m') || modelName.includes('mavic3m')) possiblePaths.push('videos/mavic-3-m');
+        
+        // Se non trovato, usa il productId senza prefisso
+        if (possiblePaths.length === 0) {
+          const cleanId = productId.replace(/^prd_/, '').replace(/^product_/, '');
+          possiblePaths.push(`videos/${cleanId}`);
+        }
+        
+        // Prova a caricare dinamicamente i video dal bucket Supabase
+        const bucketName = getStorageBucket();
+        const supabaseUrl = getSupabaseUrl();
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+        
+        if (supabaseUrl && supabaseKey && possiblePaths.length > 0) {
+          try {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+            
+            // Prova ogni path possibile finché non trova video
+            for (const videoPath of possiblePaths) {
+              const { data: files, error } = await supabase.storage
+                .from(bucketName)
+                .list(videoPath, {
+                  limit: 50,
+                  sortBy: { column: 'name', order: 'asc' }
+                });
+              
+              if (!error && files && files.length > 0) {
+                // Filtra solo file video
+                const videoFiles = files.filter(f => 
+                  f.id !== null && 
+                  (f.name.toLowerCase().endsWith('.mp4') || 
+                   f.name.toLowerCase().endsWith('.webm') || 
+                   f.name.toLowerCase().endsWith('.mov') ||
+                   f.name.toLowerCase().endsWith('.avi'))
+                );
+                
+                if (videoFiles.length > 0) {
+                  const dynamicVideos = videoFiles.map((file) => {
+                    const fullPath = `${videoPath}/${file.name}`;
+                    const supabaseUrl = publicObjectUrl(undefined, fullPath);
+
+                    const mimeType = file.name.toLowerCase().endsWith('.mp4') ? 'video/mp4' :
+                                     file.name.toLowerCase().endsWith('.webm') ? 'video/webm' :
+                                     file.name.toLowerCase().endsWith('.mov') ? 'video/quicktime' :
+                                     'video/*';
+
+                    return {
+                      url: supabaseUrl,
+                      title: `${row.model} - ${file.name}`,
+                      type: mimeType
+                    };
+                  });
+                  
+                  console.log(`✅ Caricati ${dynamicVideos.length} video dinamicamente per ${row.model} da bucket Supabase (${videoPath})`);
+                  videos_json = dynamicVideos;
+                  break; // Usa la prima cartella che ha video
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Errore caricamento video dinamici dal bucket:', e);
+          }
+        }
+      } catch (e) {
+        console.warn('Errore caricamento video dinamici:', e);
+      }
+    }
+    
+    // Converti path in URL Supabase Storage (priorità) o endpoint locale (fallback sviluppo)
+    if (Array.isArray(videos_json)) {
+      videos_json = videos_json.map((video: any) => {
+        const videoUrl = typeof video === 'string' ? video : (video.url || video);
+        if (typeof videoUrl === 'string' && !videoUrl.startsWith('http://') && !videoUrl.startsWith('https://')) {
+          try {
+            // PRIORITÀ: Usa Supabase Storage
+            const storagePath = videoUrl.startsWith('/videos/') 
+              ? videoUrl.replace(/^\/videos\//, 'videos/') 
+              : videoUrl.startsWith('/') 
+                ? videoUrl.substring(1) 
+                : videoUrl;
+            const supabaseUrl = publicObjectUrl(undefined, storagePath);
+            return typeof video === 'string' ? supabaseUrl : { ...video, url: supabaseUrl };
+          } catch (e) {
+            console.warn('Errore conversione video URL:', e);
+          }
+        }
+        return video;
+      });
+    }
+    if (!Array.isArray(videos_json)) {
+      videos_json = [];
+    }
+
+    // Parse manuals_pdf_json se è una stringa e converti path in URL Supabase Storage
     let manuals_pdf_json = row.manuals_pdf_json;
     if (manuals_pdf_json && typeof manuals_pdf_json === 'string') {
       try {
@@ -398,14 +597,28 @@ app.get('/:id', async (c) => {
     if (!Array.isArray(manuals_pdf_json)) {
       manuals_pdf_json = [];
     }
-    // Converti path locali in URL endpoint per PDF
+    // Converti path in URL Supabase Storage (priorità) o endpoint locale (fallback sviluppo)
     manuals_pdf_json = manuals_pdf_json.map((manual: any) => {
       const manualUrl = typeof manual === 'string' ? manual : (manual.url || manual.filename || manual);
-      if (typeof manualUrl === 'string' && (manualUrl.startsWith('/manuals/') || manualUrl.startsWith('/pdf/'))) {
-        const localPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', manualUrl);
-        if (fs.existsSync(localPath)) {
-          const relativePath = manualUrl.replace(/^\/(manuals|pdf)\//, '');
-          return typeof manual === 'string' ? `/api/drones/manuals/${relativePath}` : { ...manual, url: `/api/drones/manuals/${relativePath}` };
+      if (typeof manualUrl === 'string' && !manualUrl.startsWith('http://') && !manualUrl.startsWith('https://')) {
+        try {
+          // PRIORITÀ: Usa Supabase Storage
+          const storagePath = manualUrl.startsWith('/manuals/') || manualUrl.startsWith('/pdf/')
+            ? manualUrl.replace(/^\/(manuals|pdf)\//, 'manuals/')
+            : manualUrl.startsWith('/')
+              ? manualUrl.substring(1)
+              : manualUrl;
+          const supabaseUrl = publicObjectUrl(undefined, storagePath);
+          return typeof manual === 'string' ? supabaseUrl : { ...manual, url: supabaseUrl };
+        } catch (e) {
+          // Fallback: solo in sviluppo locale
+          if (process.env.NODE_ENV === 'development' && (manualUrl.startsWith('/manuals/') || manualUrl.startsWith('/pdf/'))) {
+            const localPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', manualUrl);
+            if (fs.existsSync(localPath)) {
+              const relativePath = manualUrl.replace(/^\/(manuals|pdf)\//, '');
+              return typeof manual === 'string' ? `/api/drones/manuals/${relativePath}` : { ...manual, url: `/api/drones/manuals/${relativePath}` };
+            }
+          }
         }
       }
       return manual;
@@ -423,6 +636,7 @@ app.get('/:id', async (c) => {
       specsExtra: specs_extra_json,
       manuals: manuals_pdf_json,
       images: images_json,
+      videos: videos_json,
       imageUrl,
       glbUrl
     };
