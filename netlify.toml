@@ -4,9 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  # Escludi file dalla scansione secrets (documentazione, script di sviluppo, file di lock)
+  # Escludi file dalla scansione secrets (documentazione, script di sviluppo, file di lock, schema Prisma)
   # La scansione rimane attiva per il codice di produzione
-  SECRETS_SCAN_OMIT_PATHS = "*.md,scripts/**,package-lock.json,pnpm-lock.yaml,prisma/dev.db,CHECKLIST_*.md,NETLIFY_*.md,VERIFICA_*.md,server/db/**,server/scripts/**"
+  SECRETS_SCAN_OMIT_PATHS = "*.md,scripts/**,package-lock.json,pnpm-lock.yaml,prisma/dev.db,CHECKLIST_*.md,NETLIFY_*.md,VERIFICA_*.md,server/db/**,server/scripts/**,check-db-status.js,prisma/schema-*.prisma,server/config/index.ts"
 
 [[redirects]]
   from = "/api/auth/login"

@@ -106,8 +106,9 @@ exports.handler = async (event, context) => {
       console.log('🔍 Esplorando bucket Media FIle...');
 
       try {
+        const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media FIle';
         const { data: files, error } = await supabase.storage
-          .from('Media FIle')
+          .from(bucketName)
           .list('', {
             limit: 1000,
             sortBy: { column: 'name', order: 'asc' }
@@ -136,7 +137,7 @@ exports.handler = async (event, context) => {
         for (const folder of folders) {
           try {
             const { data: folderFiles, error: folderError } = await supabase.storage
-              .from('Media FIle')
+              .from(bucketName)
               .list(folder, {
                 limit: 100,
                 sortBy: { column: 'name', order: 'asc' }
