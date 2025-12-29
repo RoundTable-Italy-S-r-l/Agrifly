@@ -30,6 +30,11 @@
   to = "/.netlify/functions/catalog-public"
   status = 200
 
+[[redirects]]
+  from = "/api/ecommerce/cart"
+  to = "/.netlify/functions/ecommerce-cart"
+  status = 200
+
 # Tutte le altre route API vanno alla function api.ts
 [[redirects]]
   from = "/api/*"

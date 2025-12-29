@@ -72,7 +72,15 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const token = 'dummy-token-' + Date.now();
+    // Genera JWT valido
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({
+      userId: user.id,
+      email: user.email,
+      orgId: user.org_id,
+      role: user.membership_role || user.user_role || 'admin',
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
+    }, process.env.JWT_SECRET);
 
     const response = {
       token,
