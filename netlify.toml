@@ -9,38 +9,13 @@
   # La scansione rimane attiva per il codice di produzione critico
   SECRETS_SCAN_OMIT_PATHS = "*.md,scripts/**,package-lock.json,pnpm-lock.yaml,prisma/dev.db,CHECKLIST_*.md,NETLIFY_*.md,VERIFICA_*.md,server/db/**,server/scripts/**,check-db-status.js,prisma/schema-*.prisma,server/config/index.ts,server/routes/**,server/utils/database.ts"
 
-[[redirects]]
-  from = "/api/auth/login"
-  to = "/.netlify/functions/auth-login-pg"
-  status = 200
-
+# Tutte le route API vanno alla funzione principale api.ts
+# Nessuna funzione separata - tutto gestito dal server principale
 [[redirects]]
   from = "/api/services/*"
   to = "/.netlify/functions/services"
   status = 200
 
-# Route specifiche per funzioni dedicate (solo quelle critiche che danno problemi)
-[[redirects]]
-  from = "/api/auth/login"
-  to = "/.netlify/functions/auth-login-pg"
-  status = 200
-
-[[redirects]]
-  from = "/api/catalog/public"
-  to = "/.netlify/functions/catalog-public"
-  status = 200
-
-[[redirects]]
-  from = "/api/ecommerce/cart"
-  to = "/.netlify/functions/ecommerce-cart"
-  status = 200
-
-[[redirects]]
-  from = "/api/auth/me"
-  to = "/.netlify/functions/auth-me"
-  status = 200
-
-# Tutte le altre route API vanno alla function api.ts
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api"
