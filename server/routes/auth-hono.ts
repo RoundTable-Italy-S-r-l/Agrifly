@@ -266,11 +266,18 @@ app.post('/login', async (c) => {
     const body = await c.req.json();
     const { email, password } = body;
 
-    console.log('🔐 Login attempt:', { 
+    console.log('🔐 [AUTH LOGIN] Login attempt:', { 
       email, 
       hasPassword: !!password, 
       passwordLength: password?.length,
       bodyKeys: Object.keys(body)
+    });
+    console.log('🔐 [AUTH LOGIN] Environment check:', {
+      hasPGHOST: !!process.env.PGHOST,
+      hasPGUSER: !!process.env.PGUSER,
+      hasPGPASSWORD: !!process.env.PGPASSWORD,
+      hasJWT_SECRET: !!process.env.JWT_SECRET,
+      isNetlify: !!(process.env.NETLIFY || process.env.NETLIFY_BUILD)
     });
 
     if (!email || !password) {
@@ -295,22 +302,24 @@ app.post('/login', async (c) => {
       WHERE u.email = $1 AND u.status = 'ACTIVE'
     `, [email]);
 
-    console.log('🔍 Query result:', {
+    console.log('🔍 [AUTH LOGIN] Query result:', {
       rowsFound: userResult.rows.length,
       email: email
     });
 
     if (userResult.rows.length === 0) {
-      console.log('❌ Utente non trovato o non attivo');
+      console.log('❌ [AUTH LOGIN] Utente non trovato o non attivo');
       return c.json({ error: 'Credenziali invalide' }, 401);
     }
 
     const user = userResult.rows[0];
-    console.log('👤 Utente trovato:', {
+    console.log('👤 [AUTH LOGIN] Utente trovato:', {
       id: user.id,
       email: user.email,
       hasPasswordHash: !!user.password_hash,
       hasPasswordSalt: !!user.password_salt,
+      passwordHashLength: user.password_hash?.length,
+      passwordSaltLength: user.password_salt?.length,
       status: user.status,
       user_role: user.user_role,
       membership_role: user.membership_role,
@@ -323,24 +332,24 @@ app.post('/login', async (c) => {
     let passwordValid = false;
     if (user.password_salt && user.password_hash) {
       // Nuovo sistema PBKDF2
-      console.log('🔐 Verifica password con PBKDF2...');
+      console.log('🔐 [AUTH LOGIN] Verifica password con PBKDF2...');
       passwordValid = verifyPassword(password, user.password_hash, user.password_salt);
-      console.log('🔐 Risultato verifica PBKDF2:', passwordValid);
+      console.log('🔐 [AUTH LOGIN] Risultato verifica PBKDF2:', passwordValid);
     } else if (user.password_hash) {
       // Legacy bcrypt
-      console.log('🔐 Verifica password con bcrypt...');
+      console.log('🔐 [AUTH LOGIN] Verifica password con bcrypt...');
       passwordValid = await bcrypt.compare(password, user.password_hash);
-      console.log('🔐 Risultato verifica bcrypt:', passwordValid);
+      console.log('🔐 [AUTH LOGIN] Risultato verifica bcrypt:', passwordValid);
     } else {
-      console.log('❌ Nessun hash password trovato');
+      console.log('❌ [AUTH LOGIN] Nessun hash password trovato');
     }
 
     if (!passwordValid) {
-      console.log('❌ Password non valida');
+      console.log('❌ [AUTH LOGIN] Password non valida');
       return c.json({ error: 'Credenziali invalide' }, 401);
     }
 
-    console.log('✅ Password verificata con successo');
+    console.log('✅ [AUTH LOGIN] Password verificata con successo');
 
     // Determina ruolo: normalizza e fallback (prima da user.role, poi da membership_role, poi default)
     const rawUserRole = user.user_role || user.membership_role;
@@ -474,6 +483,16 @@ app.get('/me', async (c) => {
     const orgId = user.org_id || null;
     const orgName = user.legal_name || null;
     const isAdmin = userRole === 'admin';
+    
+    console.log('🔍 [AUTH ME] User data:', {
+      userId: user.id,
+      email: user.email,
+      userRole,
+      orgType,
+      orgId,
+      orgName,
+      isAdmin
+    });
 
     // Capabilities derivate dal tipo organizzazione e ruolo utente
     const capabilities = {

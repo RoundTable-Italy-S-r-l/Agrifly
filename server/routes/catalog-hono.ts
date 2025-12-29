@@ -410,7 +410,13 @@ app.get('/public', async (c) => {
     const minPrice = c.req.query('minPrice') ? parseInt(c.req.query('minPrice')!) : null;
     const maxPrice = c.req.query('maxPrice') ? parseInt(c.req.query('maxPrice')!) : null;
 
-    console.log('🌐 Richiesta catalogo pubblico prodotti', { category, minPrice, maxPrice });
+    console.log('🌐 [CATALOG PUBLIC] Richiesta catalogo pubblico prodotti', { category, minPrice, maxPrice });
+    console.log('🌐 [CATALOG PUBLIC] Environment check:', {
+      hasPGHOST: !!process.env.PGHOST,
+      hasPGUSER: !!process.env.PGUSER,
+      hasPGPASSWORD: !!process.env.PGPASSWORD,
+      isNetlify: !!(process.env.NETLIFY || process.env.NETLIFY_BUILD)
+    });
 
     // Query per ottenere TUTTI i prodotti dalla tabella products
     // Mostra tutti i prodotti attivi, a prescindere dal vendor
@@ -443,7 +449,7 @@ app.get('/public', async (c) => {
           JOIN skus s2 ON vci.sku_id = s2.id
           LEFT JOIN inventories i2 ON vci.sku_id = i2.sku_id AND i2.vendor_org_id = vci.vendor_org_id
           WHERE s2.product_id = p.id
-            AND vci.is_for_sale = 1
+            AND vci.is_for_sale = true
             AND (COALESCE(i2.qty_on_hand, 0) - COALESCE(i2.qty_reserved, 0)) > 0
         ) as vendor_count,
         -- Prezzo minimo tra tutti i vendor (anche offerte)
@@ -468,7 +474,7 @@ app.get('/public', async (c) => {
           JOIN skus s_total ON vci_total.sku_id = s_total.id
           LEFT JOIN inventories i_total ON vci_total.sku_id = i_total.sku_id AND i_total.vendor_org_id = vci_total.vendor_org_id
           WHERE s_total.product_id = p.id
-            AND vci_total.is_for_sale = 1
+            AND vci_total.is_for_sale = true
         ) as total_stock
       FROM products p
       WHERE p.status = 'ACTIVE'
@@ -487,12 +493,12 @@ app.get('/public', async (c) => {
     // Ordina per brand e model
     querySql += ` ORDER BY p.brand, p.model`;
 
-    console.log('🔍 Eseguendo query SQL:', querySql.substring(0, 200) + '...');
-    console.log('🔍 Parametri:', params);
+    console.log('🔍 [CATALOG PUBLIC] Eseguendo query SQL:', querySql.substring(0, 300) + '...');
+    console.log('🔍 [CATALOG PUBLIC] Parametri:', params);
     
     const result = await query(querySql, params);
 
-    console.log(`📦 Prodotti trovati nel catalogo pubblico: ${result.rows.length}`);
+    console.log(`📦 [CATALOG PUBLIC] Prodotti trovati: ${result.rows.length}`);
     if (result.rows.length > 0) {
       const firstRow = result.rows[0];
       console.log('📦 Primo prodotto:', {
@@ -575,10 +581,12 @@ app.get('/public', async (c) => {
     return c.json({ products: filteredProducts });
 
   } catch (error: any) {
-    console.error('❌ Errore get public catalog:', error);
-    console.error('❌ Stack:', error.stack);
-    console.error('❌ Query SQL:', querySql?.substring(0, 500));
-    console.error('❌ Parametri:', params);
+    console.error('❌ [CATALOG PUBLIC] Errore get public catalog:', error);
+    console.error('❌ [CATALOG PUBLIC] Error message:', error.message);
+    console.error('❌ [CATALOG PUBLIC] Error code:', error.code);
+    console.error('❌ [CATALOG PUBLIC] Stack:', error.stack);
+    console.error('❌ [CATALOG PUBLIC] Query SQL:', querySql?.substring(0, 500));
+    console.error('❌ [CATALOG PUBLIC] Parametri:', params);
     // NON restituire dati mock in caso di errore - restituisci solo errore
     return c.json({
       error: 'Errore interno',
@@ -647,7 +655,7 @@ app.get('/product/:productId/vendors', async (c) => {
       )
         AND o.org_type = 'VENDOR'
         AND o.status = 'ACTIVE'
-        AND vci.is_for_sale = 1
+        AND vci.is_for_sale = true
         AND s.status = 'ACTIVE'
         AND p.status = 'ACTIVE'
       GROUP BY o.id, o.legal_name, o.logo_url, o.address_line, o.city, o.province, o.postal_code, s.id, s.sku_code, vci.lead_time_days, vci.notes
