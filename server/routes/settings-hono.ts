@@ -526,16 +526,19 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
       return c.json({ error: 'User already invited' }, 400);
     }
 
-    // Genera token univoco
+    // Genera token univoco e ID
     const token = require('crypto').randomBytes(32).toString('hex');
+    const inviteId = 'c' + require('crypto').randomBytes(12).toString('hex'); // Fake CUID
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 giorni
+
+    console.log('📧 [INVITE] Creando invito con ID:', inviteId);
 
     // Crea invito
     const result = await query(`
-      INSERT INTO organization_invitations (organization_id, email, role, token, status, expires_at, invited_by_user_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO organization_invitations (id, organization_id, email, role, token, status, expires_at, invited_by_user_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id
-        `, [orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id]);
+        `, [inviteId, orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id]);
 
     // Invia email di invito
     const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:8082'}/accept-invite?token=${token}`;
