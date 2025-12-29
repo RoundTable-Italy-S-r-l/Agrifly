@@ -103,7 +103,7 @@ exports.handler = async (event, context) => {
     // Routing basato sul metodo HTTP e path
     if (event.path.includes('/explore-bucket') && event.httpMethod === 'GET') {
       // GET /api/services/explore-bucket - Esplora bucket Supabase
-      console.log('🔍 Esplorando bucket Media FIle...');
+      console.log('🔍 Esplorando bucket Supabase...');
 
       try {
         if (!process.env.SUPABASE_STORAGE_BUCKET) {
