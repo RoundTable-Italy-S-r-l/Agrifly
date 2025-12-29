@@ -35,6 +35,11 @@
   to = "/.netlify/functions/ecommerce-cart"
   status = 200
 
+[[redirects]]
+  from = "/api/auth/me"
+  to = "/.netlify/functions/auth-me"
+  status = 200
+
 # Tutte le altre route API vanno alla function api.ts
 [[redirects]]
   from = "/api/*"
