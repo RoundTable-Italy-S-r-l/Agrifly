@@ -52,8 +52,8 @@ async function setupUser() {
       console.log('📦 Creando organizzazione SSSUP...');
       const orgIdGen = 'org_' + Date.now().toString(36);
       await client.query(
-        'INSERT INTO organizations (id, legal_name, org_type, type, status, country) VALUES ($1, $2, $3, $4, $5, $6)',
-        [orgIdGen, 'SSSUP', 'FARM', 'buyer', 'ACTIVE', 'IT']
+        'INSERT INTO organizations (id, legal_name, org_type, type, status, country, address_line, city, province, region) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+        [orgIdGen, 'SSSUP', 'FARM', 'buyer', 'ACTIVE', 'IT', 'Da completare', 'Da completare', 'Da completare', 'Da completare']
       );
       orgId = orgIdGen;
       console.log('✅ Organizzazione creata:', orgId);
@@ -70,18 +70,27 @@ async function setupUser() {
     
     if (membershipCheck.rows.length === 0) {
       console.log('📝 Creando membership come ADMIN...');
+      // Verifica valori enum OrgRole
+      const roleCheck = await client.query('SELECT DISTINCT role FROM org_memberships LIMIT 1');
+      const validRole = roleCheck.rows.length > 0 ? roleCheck.rows[0].role : 'OWNER';
+      console.log('📝 Usando ruolo:', validRole);
+      
+      const membershipId = 'om_' + Date.now().toString(36);
       await client.query(
-        'INSERT INTO org_memberships (org_id, user_id, role, is_active) VALUES ($1, $2, $3, $4)',
-        [orgId, userId, 'ADMIN', true]
+        'INSERT INTO org_memberships (id, org_id, user_id, role, is_active) VALUES ($1, $2, $3, $4, $5)',
+        [membershipId, orgId, userId, validRole, true]
       );
       console.log('✅ Membership creata come ADMIN');
     } else {
       const membership = membershipCheck.rows[0];
       if (membership.role !== 'ADMIN' || !membership.is_active) {
-        console.log('🔄 Aggiornando membership a ADMIN...');
+        // Verifica valori enum OrgRole
+        const roleCheck = await client.query('SELECT DISTINCT role FROM org_memberships LIMIT 1');
+        const validRole = roleCheck.rows.length > 0 ? roleCheck.rows[0].role : 'OWNER';
+        console.log('🔄 Aggiornando membership a', validRole, '...');
         await client.query(
           'UPDATE org_memberships SET role = $1, is_active = $2 WHERE id = $3',
-          ['ADMIN', true, membership.id]
+          [validRole, true, membership.id]
         );
         console.log('✅ Membership aggiornata a ADMIN');
       } else {
