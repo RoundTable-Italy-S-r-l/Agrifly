@@ -3,16 +3,17 @@ import Database from 'better-sqlite3';
 
 // Funzione per creare una nuova connessione per ogni richiesta (serverless-friendly)
 export const getClient = () => {
-  // Usa SQLite per sviluppo locale, PostgreSQL per produzione
-  // PRIORITÀ: DATABASE_URL con file: ha sempre la precedenza (sviluppo locale)
+  // FORZA PostgreSQL se PGHOST è configurato (anche in development)
+  // Usa SQLite solo se esplicitamente richiesto (DATABASE_URL file: E nessun PGHOST)
+  // Questo permette di usare Supabase anche in locale
   const hasFileDatabase = process.env.DATABASE_URL?.startsWith('file:');
-  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
   const hasPostgresConfig = process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD;
   
-  // Se DATABASE_URL punta a un file, usa SEMPRE SQLite (sviluppo locale)
-  // Altrimenti, se siamo in development senza PGHOST, usa SQLite
-  // Solo in produzione (con PGHOST e senza DATABASE_URL file:) usa PostgreSQL
-  if (hasFileDatabase || (isDevelopment && !hasPostgresConfig)) {
+  // Se PGHOST è configurato, usa SEMPRE PostgreSQL (anche in development)
+  // Altrimenti, se DATABASE_URL punta a un file, usa SQLite
+  if (hasPostgresConfig) {
+    // Salta SQLite, usa PostgreSQL
+  } else if (hasFileDatabase) {
     const db = new Database(process.env.DATABASE_URL?.replace('file:', '') || './prisma/dev.db');
       return {
       query: (text: string, params?: any[]) => {
