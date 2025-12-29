@@ -1,6 +1,6 @@
 [build]
   command = "npm run build"
-  publish = "dist"
+  publish = "dist/spa"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -18,6 +18,14 @@
   from = "/api/services/*"
   to = "/.netlify/functions/services"
   status = 200
+
+# SPA fallback: tutte le route non-API devono andare a index.html per permettere al router client-side di gestirle
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  conditions = {Role = ["admin"], Country = ["US"]}
 
 [functions]
   directory = "netlify/functions"
