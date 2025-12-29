@@ -108,24 +108,23 @@ app.get('/cart', async (c) => {
       let insertQuery: string;
       let insertParams: any[];
 
-      // Genera ID univoco per il carrello
-      const cartId = `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
+      // PostgreSQL genera automaticamente l'UUID con DEFAULT gen_random_uuid()
       if (userId && orgId) {
-        insertQuery = `INSERT INTO shopping_carts (id, user_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)`;
-        insertParams = [cartId, userId, orgId, new Date().toISOString(), new Date().toISOString()];
+        insertQuery = `INSERT INTO shopping_carts (user_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING id`;
+        insertParams = [userId, orgId, new Date().toISOString(), new Date().toISOString()];
       } else if (sessionId) {
         // Carrello guest - usa 'guest_org' come placeholder per org_id (che è NOT NULL)
-        insertQuery = `INSERT INTO shopping_carts (id, session_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)`;
-        insertParams = [cartId, sessionId, orgId || 'guest_org', new Date().toISOString(), new Date().toISOString()];
+        insertQuery = `INSERT INTO shopping_carts (session_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING id`;
+        insertParams = [sessionId, orgId || 'guest_org', new Date().toISOString(), new Date().toISOString()];
       } else if (orgId) {
-        insertQuery = `INSERT INTO shopping_carts (id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4)`;
-        insertParams = [cartId, orgId, new Date().toISOString(), new Date().toISOString()];
+        insertQuery = `INSERT INTO shopping_carts (org_id, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id`;
+        insertParams = [orgId, new Date().toISOString(), new Date().toISOString()];
       } else {
         return c.json({ error: 'Cannot create cart without userId, sessionId, or orgId' }, 400);
       }
 
-      await query(insertQuery, insertParams);
+      const insertResult = await query(insertQuery, insertParams);
+      const cartId = insertResult.rows[0].id;
       
       // Recupera il carrello appena creato
       const newCartResult = await query(cartQuery, cartParams);
