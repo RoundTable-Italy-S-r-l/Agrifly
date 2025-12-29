@@ -1,5 +1,6 @@
 import { Client } from 'pg';
-import Database from 'better-sqlite3';
+// Lazy import per better-sqlite3 (solo se necessario, non su Netlify)
+let Database: any = null;
 
 // Funzione per creare una nuova connessione per ogni richiesta (serverless-friendly)
 export const getClient = () => {
@@ -14,6 +15,14 @@ export const getClient = () => {
   if (hasPostgresConfig) {
     // Salta SQLite, usa PostgreSQL
   } else if (hasFileDatabase) {
+    // Lazy load better-sqlite3 solo se necessario (non su Netlify)
+    if (!Database) {
+      try {
+        Database = require('better-sqlite3');
+      } catch (error: any) {
+        throw new Error(`better-sqlite3 non disponibile. Usa PostgreSQL configurando PGHOST, PGUSER, PGPASSWORD. Errore: ${error.message}`);
+      }
+    }
     const db = new Database(process.env.DATABASE_URL?.replace('file:', '') || './prisma/dev.db');
       return {
       query: (text: string, params?: any[]) => {

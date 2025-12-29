@@ -20,8 +20,11 @@ export const isDevelopment = process.env.NODE_ENV === 'development' || !process.
 export const isProduction = process.env.NODE_ENV === 'production';
 
 // Database type detection
-export const isUsingSQLite = DATABASE_URL.startsWith('file:') || isDevelopment;
-export const isUsingPostgreSQL = DATABASE_URL.startsWith('postgresql://') || DATABASE_URL.startsWith('postgres://');
+// FORZA PostgreSQL se PGHOST è configurato (anche in development)
+// Altrimenti, usa SQLite solo se DATABASE_URL punta a un file
+const hasPostgresConfig = process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD;
+export const isUsingPostgreSQL = hasPostgresConfig || DATABASE_URL.startsWith('postgresql://') || DATABASE_URL.startsWith('postgres://');
+export const isUsingSQLite = !isUsingPostgreSQL && (DATABASE_URL.startsWith('file:') || isDevelopment);
 
 // Resend API Key (per email)
 export const RESEND_API_KEY = process.env.RESEND_API_KEY || null;
