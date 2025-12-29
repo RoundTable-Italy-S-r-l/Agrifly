@@ -20,7 +20,7 @@
   status = 200
 
 # SPA fallback: tutte le route non-API devono andare a index.html per permettere al router client-side di gestirle
-# Questo deve essere l'ultimo redirect per catturare tutte le route non gestite dalle API
+# Netlify processa i redirect in ordine, quindi i redirect API sopra hanno la precedenza
 [[redirects]]
   from = "/*"
   to = "/index.html"
