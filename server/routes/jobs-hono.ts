@@ -228,7 +228,9 @@ app.get('/:jobId', authMiddleware, async (c) => {
 
     // Fetch the job
     const jobResult = await query(`
-      SELECT j.*, o.legal_name as buyer_org_legal_name
+      SELECT j.id, j.buyer_org_id, j.field_name, j.service_type, j.area_ha, j.location_json, 
+             j.target_date_start, j.target_date_end, j.notes, j.status, j.created_at, j.updated_at,
+             o.legal_name as buyer_org_legal_name
       FROM jobs j
       LEFT JOIN organizations o ON j.buyer_org_id = o.id
       WHERE j.id = $1

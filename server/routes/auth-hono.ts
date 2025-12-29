@@ -450,8 +450,12 @@ app.get('/me', async (c) => {
 
     // Trova utente e organizzazione dal database (usa COALESCE per gestire type vs org_type)
     // La colonna u.role DEVE esistere (fa parte della logica di autenticazione/autorizzazione)
+    // Seleziona esplicitamente tutte le colonne per evitare problemi con u.* su PostgreSQL
     const userResult = await query(`
-      SELECT u.*, u.role as user_role, om.role as membership_role, o.id as org_id, o.legal_name, 
+      SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.password_salt, u.password_hash,
+             u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
+             u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
+             u.role as user_role, om.role as membership_role, o.id as org_id, o.legal_name, 
              COALESCE(o.type, o.org_type, 'buyer') as org_type
       FROM users u
       LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
