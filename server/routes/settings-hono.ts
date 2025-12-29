@@ -414,7 +414,17 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     const { email, role } = await c.req.json();
     const user = c.get('user');
 
+    console.log('📧 [INVITE] Richiesta invito ricevuta:', {
+      email,
+      role,
+      userId: user.id,
+      userRole: user.role,
+      userIsAdmin: user.isAdmin,
+      orgId: user.organizationId
+    });
+
     if (!email || !role) {
+      console.log('❌ [INVITE] Email o ruolo mancanti');
       return c.json({ error: 'Email and role required' }, 400);
     }
 
@@ -425,12 +435,23 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     }
 
     // Trova l'organizzazione dell'utente
+    console.log('🔍 [INVITE] Cerco membership per user:', user.id);
     const membership = await query(
       'SELECT om.org_id, o.type, om.role FROM org_memberships om JOIN organizations o ON om.org_id = o.id WHERE om.user_id = $1 AND om.is_active = true',
       [user.id]
     );
 
+    console.log('📋 [INVITE] Membership trovata:', {
+      count: membership.rows.length,
+      membership: membership.rows[0] ? {
+        org_id: membership.rows[0].org_id,
+        org_type: membership.rows[0].type,
+        member_role: membership.rows[0].role
+      } : null
+    });
+
     if (membership.rows.length === 0) {
+      console.log('❌ [INVITE] Nessuna membership attiva trovata per user:', user.id);
       return c.json({ error: 'User not in organization' }, 403);
     }
 
@@ -438,26 +459,51 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     const orgType = membership.rows[0].type;
     const memberRole = membership.rows[0].role;
 
+    console.log('🔐 [INVITE] Controllo permessi:', {
+      memberRole,
+      userIsAdmin: user.isAdmin,
+      memberRoleIsAdmin: memberRole === 'admin',
+      canInvite: memberRole === 'admin' || user.isAdmin
+    });
+
     // Verifica che l'utente abbia il permesso di invitare (admin dell'organizzazione o admin globale)
     if (memberRole !== 'admin' && !user.isAdmin) {
+      console.log('❌ [INVITE] Permessi negati:', {
+        memberRole,
+        userIsAdmin: user.isAdmin,
+        reason: 'Né admin dell\'org né admin globale'
+      });
       return c.json({ error: 'Only admins can invite users' }, 403);
     }
 
+    console.log('✅ [INVITE] Permessi OK, procedo con invito');
+
     // Validazione ruoli basata su tipo organizzazione
+    console.log('🔍 [INVITE] Validazione ruolo per org type:', { orgType, requestedRole: role });
+
     if (orgType === 'buyer') {
       // Buyer organizations possono avere solo membri admin
+      console.log('🏢 [INVITE] Org buyer - controllo se ruolo è admin');
       if (role !== 'admin') {
+        console.log('❌ [INVITE] Ruolo non valido per buyer org:', role);
         return c.json({ error: 'Buyer organizations can only have admin members' }, 400);
       }
     } else if (orgType === 'vendor' || orgType === 'operator') {
       // Vendor/operator organizations possono avere admin, vendor, operator, dispatcher
       const allowedRoles = ['admin', 'vendor', 'operator', 'dispatcher'];
+      console.log('🏭 [INVITE] Org vendor/operator - ruoli permessi:', allowedRoles);
       if (!allowedRoles.includes(role)) {
+        console.log('❌ [INVITE] Ruolo non valido per org:', { role, allowedRoles });
         return c.json({ error: 'Invalid role for this organization type' }, 400);
       }
     } else {
+      console.log('❌ [INVITE] Tipo organizzazione non supportato:', orgType);
       return c.json({ error: 'Unsupported organization type' }, 400);
     }
+
+    console.log('✅ [INVITE] Validazione ruolo OK');
+
+    console.log('🔍 [INVITE] Controllo se utente già invitato o membro');
 
     // Verifica che l'email non sia già invitata o membro
     const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
