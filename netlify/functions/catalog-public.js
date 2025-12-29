@@ -1,7 +1,5 @@
 const { Client } = require('pg');
 
-console.log('🔧 Catalog Public Function loaded');
-
 const client = new Client({
   host: process.env.PGHOST,
   port: Number(process.env.PGPORT || '5432'),
@@ -12,14 +10,7 @@ const client = new Client({
 });
 
 exports.handler = async (event, context) => {
-  console.log('🌐 Catalog Public - Request received:', {
-    method: event.httpMethod,
-    path: event.path,
-    query: event.queryStringParameters
-  });
-
   if (event.httpMethod !== 'GET') {
-    console.log('❌ Method not allowed:', event.httpMethod);
     return {
       statusCode: 405,
       body: JSON.stringify({ error: 'Method not allowed' })
@@ -27,17 +18,16 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    console.log('🔌 Connecting to database...');
+    console.log('🌐 Catalog Public - Request received');
     await client.connect();
     console.log('✅ Database connected');
 
     const category = event.queryStringParameters?.category;
     const minPrice = event.queryStringParameters?.minPrice ? parseInt(event.queryStringParameters.minPrice) : null;
-    const maxPrice = event.queryStringParameters?.maxPrice ? parseInt(event.queryStringParameters.maxPrice) : null;
+    const maxPrice = event.yStringParameters?.maxPrice ? parseInt(event.queryStringParameters.maxPrice) : null;
 
     console.log('🔍 Query parameters:', { category, minPrice, maxPrice });
 
-    // Query principale per prodotti
     let querySql = `
       SELECT DISTINCT
         p.id as product_id,
@@ -60,17 +50,15 @@ exports.handler = async (event, context) => {
           ),
           p.id
         ) as productId,
-        -- Contquanti vendor vendono questo prodotto con stock > 0
         (
           SELECT COUNT(DISTINCT vci.vendor_org_id)
           FROM vendor_catalog_items vci
           JOIN skus s2 ON vci.sku_id = s2.id
           LEFT JOIN inventories i2 ON vci.sku_id = i2.sku_id AND i2.vendor_org_id = vci.vendor_org_id
-          WHERE s2.product_id = p.id
+          WHERE s2.product_id = id
             AND vci.is_for_sale = 1
             AND (COALESCE(i2.qty_on_hand, 0) - COALESCE(i2.qty_reserved, 0)) > 0
         ) as vendor_count,
-        -- Prezzo minimo tra tutti i vendor
         (
           SELECT MIN(pli.price_cents / 100.0)
           FROM price_list_items pli
@@ -85,7 +73,6 @@ exports.handler = async (event, context) => {
             AND vci_price.is_for_sale = 1
             AND (COALESCE(i_price.qty_on_hand, 0) - COALESCE(i_price.qty_reserved, 0)) > 0
         ) as min_price_euros,
-        -- Stock totale disponibile
         (
           SELECT COALESCE(SUM(i_total.qty_on_hand - COALESCE(i_total.qty_reserved, 0)), 0)
           FROM vendor_catalog_items vci_total
@@ -109,86 +96,26 @@ exports.handler = async (event, context) => {
 
     querySql += ` ORDER BY p.brand, p.model`;
 
-    console.log('🔍 Executing query:', querySql.substring(0, 100) + '...');
-    console.log('🔍 Parameters:', params);
-
+    console.log('🔍 Executing query...');
     const result = await client.query(querySql, params);
-    console.log(`📦 Query result: ${result.rows.length} products found`);
+    console.log(`📦 Found ${result.rows.length} products`);
 
-    if (result.rows.length > 0) {
-      console.log('📦 First product:', {
-        id: result.rows[0].product_id,
-        name: result.rows[0].product_name,
-        brand: result.rows[0].brand,
-        type: result.rows[0].product_type
-      });
-    }
-
-    // Processa risultati
-    const products = result.rows.map(row => {
-      console.log('🔄 Processing product:', row.product_id, row.product_name);
-
-      // Estrai GLB URL
-      let glbUrl;
-      let imageUrl;
-
-      // GLB
-      if (row.glb_files_json) {
-        try {
-          const glbFiles = typeof row.glb_files_json === 'string' 
-            ? JSON.parse(row.glb_files_json) 
-            : row.glb_files_json;
-          if (Array.isArray(&& glbFiles.length > 0) {
-            const firstGlb = glbFiles[0];
-            let rawUrl = firstGlb.url || firstGlb.filename || firstGlb;
-            if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
-              glbUrl = rawUrl;
-            }
-          }
-        } catch (e) {
-          console.warn('Errore parsing glb_files_json:', e);
-        }
-      }
-
-      // Immagini
-      if (row.images_json) {
-        try {
-          const images = typeof row.images_json === 'string' 
-            ? JSON.parse(row.images_json) 
-            : row.images_json;
-          if (Array.isArray(images) && images.length > 0) {
-            const firstImage = images[0];
-            let rawUrl = firstImage.url || firstImage.filename || firstImage;
-            if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
-              imageUrl = rawUrl;
-            }
-          }
-        } catch (e) {
-          console.warn('Errore parsing images_json:', e);
-        }
-      }
-
-      const vendorCount = parseInt(row.vendor_count) || 0;
-      const minPrice = row.min_price_euros ? parseFloat(row.min_price_euros) : null;
-      const totalStock = parseInt(row.total_stock) || 0;
-
-      return {
-        id: row.product_id,
-        productId: row.productid || row.productId || row.product_id,
-        name: row.product_name,
-        model: row.model,
-        brand: row.brand,
-        category: row.product_type,
-        imageUrl,
-        glbUrl,
-        description: `${row.brand} ${row.model} - ${row.product_name}`,
-        specs: row.specs_json,
-        specsCore: row.specs_core_json,
-        vendorCount,
-        price: minPrice,
-        stock: totalStock
-      };
-    });
+    const products = result.rows.map(row => ({
+      id: row.product_id,
+      productId: row.productid || row.productId || row.product_id,
+      name: row.product_name,
+      model: row.model,
+     nd: row.brand,
+      category: row.product_type,
+      imageUrl: null,
+      glbUrl: null,
+      description: `${row.brand} ${row.model} - ${row.product_name}`,
+      specs: row.specs_json,
+      specsCore: row.specs_core_json,
+      vendorCount: parseInt(row.vendor_count) || 0,
+      price: row.min_price_euros ? parseFloat(row.min_price_euros) : null,
+      stock: parseInt(row.total_stock) || 0
+    }));
 
     console.log(`✅ Returning ${products.length} products`);
 
@@ -201,21 +128,17 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('❌ Catalog erro error);
-    console.error('❌ Stack:', error.stack);
-
+    console.error('❌ Catalog error:', error.message);
+    
     try {
       await client.end();
-    } catch (e) {
-      // Ignora errori di chiusura
-    }
+    } catch (e) {}
     
     return {
       statusCode: 500,
       body: JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
+        message: error.message 
       })
     };
   }
