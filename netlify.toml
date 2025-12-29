@@ -19,6 +19,12 @@
   to = "/.netlify/functions/services"
   status = 200
 
+# Route specifiche per funzioni dedicate
+[[redirects]]
+  from = "/api/catalog/public"
+  to = "/.netlify/functions/catalog-public"
+  status = 200
+
 # Tutte le altre route API vanno alla function api.ts
 [[redirects]]
   from = "/api/*"
