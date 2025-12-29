@@ -361,7 +361,7 @@ app.get('/organization/invitations', authMiddleware, async (c) => {
     // Verifica che l'utente appartenga all'organizzazione o sia un admin globale
     const membership = await query(
       'SELECT role FROM org_memberships WHERE org_id = $1 AND user_id = $2 AND is_active = true',
-      [orgId, user.id]
+      [orgId, user.userId || user.id]
     );
 
     // Permetti accesso se è membro dell'organizzazione o è admin globale
@@ -417,7 +417,7 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     console.log('📧 [INVITE] Richiesta invito ricevuta:', {
       email,
       role,
-      userId: user.id,
+      userId: user.userId || user.id,
       userRole: user.role,
       userIsAdmin: user.isAdmin,
       orgId: user.organizationId
@@ -435,10 +435,10 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     }
 
     // Trova l'organizzazione dell'utente
-    console.log('🔍 [INVITE] Cerco membership per user:', user.id);
+    console.log('🔍 [INVITE] Cerco membership per user:', user.userId || user.id);
     const membership = await query(
       'SELECT om.org_id, o.type, om.role FROM org_memberships om JOIN organizations o ON om.org_id = o.id WHERE om.user_id = $1 AND om.is_active = true',
-      [user.id]
+      [user.userId || user.id]
     );
 
     console.log('📋 [INVITE] Membership trovata:', {
@@ -451,7 +451,7 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     });
 
     if (membership.rows.length === 0) {
-      console.log('❌ [INVITE] Nessuna membership attiva trovata per user:', user.id);
+      console.log('❌ [INVITE] Nessuna membership attiva trovata per user:', user.userId || user.id);
       return c.json({ error: 'User not in organization' }, 403);
     }
 
@@ -535,7 +535,7 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
       INSERT INTO organization_invitations (organization_id, email, role, token, status, expires_at, invited_by_user_id)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id
-    `, [orgId, email, role, token, 'PENDING', expiresAt, user.id]);
+        `, [orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id]);
 
     // Invia email di invito
     const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:8082'}/accept-invite?token=${token}`;
