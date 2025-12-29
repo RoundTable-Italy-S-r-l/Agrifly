@@ -4,6 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  # Escludi file dalla scansione secrets (documentazione, script di sviluppo, file di lock)
+  SECRETS_SCAN_OMIT_PATHS = "*.md,scripts/**,package-lock.json,pnpm-lock.yaml,prisma/dev.db,CHECKLIST_*.md,NETLIFY_*.md,VERIFICA_*.md,server/db/**,server/scripts/**"
 
 [[redirects]]
   from = "/api/auth/login"
@@ -23,3 +25,7 @@
 [functions."api.ts"]
   included_files = ["server/**", "shared/**"]
   excluded_files = ["server/utils/file-db.ts", "server/utils/mock-data.ts"]
+
+# Escludi file dalla scansione secrets (documentazione, script di sviluppo, file di lock)
+[build.environment]
+  SECRETS_SCAN_OMIT_PATHS = "*.md,scripts/**,package-lock.json,pnpm-lock.yaml,prisma/dev.db,CHECKLIST_*.md,NETLIFY_*.md,VERIFICA_*.md"
