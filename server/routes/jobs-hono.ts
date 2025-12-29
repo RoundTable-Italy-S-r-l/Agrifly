@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { query } from '../utils/database';
-import { readData, writeData } from '../utils/file-db';
+// file-db.ts non è compatibile con Netlify Functions (usa import.meta)
+// Usiamo solo il database SQLite/PostgreSQL, non file-db
 
 const app = new Hono();
 

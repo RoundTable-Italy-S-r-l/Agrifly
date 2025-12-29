@@ -1,5 +1,14 @@
 import { Hono } from 'hono';
-import app from '../../server/hono-app';
+// Import dinamico per evitare problemi con moduli ESM/CJS
+let app: any;
+async function getApp() {
+  if (!app) {
+    // Import dinamico per evitare problemi con file-db.ts e altri moduli problematici
+    const module = await import('../../server/hono-app');
+    app = module.default;
+  }
+  return app;
+}
 
 // Crea handler per Netlify Functions
 export async function handler(event: any, context: any) {
@@ -36,11 +45,14 @@ export async function handler(event: any, context: any) {
       };
     }
 
+    // Carica l'app dinamicamente
+    const honoAppInstance = await getApp();
+    
     // Wrappa l'app Hono per Netlify
     const honoApp = new Hono();
 
     // Monta l'app principale
-    honoApp.route('/', app);
+    honoApp.route('/', honoAppInstance);
 
     // Costruisci URL corretto per Netlify
     const host = event.headers.host || 'localhost';

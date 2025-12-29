@@ -17,3 +17,9 @@
 
 [functions]
   directory = "netlify/functions"
+  included_files = ["server/**", "shared/**"]
+  node_bundler = "esbuild"
+  
+[functions."api.ts"]
+  included_files = ["server/**", "shared/**"]
+  excluded_files = ["server/utils/file-db.ts", "server/utils/mock-data.ts"]

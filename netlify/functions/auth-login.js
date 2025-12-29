@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs'); // Usa bcryptjs invece di bcrypt (puro JS, no moduli nativi)
 const jwt = require('jsonwebtoken');
 
 const supabase = createClient(
