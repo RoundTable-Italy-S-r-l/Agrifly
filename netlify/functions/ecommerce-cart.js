@@ -58,7 +58,7 @@ exports.handler = async (event, context) => {
         insertQuery = 'INSERT INTO shopping_carts (id, user_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)';
         insertParams = [cartId, userId, orgId, new Date().toISOString(), new Date().toISOString()];
       } else {
-        insertQuery 'INSERT INTO shopping_carts (id, session_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)';
+        insertQuery = 'INSERT INTO shopping_carts (id, session_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)';
         insertParams = [cartId, sessionId, orgId, new Date().toISOString(), new Date().toISOString()];
       }
       
