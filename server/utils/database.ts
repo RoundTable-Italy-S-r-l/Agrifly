@@ -94,6 +94,8 @@ export const query = async (text: string, params?: any[]) => {
         
         // Converti funzioni PostgreSQL in SQLite
         sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "datetime('now')");
+        // Rimuovi cast PostgreSQL (::text, ::integer, etc.) - SQLite non li supporta
+        sqliteQuery = sqliteQuery.replace(/::\w+/g, '');
         // Converti virgolette doppie in virgolette singole per valori stringa SQLite
         sqliteQuery = sqliteQuery.replace(/=\s*"([^"]+)"/g, "= '$1'");
         
