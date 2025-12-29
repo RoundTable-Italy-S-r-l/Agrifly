@@ -358,13 +358,16 @@ app.get('/organization/invitations', authMiddleware, async (c) => {
       return c.json({ error: 'Organization ID required' }, 400);
     }
 
-    // Verifica che l'utente appartenga all'organizzazione
+    // Verifica che l'utente appartenga all'organizzazione o sia un admin globale
     const membership = await query(
       'SELECT role FROM org_memberships WHERE org_id = $1 AND user_id = $2 AND is_active = true',
       [orgId, user.id]
     );
 
-    if (membership.rows.length === 0) {
+    // Permetti accesso se è membro dell'organizzazione o è admin globale
+    const hasAccess = membership.rows.length > 0 || user.isAdmin;
+
+    if (!hasAccess) {
       return c.json({ error: 'Access denied' }, 403);
     }
 
@@ -423,7 +426,7 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
 
     // Trova l'organizzazione dell'utente
     const membership = await query(
-      'SELECT om.org_id, o.type FROM org_memberships om JOIN organizations o ON om.org_id = o.id WHERE om.user_id = $1 AND om.is_active = true',
+      'SELECT om.org_id, o.type, om.role FROM org_memberships om JOIN organizations o ON om.org_id = o.id WHERE om.user_id = $1 AND om.is_active = true',
       [user.id]
     );
 
@@ -433,9 +436,10 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
 
     const orgId = membership.rows[0].org_id;
     const orgType = membership.rows[0].type;
+    const memberRole = membership.rows[0].role;
 
-    // Verifica che l'utente abbia il permesso di invitare (solo admin possono invitare)
-    if (membership.rows[0].role !== 'admin') {
+    // Verifica che l'utente abbia il permesso di invitare (admin dell'organizzazione o admin globale)
+    if (memberRole !== 'admin' && !user.isAdmin) {
       return c.json({ error: 'Only admins can invite users' }, 403);
     }
 
@@ -527,8 +531,8 @@ app.post('/organization/invitations/revoke/:invitationId', authMiddleware, async
       return c.json({ error: 'Invitation not found' }, 404);
     }
 
-    // Solo admin possono revocare inviti
-    if (invitation.rows[0].inviter_role !== 'admin') {
+    // Solo admin possono revocare inviti (admin dell'organizzazione o admin globale)
+    if (invitation.rows[0].inviter_role !== 'admin' && !user.isAdmin) {
       return c.json({ error: 'Only admins can revoke invitations' }, 403);
     }
 
