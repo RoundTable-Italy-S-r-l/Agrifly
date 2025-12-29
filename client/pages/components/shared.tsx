@@ -1,9 +1,20 @@
 import type { Drone, Crop, Treatment } from '@/lib/api';
 
+/**
+ * @deprecated This hardcoded pricing function is deprecated.
+ * Use the /api/quote-estimate endpoint instead, which calculates pricing
+ * based on rate_cards configured by operators/vendors.
+ * 
+ * This function is kept for backward compatibility only and should not be used in new code.
+ */
 export const BASE_RATE_PER_HA = 45;
 export const LOGISTICS_FIXED = 100;
 export const KM_RATE = 0.50;
 
+/**
+ * @deprecated Use /api/quote-estimate endpoint instead
+ * This function uses hardcoded values and doesn't respect operator/vendor rate_card configurations
+ */
 export const calculatePricing = (
   area: number,
   slope: number,
@@ -12,6 +23,8 @@ export const calculatePricing = (
   isHilly: boolean = false,
   hasObstacles: boolean = false
 ) => {
+  console.warn('⚠️  calculatePricing is deprecated. Use /api/quote-estimate endpoint instead.');
+  
   let slopeMultiplier = 1.0;
   let recommendedDrone = 'DJI Agras T50';
 

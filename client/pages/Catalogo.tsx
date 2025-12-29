@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Layout } from '@/components/Layout';
-import { fetchPublicCatalog, CatalogVendor, CatalogProduct } from '@/lib/api';
+import { fetchPublicCatalog, CatalogProduct } from '@/lib/api';
 import {
   ShoppingBag,
-  Building,
   Clock,
   Package,
   Filter,
   Search,
-  Star,
-  Truck
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,16 +17,14 @@ import { Link } from 'react-router-dom';
 
 export default function Catalogo() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
 
   const { data: catalogData, isLoading } = useQuery({
-    queryKey: ['publicCatalog', selectedCategory, selectedVendor, minPrice, maxPrice],
+    queryKey: ['publicCatalog', selectedCategory, minPrice, maxPrice],
     queryFn: () => fetchPublicCatalog({
       category: selectedCategory || undefined,
-      vendor: selectedVendor || undefined,
       minPrice: minPrice ? parseInt(minPrice) : undefined,
       maxPrice: maxPrice ? parseInt(maxPrice) : undefined
     }),
@@ -38,17 +34,14 @@ export default function Catalogo() {
     refetchOnReconnect: false
   });
 
-  const vendors = catalogData?.vendors || [];
+  const products = catalogData?.products || [];
 
   // Filtra prodotti per ricerca
-  const filteredVendors = vendors.map(vendor => ({
-    ...vendor,
-    products: vendor.products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.brand.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  })).filter(vendor => vendor.products.length > 0);
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.brand.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Layout>
@@ -66,7 +59,7 @@ export default function Catalogo() {
             <h3 className="font-semibold text-slate-900">Filtri</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Cerca</label>
               <div className="relative">
@@ -94,25 +87,6 @@ export default function Catalogo() {
                 </SelectContent>
               </Select>
             </div>
-
-            {vendors.length > 1 && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Azienda</label>
-                <Select value={selectedVendor} onValueChange={(value) => setSelectedVendor(value === "all" ? "" : value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tutte le aziende" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutte le aziende</SelectItem>
-                    {vendors.map(vendor => (
-                      <SelectItem key={vendor.id} value={vendor.id}>
-                        {vendor.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Prezzo Min</label>
@@ -142,156 +116,117 @@ export default function Catalogo() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
             <p className="text-slate-600">Caricamento catalogo...</p>
           </div>
-        ) : filteredVendors.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div className="text-center py-12">
             <Package className="w-12 h-12 text-slate-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-slate-900 mb-2">Nessun prodotto trovato</h3>
             <p className="text-slate-600">Prova a modificare i filtri di ricerca</p>
           </div>
         ) : (
-          <div className="space-y-12">
-            {filteredVendors.map(vendor => (
-              <div key={vendor.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                {/* Header Vendor */}
-                <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center">
-                      {vendor.logo ? (
-                        <img
-                          src={vendor.logo}
-                          alt={`Logo ${vendor.name}`}
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            // Fallback all'icona se il logo non carica
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement!.innerHTML = '<div class="w-6 h-6 text-slate-400"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L19 6.6C18.8 6.2 18.5 5.9 18.2 5.7L19 4L17 2L15.7 2.8C15.5 2.5 15.2 2.2 14.8 2L14 0H10L9.2 2C8.8 2.2 8.5 2.5 8.2 2.8L6 2L4 4L4.8 5.7C4.5 5.9 4.2 6.2 4 6.6L2 7V9L4 9.4C4.2 9.8 4.5 10.1 4.8 10.3L4 12L6 14L7.2 13.2C7.5 13.5 7.8 13.8 8.2 14L10 16H14L14.8 14C15.2 13.8 15.5 13.5 15.7 13.2L17 14L19 12L18.2 10.3C18.5 10.1 18.8 9.8 19 9.4L21 9ZM12 8C13.66 8 15 9.34 15 11C15 12.66 13.66 14 12 14C10.34 14 9 12.66 9 11C9 9.34 10.34 8 12 8Z"/></svg></div>';
-                          }}
-                        />
-                      ) : (
-                        <Building className="w-6 h-6 text-slate-400" />
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900">{vendor.name}</h2>
-                      <p className="text-sm text-slate-600">{vendor.description}</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {vendor.products.length} prodotto{vendor.products.length !== 1 ? 'i' : ''} disponibile
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Prodotti */}
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {vendor.products.map(product => (
-                      <div key={product.id} className="bg-slate-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        {/* Modello 3D GLB (priorità) o Immagine (fallback) */}
-                        <div className={`aspect-square rounded-lg mb-4 overflow-hidden ${
-                          product.glbUrl 
-                            ? 'bg-gradient-to-br from-slate-50 to-slate-100' 
-                            : 'bg-white'
-                        }`}>
-                          {product.glbUrl ? (
-                            // @ts-ignore - model-viewer è un web component
-                            <model-viewer
-                              src={product.glbUrl}
-                              alt={`Modello 3D ${product.name}`}
-                              auto-rotate
-                              camera-controls
-                              interaction-policy="allow-when-focused"
-                              style={{ width: '100%', height: '100%' }}
-                              className="object-contain"
-                              loading="lazy"
-                              camera-orbit="45deg 55deg 3m"
-                              field-of-view="50deg"
-                              min-camera-orbit="auto auto 2.5m"
-                              max-camera-orbit="auto auto 5m"
-                            />
-                          ) : product.imageUrl ? (
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-contain p-4"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                              <Package className="w-16 h-16 text-slate-400" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info Prodotto */}
-                        <div className="space-y-2">
-                          <div>
-                            <h3 className="font-semibold text-slate-900 text-sm">{product.name}</h3>
-                            <p className="text-xs text-slate-600">{product.brand} {product.model}</p>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg font-bold text-emerald-600">
-                              €{(() => {
-                                const rawPrice = product.price;
-                                const price = typeof rawPrice === 'number'
-                                  ? rawPrice
-                                  : (typeof rawPrice === 'string' && !isNaN(parseFloat(rawPrice)) ? parseFloat(rawPrice) : 0);
-
-                                if (price === 0 && rawPrice !== 0 && rawPrice !== '0') {
-                                  return 'N/D';
-                                }
-
-                                // Mostra decimali solo se necessari
-                                const hasDecimals = price % 1 !== 0;
-                                return price.toLocaleString('it-IT', {
-                                  minimumFractionDigits: hasDecimals ? 2 : 0,
-                                  maximumFractionDigits: hasDecimals ? 2 : 0
-                                });
-                              })()}
-                            </span>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              product.stock > 0
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}>
-                              {product.stock > 0 ? `${product.stock} disponibili` : 'Esaurito'}
-                            </span>
-                          </div>
-
-                          {product.leadTimeDays && (
-                            <div className="flex items-center gap-1 text-xs text-slate-500">
-                              <Clock className="w-3 h-3" />
-                              <span>Consegna: {product.leadTimeDays} giorni</span>
-                            </div>
-                          )}
-
-                          <div className="text-xs text-slate-500">
-                            Offered by {vendor.name}
-                          </div>
-                        </div>
-
-                        {/* Azioni */}
-                        <div className="mt-4 space-y-2">
-                          <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm">
-                            <ShoppingBag className="w-4 h-4 mr-2" />
-                            Richiedi Preventivo
-                          </Button>
-
-                          <Link
-                            to={`/prodotti/${product.productId || product.id}`}
-                            className="block"
-                          >
-                            <Button variant="outline" className="w-full text-sm">
-                              <Star className="w-4 h-4 mr-2" />
-                              Visualizza prodotto
-                            </Button>
-                          </Link>
-                        </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map(product => (
+                <div key={product.id} className="bg-slate-50 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  {/* Modello 3D GLB (priorità) o Immagine (fallback) */}
+                  <div className={`aspect-square rounded-lg mb-4 overflow-hidden ${
+                    product.glbUrl 
+                      ? 'bg-gradient-to-br from-slate-50 to-slate-100' 
+                      : 'bg-white'
+                  }`}>
+                    {product.glbUrl ? (
+                      // @ts-ignore - model-viewer è un web component
+                      <model-viewer
+                        src={product.glbUrl}
+                        alt={`Modello 3D ${product.name}`}
+                        auto-rotate
+                        camera-controls
+                        interaction-policy="allow-when-focused"
+                        style={{ width: '100%', height: '100%' }}
+                        className="object-contain"
+                        loading="lazy"
+                        camera-orbit="45deg 55deg 3m"
+                        field-of-view="50deg"
+                        min-camera-orbit="auto auto 2.5m"
+                        max-camera-orbit="auto auto 5m"
+                      />
+                    ) : product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-contain p-4"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                        <Package className="w-16 h-16 text-slate-400" />
                       </div>
-                    ))}
+                    )}
+                  </div>
+
+                  {/* Info Prodotto */}
+                  <div className="space-y-2">
+                    <div>
+                      <h3 className="font-semibold text-slate-900 text-sm">{product.name}</h3>
+                      <p className="text-xs text-slate-600">{product.brand} {product.model}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold text-emerald-600">
+                        €{(() => {
+                          const rawPrice = product.price;
+                          const price = typeof rawPrice === 'number'
+                            ? rawPrice
+                            : (typeof rawPrice === 'string' && !isNaN(parseFloat(rawPrice)) ? parseFloat(rawPrice) : 0);
+
+                          if (price === 0 && rawPrice !== 0 && rawPrice !== '0') {
+                            return 'N/D';
+                          }
+
+                          // Mostra decimali solo se necessari
+                          const hasDecimals = price % 1 !== 0;
+                          return price.toLocaleString('it-IT', {
+                            minimumFractionDigits: hasDecimals ? 2 : 0,
+                            maximumFractionDigits: hasDecimals ? 2 : 0
+                          });
+                        })()}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        product.stock && product.stock > 0
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {product.stock && product.stock > 0 ? `${product.stock} disponibili` : 'Esaurito'}
+                      </span>
+                    </div>
+
+                    {product.leadTimeDays && (
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <Clock className="w-3 h-3" />
+                        <span>Consegna: {product.leadTimeDays} giorni</span>
+                      </div>
+                    )}
+
+                    {product.vendorCount > 0 && (
+                      <div className="text-xs text-slate-500">
+                        Offered by {product.vendorCount} {product.vendorCount === 1 ? 'venditore' : 'venditori'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Azioni */}
+                  <div className="mt-4 space-y-2">
+                    <Link
+                      to={`/prodotti/${product.productId || product.id}`}
+                      className="block"
+                    >
+                      <Button variant="outline" className="w-full text-sm">
+                        <Star className="w-4 h-4 mr-2" />
+                        Visualizza prodotto
+                      </Button>
+                    </Link>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>

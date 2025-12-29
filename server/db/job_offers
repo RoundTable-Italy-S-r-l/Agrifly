@@ -1,0 +1,44 @@
+[
+  {
+    "id": "offer_1766963841123_wjpbtu6p8",
+    "job_id": "1e47a706-d0ae-447d-9dea-a3f624dae805",
+    "operator_org_id": "hnyms7z1b",
+    "status": "OFFERED",
+    "pricing_snapshot_json": null,
+    "total_cents": 1000000,
+    "currency": "EUR",
+    "proposed_start": "2025-12-31",
+    "proposed_end": "2025-12-31",
+    "provider_note": "dai",
+    "created_at": "2025-12-28T23:17:21.123Z",
+    "updated_at": "2025-12-28T23:17:21.123Z"
+  },
+  {
+    "id": "offer_marco_vendor_001",
+    "job_id": "job_vendor_dronepro_001",
+    "operator_org_id": "hnyms7z1b",
+    "status": "OFFERED",
+    "pricing_snapshot_json": null,
+    "total_cents": 2250000,
+    "currency": "EUR",
+    "proposed_start": "2025-01-16",
+    "proposed_end": "2025-01-18",
+    "provider_note": "Servizio professionale con drone DJI Agras T40. Include mappatura preliminare e trattamento fitosanitario completo.",
+    "created_at": "2025-12-28T21:30:00.000Z",
+    "updated_at": "2025-12-28T21:30:00.000Z"
+  },
+  {
+    "id": "offer_1767025661272_ut51pq4uk",
+    "job_id": "job_mjrc1jxfh07fm6mwpk6",
+    "operator_org_id": "lenzi-org-id",
+    "status": "OFFERED",
+    "pricing_snapshot_json": null,
+    "total_cents": 592434,
+    "currency": "EUR",
+    "proposed_start": "2025-12-30",
+    "proposed_end": "2025-12-31",
+    "provider_note": "Vediamoci!",
+    "created_at": "2025-12-29T16:27:41.272Z",
+    "updated_at": "2025-12-29T16:27:41.272Z"
+  }
+]

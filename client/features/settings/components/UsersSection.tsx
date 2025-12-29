@@ -17,17 +17,16 @@ import { Mail, UserPlus, X, Clock, Check, AlertCircle } from 'lucide-react'
 
 const inviteSchema = z.object({
   email: z.string().email('Email non valida'),
-  role: z.enum(['BUYER_ADMIN', 'VENDOR_ADMIN', 'DISPATCHER', 'PILOT', 'SALES']),
+  role: z.enum(['admin', 'vendor', 'operator', 'dispatcher']),
 })
 
 type InviteForm = z.infer<typeof inviteSchema>
 
 const roleLabels = {
-  BUYER_ADMIN: 'Admin Acquisti',
-  VENDOR_ADMIN: 'Admin Vendite',
-  DISPATCHER: 'Dispatcher',
-  PILOT: 'Pilota',
-  SALES: 'Vendite',
+  admin: 'Admin',
+  vendor: 'Vendor',
+  operator: 'Operator',
+  dispatcher: 'Dispatcher',
 }
 
 const statusIcons = {
@@ -51,11 +50,21 @@ export function UsersSection() {
   const inviteMutation = useInviteUser()
   const revokeMutation = useRevokeInvitation()
 
+  // Ottieni il tipo di organizzazione
+  const orgData = localStorage.getItem('organization')
+  const organization = orgData ? JSON.parse(orgData) : null
+  const orgType = organization?.type || 'buyer'
+
+  // Determina i ruoli disponibili in base al tipo di organizzazione
+  const availableRoles = (orgType === 'vendor' || orgType === 'operator')
+    ? ['admin', 'vendor', 'operator', 'dispatcher'] as const
+    : ['admin'] as const // Buyer possono invitare solo admin
+
   const form = useForm<InviteForm>({
     resolver: zodResolver(inviteSchema),
     defaultValues: {
       email: '',
-      role: 'BUYER_ADMIN',
+      role: 'admin',
     },
   })
 
@@ -134,11 +143,11 @@ export function UsersSection() {
                       <SelectValue placeholder="Seleziona ruolo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="BUYER_ADMIN">Admin Acquisti</SelectItem>
-                      <SelectItem value="VENDOR_ADMIN">Admin Vendite</SelectItem>
-                      <SelectItem value="DISPATCHER">Dispatcher</SelectItem>
-                      <SelectItem value="PILOT">Pilota</SelectItem>
-                      <SelectItem value="SALES">Vendite</SelectItem>
+                      {availableRoles.map(role => (
+                        <SelectItem key={role} value={role}>
+                          {roleLabels[role]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -183,37 +192,41 @@ export function UsersSection() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user: any) => (
-                  <TableRow key={user.id}>
+                {users.map((member: any) => {
+                  const user = member.user || member;
+                  const firstName = user.first_name || '';
+                  const lastName = user.last_name || '';
+                  const fullName = firstName && lastName ? `${firstName} ${lastName}` : (user.email || 'Utente');
+                  const isActive = member.is_active !== false;
+                  
+                  return (
+                  <TableRow key={member.id}>
                     <TableCell>
-                      {user.first_name && user.last_name
-                        ? `${user.first_name} ${user.last_name}`
-                        : roleLabels[user.role] || user.role
-                      }
+                      {fullName}
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.email || ''}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {roleLabels[user.role] || user.role}
+                        {roleLabels[member.role] || member.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.member_type === 'ACTIVE' ? 'default' : 'outline'}>
-                        {user.member_type === 'ACTIVE' ? 'Attivo' : 'In Attesa'}
+                      <Badge variant={isActive ? 'default' : 'outline'}>
+                        {isActive ? 'Attivo' : 'In Attesa'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(user.created_at).toLocaleDateString('it-IT')}
+                      {member.created_at ? new Date(member.created_at).toLocaleDateString('it-IT') : '-'}
                     </TableCell>
                     <TableCell>
-                      {user.member_type === 'PENDING_SETUP' && (
+                      {!isActive && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
                             // Pre-compila il form di invito con i dati esistenti
                             form.setValue('email', user.email);
-                            form.setValue('role', user.role);
+                            form.setValue('role', member.role);
                             setInviteDialogOpen(true);
                           }}
                         >
@@ -223,7 +236,8 @@ export function UsersSection() {
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -316,7 +330,7 @@ export function UsersSection() {
                     <TableCell>{invitation.email}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {roleLabels[invitation.role] || invitation.role}
+                        {roleLabels[invitation.role as keyof typeof roleLabels] || invitation.role}
                       </Badge>
                     </TableCell>
                     <TableCell>

@@ -1,0 +1,70 @@
+[
+  {
+    "id": "ukjppy77t",
+    "email": "test@example.com",
+    "password": "$2b$10$KUQwu1Gq/klku34R3ffCGOIz8SHzkCjfisao7e.SuXHrOQkp0ro9q",
+    "first_name": "Test",
+    "last_name": "User",
+    "email_verified": false,
+    "role": "admin",
+    "created_at": "2025-12-27T15:22:05.733Z"
+  },
+  {
+    "id": "7ey3lpjy9",
+    "email": "buyer@example.com",
+    "password": "$2b$10$7iU6dhA1/jrsO6YxcTboa.kHAcvQW4EQZkcKhk0FdBR6Lx9pOZb0G",
+    "first_name": "Buyer",
+    "last_name": "Test",
+    "email_verified": false,
+    "organizationId": "ook29bikv",
+    "role": "admin",
+    "created_at": "2025-12-27T15:22:47.152Z"
+  },
+  {
+    "id": "bqss8lnw5",
+    "email": "giacomocavalcabo13@gmail.com",
+    "password": "password",
+    "first_name": "Marco",
+    "last_name": "Rossi",
+    "email_verified": true,
+    "phone": "",
+    "organizationId": "hnyms7z1b",
+    "role": "admin",
+    "created_at": "2025-12-27T16:45:56.657Z"
+  },
+  {
+    "id": "vendor123",
+    "email": "vendor@dronepro.it",
+    "password": "password",
+    "first_name": "Vendor",
+    "last_name": "DronePro",
+    "email_verified": true,
+    "phone": "",
+    "organizationId": "dronepro_vendor",
+    "role": "admin",
+    "created_at": "2025-12-28T21:00:00.000Z"
+  },
+  {
+    "id": "admin12345",
+    "email": "admin@example.com",
+    "password": "$2b$10$i5qMZKdivOyVJBAHdMYCTudK3Nq1e31R1vusQXU0C25GNHKr0.OnW",
+    "first_name": "Admin",
+    "last_name": "User",
+    "email_verified": true,
+    "phone": "",
+    "organizationId": "adminorg123",
+    "role": "admin",
+    "created_at": "2025-12-28T20:40:00.000Z"
+  },
+  {
+    "id": "bypd06t22",
+    "email": "g.cavalcabo@santannapisa.it",
+    "password": "$2b$10$XXku7eE92QzOxL2nInuePeBR6c1I5jz8hDSdBkkizH60.nh4AibpS",
+    "first_name": "Marco",
+    "last_name": "Cavalcabò",
+    "email_verified": false,
+    "phone": "",
+    "role": "admin",
+    "created_at": "2025-12-29T10:33:50.511Z"
+  }
+]

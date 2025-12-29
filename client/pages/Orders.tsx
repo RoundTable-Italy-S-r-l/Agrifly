@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/AdminLayout';
-import { fetchOrders, Order } from '@/lib/api';
+import { fetchOrders, fetchOrderById, Order } from '@/lib/api';
 import {
   ShoppingBag,
   Package,
@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { OrderChat } from '@/components/OrderChat';
 import {
   Sheet,
   SheetClose,
@@ -106,28 +107,44 @@ function OrderCard({ order, onOpenDetail }: { order: Order; onOpenDetail: (order
     }).format(cents / 100);
   };
 
+  // Ottieni il nome del primo prodotto
+  const firstProduct = order.order_lines && order.order_lines.length > 0 
+    ? order.order_lines[0]
+    : null;
+  const productName = firstProduct?.product_name || firstProduct?.product_model || 'Prodotto';
+  const orderIdShort = order.id.slice(-8);
+
   return (
     <Card
       ref={setNodeRef}
       style={style}
-      className={`hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing ${
+      className={`hover:shadow-md transition-all duration-200 ${
         isDragging 
           ? 'ring-2 ring-emerald-500 shadow-xl scale-105 rotate-1' 
           : 'hover:scale-[1.02]'
       }`}
       onClick={() => onOpenDetail(order)}
-      {...attributes}
-      {...listeners}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-base mb-1">
-              Ordine #{order.id.slice(-8)}
+            <CardTitle className="text-base mb-1 cursor-pointer hover:text-emerald-600">
+              {productName}
             </CardTitle>
             <CardDescription className="text-sm">
               {order.buyer_org_name}
             </CardDescription>
+          </div>
+          {/* Handle per drag - separato dal click */}
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 rounded"
+            onClick={(e) => e.stopPropagation()} // Previeni il click quando si fa drag
+          >
+            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+            </svg>
           </div>
         </div>
       </CardHeader>
@@ -137,7 +154,7 @@ function OrderCard({ order, onOpenDetail }: { order: Order; onOpenDetail: (order
         </div>
         <div className="flex items-center justify-between pt-2 border-t">
           <span className="text-sm text-slate-600">
-            {order.order_lines.length} {order.order_lines.length === 1 ? 'prodotto' : 'prodotti'}
+            #{orderIdShort}
           </span>
           <span className="text-lg font-bold text-slate-900">
             {formatPrice(order.total_cents, order.currency)}
@@ -209,6 +226,8 @@ function KanbanColumn({
 
 export default function Orders() {
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isVendor, setIsVendor] = useState<boolean>(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [periodFilter, setPeriodFilter] = useState<'today' | 'week' | 'month' | 'all'>('month');
@@ -227,23 +246,70 @@ export default function Orders() {
   // Ottieni l'ID dell'organizzazione corrente
   useEffect(() => {
     const orgData = localStorage.getItem('organization');
+    const userData = localStorage.getItem('user');
+    
     if (orgData) {
       try {
         const org = JSON.parse(orgData);
+        console.log('📦 Dati organizzazione dal localStorage:', org);
         setCurrentOrgId(org.id);
+        // Determina se è un vendor basandosi su type/org_type o can_sell (gestisce sia maiuscolo che minuscolo)
+        // L'API restituisce 'type', ma potrebbe anche esserci 'org_type' per retrocompatibilità
+        const orgType = ((org.type || org.org_type || '') + '').toUpperCase();
+        const canSell = org.can_sell === true || org.can_sell === 1 || org.can_sell === '1';
+        const vendor = orgType === 'VENDOR' || orgType === 'OPERATOR' || canSell;
+        setIsVendor(vendor);
+        console.log('🏪 Organizzazione:', org.name || org.legal_name || org.id, 'orgType:', orgType, 'canSell:', canSell, 'isVendor:', vendor);
       } catch (error) {
         console.error('Errore nel parsing dei dati organizzazione:', error);
       }
     }
+
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        setCurrentUserId(user.id);
+      } catch (error) {
+        console.error('Errore nel parsing dei dati utente:', error);
+      }
+    }
   }, []);
 
-  // Query per ordini
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ['orders', currentOrgId],
-    queryFn: () => currentOrgId ? fetchOrders(currentOrgId) : Promise.resolve([]),
-    enabled: !!currentOrgId,
+  // Query per ordini - passa role=seller se è un vendor
+  // IMPORTANTE: enabled deve dipendere anche da isVendor per evitare race conditions
+  const { data: orders = [], isLoading, error: ordersError } = useQuery({
+    queryKey: ['orders', currentOrgId, isVendor ? 'seller' : 'buyer'],
+    queryFn: async () => {
+      if (!currentOrgId) {
+        console.log('⚠️ No currentOrgId, returning empty array');
+        return [];
+      }
+      const role = isVendor ? 'seller' : 'buyer';
+      console.log('🛒 Fetching orders for org:', currentOrgId, 'role:', role, 'isVendor:', isVendor);
+      try {
+        const result = await fetchOrders(currentOrgId, role);
+        console.log('✅ Orders fetched:', result.length, 'orders', result);
+        return result;
+      } catch (error) {
+        console.error('❌ Error fetching orders:', error);
+        throw error;
+      }
+    },
+    enabled: !!currentOrgId && isVendor !== undefined, // Aspetta che isVendor sia determinato
     refetchInterval: 30000 // Auto-refresh ogni 30 secondi
   });
+
+  // Log quando orders cambia
+  useEffect(() => {
+    console.log('📦 Orders state updated:', { 
+      ordersCount: orders.length, 
+      isLoading, 
+      ordersError, 
+      currentOrgId,
+      isVendor,
+      orders: orders.slice(0, 2) // Log solo i primi 2 per non intasare
+    });
+  }, [orders, isLoading, ordersError, currentOrgId, isVendor]);
 
   // Mutation per aggiornare lo stato ordine
   const updateOrderStatusMutation = useMutation({
@@ -284,7 +350,7 @@ export default function Orders() {
         queryClient.setQueryData<Order[]>(['orders', currentOrgId], (old) => {
           if (!old) return old;
           return old.map(order =>
-            order.id === orderId ? { ...order, order_status: status } : order
+            order.id === orderId ? { ...order, status: status, order_status: status } : order
           );
         });
       }
@@ -306,6 +372,14 @@ export default function Orders() {
 
   // Filtra ordini per periodo
   const getFilteredOrdersByPeriod = (orders: Order[]) => {
+    const safeOrders = orders || [];
+    console.log('📅 Filtering orders by period:', { periodFilter, totalOrders: safeOrders.length });
+    
+    if (periodFilter === 'all') {
+      console.log('✅ Returning all orders (no period filter)');
+      return safeOrders;
+    }
+    
     const now = new Date();
     let startDate: Date;
 
@@ -320,22 +394,91 @@ export default function Orders() {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         break;
       default:
-        return orders;
+        return safeOrders;
     }
 
-    return orders.filter(order => new Date(order.created_at) >= startDate);
+    const filtered = safeOrders.filter(order => {
+      if (!order.created_at) {
+        console.warn('⚠️ Order without created_at:', order.id);
+        return true; // Includi ordini senza data
+      }
+      const orderDate = new Date(order.created_at);
+      const included = orderDate >= startDate;
+      if (!included) {
+        console.log('⏰ Order filtered out by date:', { orderId: order.id, orderDate, startDate });
+      }
+      return included;
+    });
+    
+    console.log('📅 Orders after period filter:', filtered.length);
+    return filtered;
   };
 
   // Filtra ordini per cliente
-  const filteredOrders = getFilteredOrdersByPeriod(orders).filter(order =>
-    customerFilter === '' || order.buyer_org_name.toLowerCase().includes(customerFilter.toLowerCase())
-  );
+  const filteredOrders = getFilteredOrdersByPeriod(orders || []).filter(order => {
+    const matchesCustomer = customerFilter === '' || (order.buyer_org_name || '').toLowerCase().includes(customerFilter.toLowerCase());
+    if (!matchesCustomer && customerFilter) {
+      console.log('👤 Order filtered out by customer:', { orderId: order.id, buyerName: order.buyer_org_name, filter: customerFilter });
+    }
+    return matchesCustomer;
+  });
+  
+  console.log('🔍 Final filtered orders:', filteredOrders.length, filteredOrders.map(o => ({ id: o.id, status: o.status, payment_status: o.payment_status })));
+
+  // Funzione helper per mappare status dell'ordine a KanbanStatus
+  const mapOrderStatusToKanban = (order: Order): KanbanStatus => {
+    // Se l'ordine ha già order_status, usalo
+    if ((order as any).order_status) {
+      const os = (order as any).order_status.toUpperCase();
+      if (['PAID', 'SHIPPED', 'FULFILLED', 'CANCELLED', 'PROBLEMATIC'].includes(os)) {
+        return os as KanbanStatus;
+      }
+    }
+    
+    // Mappa status + payment_status a KanbanStatus
+    const status = (order.status || '').toUpperCase();
+    const paymentStatus = (order.payment_status || '').toUpperCase();
+    
+    let mappedStatus: KanbanStatus;
+    
+    if (status === 'CANCELLED') {
+      mappedStatus = 'CANCELLED';
+    } else if (status === 'FULFILLED' || status === 'DELIVERED') {
+      mappedStatus = 'FULFILLED';
+    } else if (status === 'SHIPPED') {
+      mappedStatus = 'SHIPPED';
+    } else if (status === 'CONFIRMED' && paymentStatus === 'PAID') {
+      mappedStatus = 'PAID';
+    } else if (paymentStatus === 'PAID') {
+      mappedStatus = 'PAID';
+    } else if (status === 'PROBLEMATIC' || status === 'ISSUE') {
+      mappedStatus = 'PROBLEMATIC';
+    } else {
+      // Fallback: PAID se non si riesce a determinare
+      mappedStatus = 'PAID';
+    }
+    
+    console.log('🔀 Mapping order status:', { 
+      orderId: order.id, 
+      status, 
+      paymentStatus, 
+      mappedStatus 
+    });
+    
+    return mappedStatus;
+  };
 
   // Raggruppa ordini per stato
   const ordersByStatus = kanbanColumns.reduce((acc, column) => {
-    acc[column.status] = filteredOrders.filter(o => o.order_status === column.status);
+    const ordersInColumn = filteredOrders.filter(o => mapOrderStatusToKanban(o) === column.status);
+    acc[column.status] = ordersInColumn;
+    if (ordersInColumn.length > 0) {
+      console.log(`📋 Colonna ${column.label}: ${ordersInColumn.length} ordini`);
+    }
     return acc;
   }, {} as Record<KanbanStatus, Order[]>);
+  
+  console.log('📊 Orders by status summary:', Object.keys(ordersByStatus).map(k => `${k}: ${ordersByStatus[k as KanbanStatus].length}`).join(', '));
 
   // KPI operativi
   const kpis = {
@@ -343,13 +486,22 @@ export default function Orders() {
     shipped: ordersByStatus.SHIPPED?.length || 0,
     completed: ordersByStatus.FULFILLED?.length || 0,
     periodValue: filteredOrders
-      .filter(o => o.order_status === 'FULFILLED')
-      .reduce((sum, o) => sum + o.total_cents, 0)
+      .filter(o => mapOrderStatusToKanban(o) === 'FULFILLED')
+      .reduce((sum, o) => sum + (o.total_cents || 0), 0)
   };
 
-  const handleOpenDetail = (order: Order) => {
-    setSelectedOrder(order);
-    setDetailSheetOpen(true);
+  const handleOpenDetail = async (order: Order) => {
+    // Carica l'ordine completo dal backend per avere tutti i dettagli (indirizzi, ecc.)
+    try {
+      const fullOrder = await fetchOrderById(order.id);
+      setSelectedOrder(fullOrder);
+      setDetailSheetOpen(true);
+    } catch (error) {
+      console.error('Errore caricamento dettagli ordine:', error);
+      // Fallback: usa l'ordine dalla lista
+      setSelectedOrder(order);
+      setDetailSheetOpen(true);
+    }
   };
 
   const handleDragStart = (event: DragEndEvent) => {
@@ -371,7 +523,9 @@ export default function Orders() {
 
     // Trova l'ordine corrente
     const currentOrder = filteredOrders.find(o => o.id === orderId);
-    if (!currentOrder || currentOrder.order_status === newStatus) return;
+    if (!currentOrder) return;
+    const currentStatus = (currentOrder as any).status || (currentOrder as any).order_status;
+    if (currentStatus === newStatus) return;
 
     // Attiva animazione di atterraggio
     setLandingOrderId(orderId);
@@ -567,6 +721,7 @@ export default function Orders() {
             open={detailSheetOpen}
             onOpenChange={setDetailSheetOpen}
             currentOrgId={currentOrgId}
+            currentUserId={currentUserId}
           />
         )}
       </div>
@@ -579,13 +734,47 @@ function OrderDetailSheet({
   order,
   open,
   onOpenChange,
-  currentOrgId
+  currentOrgId,
+  currentUserId
 }: {
   order: Order;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentOrgId: string | null;
+  currentUserId: string | null;
 }) {
+  const queryClient = useQueryClient();
+  
+  // Mutation per aggiornare status (stessa logica del componente principale)
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status, trackingNumber }: { orderId: string; status: string; trackingNumber?: string }) => {
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_status: status, tracking_number: trackingNumber }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || `Errore ${response.status}` };
+        }
+        throw new Error(errorData.error || `Errore ${response.status}`);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders', currentOrgId] });
+      queryClient.invalidateQueries({ queryKey: ['order', order.id] });
+      toast.success('Status ordine aggiornato');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Errore nell\'aggiornamento dello status');
+    },
+  });
   const formatPrice = (cents: number, currency: string = 'EUR') => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
@@ -624,37 +813,42 @@ function OrderDetailSheet({
 
         <div className="mt-6 space-y-6">
           {/* Cliente */}
-          <div>
-            <h3 className="font-semibold text-slate-900 mb-3">Cliente</h3>
-            <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+          <div className="border border-slate-200 rounded-lg p-4 bg-white">
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Cliente
+            </h3>
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-slate-600" />
                 <span className="font-medium text-slate-900">{order.buyer_org_name}</span>
               </div>
-              <div className="text-sm text-slate-600">
+              <div className="text-sm text-slate-600 font-mono">
                 ID: {order.buyer_org_id}
               </div>
             </div>
           </div>
 
           {/* Prodotti */}
-          <div>
-            <h3 className="font-semibold text-slate-900 mb-3">Prodotti</h3>
-            <div className="space-y-2">
+          <div className="border border-slate-200 rounded-lg p-4 bg-white">
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Prodotti
+            </h3>
+            <div className="space-y-3">
               {order.order_lines.map((line) => (
                 <div
                   key={line.id}
-                  className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100"
                 >
                   <div className="flex-1">
-                    <div className="font-medium text-slate-900">{line.product_name}</div>
+                    <div className="font-medium text-slate-900">{line.product_name || line.product_model}</div>
                     <div className="text-sm text-slate-600">
-                      {line.product_model} · SKU: {line.sku_code}
+                      {line.product_model && line.product_name !== line.product_model && `${line.product_model} · `}SKU: {line.sku_code}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-slate-600">
-                      {line.qty} × {formatPrice(line.unit_price_cents, order.currency)}
+                      {line.quantity} × {formatPrice(line.unit_price_cents, order.currency)}
                     </div>
                     <div className="font-semibold text-slate-900">
                       {formatPrice(line.line_total_cents, order.currency)}
@@ -666,50 +860,159 @@ function OrderDetailSheet({
           </div>
 
           {/* Logistica */}
-          <div>
-            <h3 className="font-semibold text-slate-900 mb-3">Logistica</h3>
-            <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-              <div className="text-sm text-slate-600">
-                <span className="font-medium">Magazzino:</span> Sede Principale
+          <div className="border border-slate-200 rounded-lg p-4 bg-white">
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              Logistica
+            </h3>
+            <div className="space-y-3">
+              {(() => {
+                // Parse shipping_address se è una stringa JSON
+                let shippingAddr = order.shipping_address;
+                console.log('📦 Shipping address raw:', shippingAddr, 'type:', typeof shippingAddr);
+                
+                if (typeof shippingAddr === 'string' && shippingAddr.trim()) {
+                  try {
+                    shippingAddr = JSON.parse(shippingAddr);
+                    console.log('✅ Parsed shipping address:', shippingAddr);
+                  } catch (e) {
+                    console.warn('⚠️ Errore parsing shipping_address:', e, 'raw:', shippingAddr);
+                    shippingAddr = null;
+                  }
+                }
+                
+                return shippingAddr && typeof shippingAddr === 'object' ? (
+                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                    <div className="text-sm font-medium text-slate-900 mb-2">Indirizzo di consegna:</div>
+                    <div className="text-sm text-slate-700 space-y-1">
+                      {shippingAddr.name && <div className="font-medium">{shippingAddr.name}</div>}
+                      {shippingAddr.company && <div>{shippingAddr.company}</div>}
+                      {shippingAddr.address && <div>{shippingAddr.address}</div>}
+                      <div>
+                        {shippingAddr.postal_code} {shippingAddr.city}
+                        {shippingAddr.province && ` (${shippingAddr.province})`}
+                      </div>
+                      {shippingAddr.country && <div>{shippingAddr.country}</div>}
+                      {shippingAddr.phone && <div className="mt-2 pt-2 border-t border-slate-200">Tel: {shippingAddr.phone}</div>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <span className="font-medium">Magazzino:</span> Sede Principale
+                    {shippingAddr && <div className="text-xs text-red-600 mt-1">(Indirizzo non disponibile o formato non valido)</div>}
+                  </div>
+                );
+              })()}
+              <div className="flex items-center justify-between text-sm border-t border-slate-200 pt-3">
+                <span className="text-slate-600">Lead time stimato:</span>
+                <span className="text-slate-900 font-medium">7-10 giorni</span>
               </div>
-              <div className="text-sm text-slate-600">
-                <span className="font-medium">Lead time stimato:</span> 7-10 giorni
-              </div>
-              <div className="text-sm text-slate-600">
-                <span className="font-medium">Tracking:</span> Non disponibile
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Tracking:</span>
+                <span className="text-slate-900 font-medium">{(order as any).tracking_number || 'Non disponibile'}</span>
               </div>
             </div>
           </div>
 
+          {/* Indirizzo di fatturazione */}
+          <div className="border border-slate-200 rounded-lg p-4 bg-white">
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Fatturazione
+            </h3>
+            <div className="space-y-3">
+              {(() => {
+                // Parse billing_address se è una stringa JSON
+                let billingAddr = order.billing_address;
+                console.log('💰 Billing address raw:', billingAddr, 'type:', typeof billingAddr);
+                
+                if (typeof billingAddr === 'string' && billingAddr.trim()) {
+                  try {
+                    billingAddr = JSON.parse(billingAddr);
+                    console.log('✅ Parsed billing address:', billingAddr);
+                  } catch (e) {
+                    console.warn('⚠️ Errore parsing billing_address:', e, 'raw:', billingAddr);
+                    billingAddr = null;
+                  }
+                }
+                
+                return billingAddr && typeof billingAddr === 'object' ? (
+                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                    <div className="text-sm font-medium text-slate-900 mb-2">Indirizzo di fatturazione:</div>
+                    <div className="text-sm text-slate-700 space-y-1">
+                      {billingAddr.name && <div className="font-medium">{billingAddr.name}</div>}
+                      {billingAddr.company && <div>{billingAddr.company}</div>}
+                      {billingAddr.address && <div>{billingAddr.address}</div>}
+                      <div>
+                        {billingAddr.postal_code} {billingAddr.city}
+                        {billingAddr.province && ` (${billingAddr.province})`}
+                      </div>
+                      {billingAddr.country && <div>{billingAddr.country}</div>}
+                      {billingAddr.vat_number && <div className="mt-2 pt-2 border-t border-slate-200">P.IVA: {billingAddr.vat_number}</div>}
+                      {billingAddr.phone && <div>Tel: {billingAddr.phone}</div>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <span className="font-medium">Indirizzo di fatturazione:</span> Non disponibile
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
           {/* Dettagli ordine */}
-          <div>
+          <div className="border border-slate-200 rounded-lg p-4 bg-white">
             <h3 className="font-semibold text-slate-900 mb-3">Dettagli</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-slate-600">ID Ordine:</span>
-                <div className="font-mono text-slate-900 mt-1">{order.id}</div>
+              <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                <span className="text-slate-600 block mb-1">ID Ordine:</span>
+                <div className="font-mono text-slate-900 text-xs">{order.id}</div>
               </div>
-              <div>
-                <span className="text-slate-600">Data creazione:</span>
-                <div className="text-slate-900 mt-1">{formatDate(order.created_at)}</div>
+              <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                <span className="text-slate-600 block mb-1">Data creazione:</span>
+                <div className="text-slate-900">{formatDate(order.created_at)}</div>
               </div>
-              <div>
-                <span className="text-slate-600">Stato:</span>
-                <div className="text-slate-900 mt-1">{statusLabels[order.order_status] || order.order_status}</div>
+              <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                <span className="text-slate-600 block mb-1">Stato:</span>
+                <div className="text-slate-900 font-medium">{statusLabels[(order as any).status || (order as any).order_status] || (order as any).status || (order as any).order_status}</div>
               </div>
-              <div>
-                <span className="text-slate-600">Totale:</span>
-                <div className="font-semibold text-slate-900 mt-1">
+              <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                <span className="text-slate-600 block mb-1">Totale:</span>
+                <div className="font-semibold text-slate-900">
                   {formatPrice(order.total_cents, order.currency)}
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Chat */}
+          {currentOrgId && order.buyer_org_id && order.seller_org_id && (
+            <div className="border border-slate-200 rounded-lg p-4 bg-white">
+              <OrderChat
+                orderId={order.id}
+                currentOrgId={currentOrgId}
+                currentUserId={currentUserId || undefined}
+                buyerOrgId={order.buyer_org_id}
+                sellerOrgId={order.seller_org_id}
+              />
+            </div>
+          )}
         </div>
 
-        <SheetFooter className="mt-6 gap-2">
-          {order.order_status === 'PAID' && (
-            <Button className="bg-emerald-600 hover:bg-emerald-700">
+        <SheetFooter className="mt-6 gap-2 flex-col sm:flex-row">
+          {((order as any).status === 'PAID' || (order as any).order_status === 'PAID') && (
+            <Button 
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => {
+                const trackingNumber = prompt('Inserisci numero di tracking (opzionale):');
+                updateOrderStatusMutation.mutate({ 
+                  orderId: order.id, 
+                  status: 'SHIPPED',
+                  trackingNumber: trackingNumber || undefined
+                });
+              }}
+            >
               <Truck className="w-4 h-4 mr-2" />
               Segna come spedito
             </Button>

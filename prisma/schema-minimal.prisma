@@ -1,0 +1,247 @@
+// Schema minimale per testing buyer registration
+// SQLite compatible - solo modelli essenziali
+
+datasource db {
+  provider = "sqlite"
+  url = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output = "../generated/prisma"
+}
+
+// ============================================================================
+// ESSENTIAL MODELS FOR BUYER REGISTRATION & AUTH
+// ============================================================================
+
+model User {
+  id                  String   @id @default(cuid()) @map("id")
+  email               String   @unique @map("email")
+  phone               String?  @map("phone")
+  first_name          String   @map("first_name")
+  last_name           String   @map("last_name")
+  password_salt       String?  @map("password_salt")
+  password_hash       String?  @map("password_hash")
+  email_verified      Boolean  @default(false) @map("email_verified")
+  email_verified_at   DateTime? @map("email_verified_at")
+  oauth_provider      String?  @map("oauth_provider")
+  oauth_id            String?  @map("oauth_id")
+  reset_token         String?  @map("reset_token")
+  reset_token_expires DateTime? @map("reset_token_expires")
+  status              String   @default("ACTIVE") @map("status")
+  created_at          DateTime @default(now()) @map("created_at")
+  updated_at          DateTime @updatedAt @map("updated_at")
+
+  org_memberships               OrgMembership[]
+  verification_codes            VerificationCode[]
+  organization_invitations      OrganizationInvitation[]
+  messages                      Message[]
+
+  @@unique([oauth_provider, oauth_id])
+  @@map("users")
+}
+
+model Organization {
+  id            String   @id @default(cuid()) @map("id")
+  legal_name    String   @map("legal_name")
+  logo_url      String?  @map("logo_url")
+  phone         String?  @map("phone")
+  support_email String?  @map("support_email")
+  vat_number    String?  @map("vat_number")
+  tax_code      String?  @map("tax_code")
+  kind          String   @default("BUSINESS") @map("kind")
+  can_buy       Boolean  @default(true) @map("can_buy")
+  can_sell      Boolean  @default(false) @map("can_sell")
+  can_operate   Boolean  @default(false) @map("can_operate")
+  can_dispatch  Boolean  @default(false) @map("can_dispatch")
+  address_line  String   @map("address_line")
+  city          String   @map("city")
+  province      String   @map("province")
+  region        String   @map("region")
+  postal_code   String?  @map("postal_code")
+  country       String   @default("IT") @map("country")
+  status        String   @default("ACTIVE") @map("status")
+  created_at    DateTime @default(now()) @map("created_at")
+
+  org_memberships                OrgMembership[]
+  organization_invitations       OrganizationInvitation[]
+  org_payment_accounts           OrgPaymentAccount[]
+  jobs_buyer                     Job[]                    @relation("BuyerJob")
+  job_offers_operator            JobOffer[]               @relation("OperatorOffer")
+  conversation_participants      ConversationParticipant[]
+
+  @@map("organizations")
+}
+
+model OrgMembership {
+  id         String   @id @default(cuid()) @map("id")
+  org_id     String   @map("org_id")
+  user_id    String   @map("user_id")
+  role       String   @default("BUYER") @map("role")
+  is_active  Boolean  @default(true) @map("is_active")
+  created_at DateTime @default(now()) @map("created_at")
+
+  org Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, user_id])
+  @@map("org_memberships")
+}
+
+// ============================================================================
+// AUTHENTICATION
+// ============================================================================
+
+model VerificationCode {
+  id         String   @id @default(cuid()) @map("id")
+  user_id    String?  @map("user_id")
+  email      String   @map("email")
+  code       String   @map("code")
+  purpose    String   @default("EMAIL_VERIFICATION") @map("purpose")
+  expires_at DateTime @map("expires_at")
+  used       Boolean  @default(false) @map("used")
+  used_at    DateTime? @map("used_at")
+  created_at DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([email, code, used])
+  @@map("verification_codes")
+}
+
+model OrganizationInvitation {
+  id                 String   @id @default(cuid()) @map("id")
+  organization_id    String   @map("organization_id")
+  email              String   @map("email")
+  token              String   @unique @map("token")
+  role               String   @default("BUYER") @map("role")
+  invited_by_user_id String   @map("invited_by_user_id")
+  expires_at         DateTime @map("expires_at")
+  accepted_at        DateTime? @map("accepted_at")
+  created_at         DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  invited_by   User         @relation(fields: [invited_by_user_id], references: [id], onDelete: Cascade)
+
+  @@index([email, token])
+  @@map("organization_invitations")
+}
+
+// ============================================================================
+// JOB MARKETPLACE (MINIMAL VERSION)
+// ============================================================================
+
+model Job {
+  id              String   @id @default(cuid()) @map("id")
+  buyer_org_id    String   @map("buyer_org_id")
+  service_type    String   @default("SPRAY") @map("service_type")
+  status          String   @default("DRAFT") @map("status")
+  field_name      String?  @map("field_name")
+  field_polygon   String   @map("field_polygon")
+  area_ha         Float?   @map("area_ha")
+  location_json   String?  @map("location_json")
+  requested_window_start DateTime? @map("requested_window_start")
+  requested_window_end   DateTime? @map("requested_window_end")
+  constraints_json       String?   @map("constraints_json")
+  visibility_mode String  @default("WHITELIST_ONLY") @map("visibility_mode")
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  buyer_org Organization @relation("BuyerJob", fields: [buyer_org_id], references: [id], onDelete: Cascade)
+  offers     JobOffer[]
+
+  @@map("jobs")
+}
+
+model JobOffer {
+  id             String @id @default(cuid()) @map("id")
+  job_id         String @map("job_id")
+  operator_org_id String @map("operator_org_id")
+  status         String @default("SUBMITTED") @map("status")
+  pricing_snapshot_json String @map("pricing_snapshot_json")
+  total_cents     Int @map("total_cents")
+  currency        String @default("EUR") @map("currency")
+  proposed_start  DateTime? @map("proposed_start")
+  proposed_end    DateTime? @map("proposed_end")
+  reliability_snapshot_json String? @map("reliability_snapshot_json")
+  offer_lines_json String? @map("offer_lines_json")
+  provider_note     String? @map("provider_note")
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  operator_org Organization @relation("OperatorOffer", fields: [operator_org_id], references: [id], onDelete: Cascade)
+
+  @@index([job_id, status])
+  @@map("job_offers")
+}
+
+// ============================================================================
+// MESSAGING
+// ============================================================================
+
+model Conversation {
+  id           String @id @default(cuid()) @map("id")
+  context_type String @map("context_type")
+  context_id   String @map("context_id")
+  status       String @default("LOCKED") @map("status")
+  unlocked_at  DateTime? @map("unlocked_at")
+  created_at DateTime @default(now()) @map("created_at")
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@unique([context_type, context_id])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id              String @id @default(cuid()) @map("id")
+  conversation_id String @map("conversation_id")
+  org_id          String @map("org_id")
+  role            String @map("role")
+  joined_at       DateTime @default(now()) @map("joined_at")
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  org          Organization  @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([conversation_id, org_id])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id              String @id @default(cuid()) @map("id")
+  conversation_id String @map("conversation_id")
+  sender_user_id  String @map("sender_user_id")
+  body            String @map("body")
+  attachments_json String? @map("attachments_json")
+  created_at DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [sender_user_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id, created_at])
+  @@map("messages")
+}
+
+// ============================================================================
+// MINIMAL PLACEHOLDER MODELS
+// ============================================================================
+
+model OrgPaymentAccount {
+  id                String   @id @default(cuid()) @map("id")
+  org_id            String   @unique @map("org_id")
+  provider          String   @default("stripe") @map("provider")
+  stripe_account_id String?  @map("stripe_account_id")
+  charges_enabled   Boolean  @default(false) @map("charges_enabled")
+  payouts_enabled   Boolean  @default(false) @map("payouts_enabled")
+  details_submitted Boolean  @default(false) @map("details_submitted")
+  onboarding_status String   @default("PENDING") @map("onboarding_status")
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+
+  org Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@map("org_payment_accounts")
+}

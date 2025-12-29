@@ -1,4 +1,5 @@
-import crypto from 'crypto';
+import { randomUUID, createHmac, pbkdf2Sync, timingSafeEqual, randomBytes } from 'crypto';
+import { JWT_SECRET } from '../config';
 
 // ============================================================================
 // PASSWORD HASHING
@@ -11,11 +12,11 @@ import crypto from 'crypto';
  */
 export function hashPassword(password: string): { salt: string; hash: string } {
   // Genera salt casuale 16 byte (32 caratteri hex)
-  const saltBytes = crypto.randomBytes(16);
+  const saltBytes = randomBytes(16);
   const salt = saltBytes.toString('hex');
 
   // PBKDF2 con SHA256, 100.000 iterazioni
-  const hash = crypto.pbkdf2Sync(password, saltBytes, 100000, 64, 'sha256').toString('hex');
+  const hash = pbkdf2Sync(password, saltBytes, 100000, 64, 'sha256').toString('hex');
 
   return { salt, hash };
 }
@@ -29,10 +30,10 @@ export function hashPassword(password: string): { salt: string; hash: string } {
  */
 export function verifyPassword(password: string, storedHash: string, storedSalt: string): boolean {
   const saltBytes = Buffer.from(storedSalt, 'hex');
-  const computedHash = crypto.pbkdf2Sync(password, saltBytes, 100000, 64, 'sha256').toString('hex');
+  const computedHash = pbkdf2Sync(password, saltBytes, 100000, 64, 'sha256').toString('hex');
 
   // Usa timing-safe comparison per evitare timing attacks
-  return crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(storedHash, 'hex'));
+  return timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(storedHash, 'hex'));
 }
 
 // ============================================================================
@@ -55,9 +56,8 @@ export function generateJWT(payload: any): string {
   // Codifica body in base64url (senza header)
   const body = Buffer.from(JSON.stringify(jwtPayload, null, 0)).toString('base64url');
 
-  // Firma HMAC-SHA256 con secret (da env, non hardcoded)
-  const secret = process.env.JWT_SECRET || 'fallback_secret_change_in_production';
-  const signature = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+  // Firma HMAC-SHA256 con secret (da config centralizzata)
+  const signature = createHmac('sha256', JWT_SECRET).update(body).digest('base64url');
 
   // Formato: {body}.{signature} (senza header)
   return `${body}.${signature}`;
@@ -76,10 +76,9 @@ export function verifyJWT(token: string): any | null {
     const [body, signature] = parts;
 
     // Verifica firma
-    const secret = process.env.JWT_SECRET || 'fallback_secret_change_in_production';
-    const expectedSignature = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+    const expectedSignature = createHmac('sha256', JWT_SECRET).update(body).digest('base64url');
 
-    if (!crypto.timingSafeEqual(Buffer.from(signature, 'base64url'), Buffer.from(expectedSignature, 'base64url'))) {
+    if (!timingSafeEqual(Buffer.from(signature, 'base64url'), Buffer.from(expectedSignature, 'base64url'))) {
       return null; // Firma invalida
     }
 
@@ -93,6 +92,7 @@ export function verifyJWT(token: string): any | null {
 
     return payload;
   } catch (error) {
+    console.error('JWT verification error:', error);
     return null; // Token malformato
   }
 }
@@ -171,21 +171,7 @@ export const rateLimiter = new RateLimiter();
 // ============================================================================
 // EMAIL UTILITIES
 // ============================================================================
-
-/**
- * Invia email con Resend
- * Nota: Implementazione placeholder, serve API key
- */
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-  // Placeholder per implementazione Resend
-  // In produzione:
-  // const resend = new Resend(process.env.RESEND_API_KEY);
-  // await resend.emails.send({ from, to, subject, html });
-
-  console.log(`📧 EMAIL TO: ${to}`);
-  console.log(`📧 SUBJECT: ${subject}`);
-  console.log(`📧 HTML: ${html.substring(0, 200)}...`);
-
-  // Per ora simula invio riuscito
-  return true;
-}
+// 
+// NOTA: Le funzioni email reali sono in server/utils/email.ts
+// Questo file contiene solo utility per autenticazione e JWT
+//

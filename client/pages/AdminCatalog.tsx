@@ -91,14 +91,16 @@ export default function AdminCatalog() {
   });
 
   // Query per offerte (bundle e promo)
-  const { data: offers = [], isLoading: offersLoading } = useQuery({
+  const { data: offers = [], isLoading: offersLoading, error: offersError } = useQuery({
     queryKey: ['offers', currentOrgId],
     queryFn: () => currentOrgId ? fetchOffers(currentOrgId) : Promise.resolve([]),
     enabled: !!currentOrgId
   });
 
-  const bundles = offers.filter(o => o.offer_type === 'BUNDLE');
-  const promos = offers.filter(o => o.offer_type === 'PROMO' || o.offer_type === 'SEASON_PACKAGE');
+  // Gestione sicura per offers - assicura che sia sempre un array
+  const offersArray = Array.isArray(offers) ? offers : [];
+  const bundles = offersArray.filter(o => o.offer_type === 'BUNDLE');
+  const promos = offersArray.filter(o => o.offer_type === 'PROMO' || o.offer_type === 'SEASON_PACKAGE');
 
   // Mutation per toggle prodotto
   const toggleMutation = useMutation({
@@ -168,9 +170,11 @@ export default function AdminCatalog() {
   const handleToggleProduct = async (skuId: string, currentStatus: boolean) => {
     try {
       console.log('🔄 Toggle prodotto:', { skuId, currentStatus, newStatus: !currentStatus });
-      await toggleMutation.mutateAsync({ skuId, isForSale: !currentStatus });
+      console.log('📡 Chiamando toggleVendorProduct con:', { orgId: currentOrgId, skuId, isForSale: !currentStatus });
+      const result = await toggleMutation.mutateAsync({ skuId, isForSale: !currentStatus });
+      console.log('✅ Toggle completato:', result);
     } catch (error) {
-      console.error('Errore nel toggle prodotto:', error);
+      console.error('❌ Errore nel toggle prodotto:', error);
     }
   };
 

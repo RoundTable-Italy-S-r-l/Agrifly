@@ -1,0 +1,47 @@
+[
+  {
+    "id": "gxtkr57i7",
+    "name": "Test User",
+    "type": "buyer",
+    "created_at": "2025-12-27T15:22:05.734Z"
+  },
+  {
+    "id": "ook29bikv",
+    "name": "Buyer Test",
+    "type": "buyer",
+    "created_at": "2025-12-27T15:22:47.092Z"
+  },
+  {
+    "id": "hnyms7z1b",
+    "name": "Marco Rossi",
+    "type": "operator",
+    "created_at": "2025-12-27T16:45:56.597Z"
+  },
+  {
+    "id": "dronepro_vendor",
+    "name": "DronePro Vendor",
+    "type": "vendor",
+    "created_at": "2025-12-28T21:00:00.000Z",
+    "address_line": "Via Test 123",
+    "city": "Test City",
+    "updated_at": "2025-12-29T14:45:17.756Z"
+  },
+  {
+    "id": "adminorg123",
+    "name": "Admin Organization",
+    "type": "vendor",
+    "created_at": "2025-12-28T20:40:00.000Z"
+  },
+  {
+    "id": "w1wl9zttu",
+    "name": "Palazzo Cavalcabò",
+    "type": "buyer",
+    "created_at": "2025-12-29T10:33:50.511Z"
+  },
+  {
+    "id": "lenzi-org-id",
+    "name": "Lenzi Test Organization",
+    "type": "vendor",
+    "created_at": "2025-12-29T15:00:00.000Z"
+  }
+]

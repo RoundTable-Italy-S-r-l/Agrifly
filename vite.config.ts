@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => ({
   root: "./client",
   server: {
     host: "::",
-    port: 8080,
+    port: process.env.PORT ? parseInt(process.env.PORT) : 8082,
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

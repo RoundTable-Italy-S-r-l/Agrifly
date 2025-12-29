@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
-  ShoppingBag,
   Calculator,
   Download,
   BookOpen,
@@ -16,22 +15,116 @@ import {
   Battery,
   Zap,
   ChevronRight,
-  X
+  X,
+  ShoppingCart,
+  ShoppingBag,
+  Heart,
+  Loader2
 } from 'lucide-react';
-import { fetchDroneById, type Drone } from '@/lib/api';
+import { fetchDroneById, type Drone, addToCart, addToWishlist, getCart, fetchProductVendors, type ProductVendor } from '@/lib/api';
 import { translateSpecKey, translateSection } from '@/lib/specs-translations';
 import { Layout } from '@/components/Layout';
+import { toast } from 'sonner';
 
 const DroneDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'overview' | 'specs' | 'gallery' | 'manuals' | 'faq'>('overview');
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
 
   const { data: drone, isLoading, error } = useQuery({
     queryKey: ['drone', id],
     queryFn: () => fetchDroneById(id!),
     enabled: !!id
+  });
+
+  // Carica i vendor che vendono questo prodotto
+  const productId = drone ? (drone as any).productId || (drone as any).id : null;
+  const { data: vendorsData, isLoading: vendorsLoading } = useQuery({
+    queryKey: ['productVendors', productId],
+    queryFn: () => fetchProductVendors(productId!),
+    enabled: !!productId
+  });
+
+  const vendors = vendorsData?.vendors || [];
+
+  // Ottieni dati utente/org dal localStorage
+  useEffect(() => {
+    const orgData = localStorage.getItem('organization');
+    const userData = localStorage.getItem('user');
+
+    if (orgData) {
+      try {
+        const org = JSON.parse(orgData);
+        setCurrentOrgId(org.id);
+      } catch (error) {
+        console.error('Errore parsing organization:', error);
+      }
+    }
+
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        setCurrentUserId(user.id);
+      } catch (error) {
+        console.error('Errore parsing user:', error);
+      }
+    }
+  }, []);
+
+  // Mutazione per aggiungere al carrello da un vendor specifico
+  const addToCartFromVendorMutation = useMutation({
+    mutationFn: async (vendor: ProductVendor) => {
+      if (!currentOrgId) {
+        throw new Error('Devi essere loggato per aggiungere prodotti al carrello. Effettua il login prima.');
+      }
+
+      // Prima ottieni o crea il carrello
+      const cartResponse = await getCart(currentOrgId, currentUserId || undefined);
+      const cartId = cartResponse.cart.id;
+
+      // Aggiungi l'item usando lo SKU del vendor
+      return await addToCart(cartId, vendor.skuId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      toast.success('Prodotto aggiunto al carrello!');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Errore nell\'aggiungere al carrello');
+    }
+  });
+
+  // Mutazione per aggiungere alla wishlist (a livello prodotto)
+  const addToWishlistMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentOrgId) {
+        throw new Error('Devi essere loggato per aggiungere prodotti alla wishlist. Effettua il login prima.');
+      }
+
+      // Usa productId invece di skuId
+      const productId = droneAny.productId || droneAny.id;
+      if (!productId) {
+        throw new Error('Product ID non disponibile');
+      }
+
+      return await addToWishlist(currentOrgId, productId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+      toast.success('Prodotto aggiunto ai preferiti!');
+    },
+    onError: (error: any) => {
+      if (error.message?.includes('already in wishlist')) {
+        toast.info('Prodotto già nei preferiti');
+      } else {
+        toast.error(error.message || 'Errore nell\'aggiungere ai preferiti');
+      }
+    }
   });
 
   if (isLoading) {
@@ -45,12 +138,27 @@ const DroneDetail = () => {
     );
   }
 
-  if (error || !drone) {
+  if (error) {
+    console.error('Errore caricamento prodotto:', error);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-900 mb-4">Drone non trovato</h1>
-          <Link to="/" className="text-emerald-600 hover:underline">Torna al catalogo</Link>
+          <h1 className="text-2xl font-bold text-slate-900 mb-4">Errore nel caricamento</h1>
+          <p className="text-slate-600 mb-4">ID prodotto: {id}</p>
+          <p className="text-sm text-red-600 mb-4">{error.message || 'Errore sconosciuto'}</p>
+          <Link to="/catalogo" className="text-emerald-600 hover:underline">Torna al catalogo</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!drone) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-900 mb-4">Prodotto non trovato</h1>
+          <p className="text-slate-600 mb-4">ID prodotto: {id}</p>
+          <Link to="/catalogo" className="text-emerald-600 hover:underline">Torna al catalogo</Link>
         </div>
       </div>
     );
@@ -58,10 +166,10 @@ const DroneDetail = () => {
 
   const droneAny = drone as any;
   // Gestisci sia array che null/undefined
-  const coreSpecs = Array.isArray(droneAny.specs_core_json) ? droneAny.specs_core_json : [];
-  const extraSpecs = Array.isArray(droneAny.specs_extra_json) ? droneAny.specs_extra_json : [];
+  const coreSpecs = Array.isArray(droneAny.specsCore) ? droneAny.specsCore : (Array.isArray(droneAny.specs_core_json) ? droneAny.specs_core_json : []);
+  const extraSpecs = Array.isArray(droneAny.specsExtra) ? droneAny.specsExtra : (Array.isArray(droneAny.specs_extra_json) ? droneAny.specs_extra_json : []);
   const images = Array.isArray(droneAny.images) ? droneAny.images : [];
-  const manuals = Array.isArray(droneAny.manuals_pdf_json) ? droneAny.manuals_pdf_json : [];
+  const manuals = Array.isArray(droneAny.manuals) ? droneAny.manuals : (Array.isArray(droneAny.manuals_pdf_json) ? droneAny.manuals_pdf_json : []);
 
   // Raggruppa specs per sezione
   const groupSpecsBySection = (specs: any[]) => {
@@ -216,66 +324,131 @@ const DroneDetail = () => {
               </div>
             )}
 
-            {/* CTA Buttons */}
-            <div className="space-y-3">
-              <button 
-                onClick={() => {
-                  // TODO: Implementare preventivo
-                  alert('Funzionalità preventivo in arrivo!');
-                }}
-                className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2"
-              >
-                <ShoppingBag size={20} />
-                Richiedi Preventivo
-              </button>
-              <button 
-                onClick={() => {
-                  // Naviga al catalogo con ROI calculator aperto
-                  navigate('/?view=shop&roi=' + drone.id);
-                }}
-                className="w-full border-2 border-emerald-600 text-emerald-600 py-4 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-all flex items-center justify-center gap-2"
-              >
-                <Calculator size={20} />
-                Calcola ROI
-              </button>
-            </div>
-
-            {/* Disponibilità */}
-            <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-              <div className="flex items-center gap-3">
-              <CheckCircle size={20} className="text-emerald-600" />
-              <div>
-                  <p className="font-semibold text-slate-900">
-                    {droneAny.stock > 0 ? 'Disponibile' : 'Non disponibile'}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    {droneAny.stock > 0 
-                      ? `${droneAny.stock} unità disponibili`
-                      : 'Temporaneamente esaurito'
-                    }
-                  </p>
-                </div>
+            {/* Venditori che vendono questo prodotto */}
+            {vendorsLoading ? (
+              <div className="bg-slate-50 rounded-xl p-4 text-center">
+                <Loader2 size={20} className="animate-spin mx-auto mb-2 text-slate-400" />
+                <p className="text-sm text-slate-600">Caricamento venditori...</p>
               </div>
-              {droneAny.skus && droneAny.skus.length > 0 && (
-                <div className="pt-2 border-t border-slate-200">
-                  <p className="text-xs font-semibold text-slate-700 mb-2">Disponibilità per SKU:</p>
-                  <div className="space-y-1">
-                    {droneAny.skus.map((sku: any) => (
-                      <div key={sku.id} className="flex items-center justify-between text-xs">
-                        <span className="text-slate-600">{sku.skuCode}</span>
-                        <span className={`font-medium ${
-                          sku.stock > 0 ? 'text-emerald-600' : 'text-red-600'
-                        }`}>
-                          {sku.stock} unità
-                        </span>
+            ) : vendors.length > 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+                <h3 className="text-lg font-bold text-slate-900 mb-4">Disponibile da</h3>
+                {vendors.map((vendor) => (
+                  <div key={vendor.vendorId} className="border border-slate-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {vendor.vendorLogo && (
+                          <img
+                            src={vendor.vendorLogo}
+                            alt={vendor.vendorName}
+                            className="w-10 h-10 rounded-lg object-contain"
+                          />
+                        )}
+                        <div>
+                          <p className="font-semibold text-slate-900">{vendor.vendorName}</p>
+                          <p className="text-sm text-slate-600">{vendor.vendorAddress}</p>
+                        </div>
                       </div>
-                    ))}
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-emerald-600">
+                          €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-slate-500">{vendor.stock} disponibili</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-3">
+                      {currentOrgId ? (
+                        <button
+                          onClick={() => addToCartFromVendorMutation.mutate(vendor)}
+                          disabled={addToCartFromVendorMutation.isPending || vendor.stock === 0}
+                          className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-lg font-medium text-sm hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {addToCartFromVendorMutation.isPending ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <ShoppingCart size={16} />
+                          )}
+                          Aggiungi al Carrello
+                        </button>
+                      ) : (
+                        <Link
+                          to="/login"
+                          className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-lg font-medium text-sm hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                        >
+                          <ShoppingCart size={16} />
+                          Accedi per acquistare
+                        </Link>
+                      )}
+
+                      <button
+                        onClick={() => setExpandedVendor(expandedVendor === vendor.vendorId ? null : vendor.vendorId)}
+                        className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                      >
+                        Condizioni
+                        <ChevronRight
+                          size={16}
+                          className={`transition-transform ${expandedVendor === vendor.vendorId ? 'rotate-90' : ''}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Menu a tendina condizioni */}
+                    {expandedVendor === vendor.vendorId && (
+                      <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
+                        <div className="text-sm">
+                          <p className="font-semibold text-slate-900 mb-1">Tempi di consegna</p>
+                          <p className="text-slate-600">
+                            {vendor.leadTimeDays ? `${vendor.leadTimeDays} giorni lavorativi` : 'Da confermare'}
+                          </p>
+                        </div>
+                        {vendor.notes && (
+                          <div className="text-sm">
+                            <p className="font-semibold text-slate-900 mb-1">Note venditore</p>
+                            <p className="text-slate-600">{vendor.notes}</p>
+                          </div>
+                        )}
+                        {/* Le politiche di spedizione e reso verranno recuperate dal database quando disponibili */}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <CheckCircle size={20} className="text-red-600" />
+                  <div>
+                    <p className="font-semibold text-slate-900">Non disponibile</p>
+                    <p className="text-sm text-slate-600">Temporaneamente esaurito</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Bottone Aggiungi ai Preferiti - Sotto le specifiche principali */}
+            <div className="mt-6">
+              {currentOrgId ? (
+                <button
+                  onClick={() => addToWishlistMutation.mutate()}
+                  disabled={addToWishlistMutation.isPending}
+                  className="w-full border-2 border-emerald-600 text-emerald-600 py-3 px-4 rounded-lg font-semibold text-base hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addToWishlistMutation.isPending ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Heart size={16} />
+                  )}
+                  Aggiungi ai Preferiti
+                </button>
+              ) : (
+                <Link
+                  to={`/login?mode=register&redirect=${encodeURIComponent(`/prodotti/${id}`)}&action=wishlist&productId=${encodeURIComponent(droneAny?.productId || droneAny?.id || id || '')}`}
+                  className="block w-full border-2 border-emerald-600 text-emerald-600 py-3 px-4 rounded-lg font-semibold text-base hover:bg-emerald-50 transition-all text-center"
+                >
+                  Accedi per aggiungere ai preferiti
+                </Link>
               )}
-              <p className="text-xs text-slate-500 pt-2 border-t border-slate-200">
-                Tempi di consegna: 7-10 giorni lavorativi
-              </p>
             </div>
           </div>
         </div>

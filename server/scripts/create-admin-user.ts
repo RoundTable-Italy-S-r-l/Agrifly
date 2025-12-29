@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const email = 'giacomo.cavalcabo14@gmail.com';
-  const password = 'Palemone01!';
+  const password = process.env.SEED_ADMIN_PASSWORD || 'Palemone01!';
   const firstName = 'Giacomo';
   const lastName = 'Cavalcabo';
 
@@ -89,7 +89,7 @@ async function main() {
   console.log('');
   console.log('🎉 Account creato con successo!');
   console.log('📧 Email:', email);
-  console.log('🔑 Password:', password);
+  console.log(`🔑 Password: ${password} (configura SEED_ADMIN_PASSWORD per cambiarla)`);
   console.log('👤 Ruolo: VENDOR_ADMIN');
   console.log('🏢 Organization: Lenzi');
 }

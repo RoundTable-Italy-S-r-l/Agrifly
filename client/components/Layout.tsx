@@ -1,5 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { authAPI } from "@/lib/auth";
+import { getCart } from "@/lib/api";
+import { ShoppingCart } from "lucide-react";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,6 +13,91 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
   const isAuthenticated = authAPI.isAuthenticated();
+  const [cartItemCount, setCartItemCount] = useState(0);
+
+  // Ottieni conteggio item carrello
+  useEffect(() => {
+    const updateCartCount = async () => {
+      try {
+        let orgId = null;
+        let userId = null;
+        let sessionId = null;
+
+        // Prova a ottenere orgId da localStorage (utenti autenticati)
+        const orgData = localStorage.getItem('organization');
+        if (orgData) {
+          try {
+            const org = JSON.parse(orgData);
+            orgId = org.id;
+          } catch (e) {
+            console.warn('Errore parsing organization:', e);
+          }
+        }
+
+        // Se non abbiamo orgId da organization, prova guest_org_id (utenti guest)
+        if (!orgId) {
+          orgId = localStorage.getItem('guest_org_id');
+        }
+
+        // Se non abbiamo orgId, non possiamo avere un carrello
+        if (!orgId) {
+          setCartItemCount(0);
+          return;
+        }
+
+        // Prova a ottenere userId da token JWT
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          try {
+            const parts = token.split('.');
+            const body = parts.length === 3 ? parts[1] : parts[0];
+            const base64 = body.replace(/-/g, '+').replace(/_/g, '/');
+            const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const decoded = atob(padded);
+            const payload = JSON.parse(decoded);
+            userId = payload.userId;
+          } catch (e) {
+            console.warn('❌ Errore parsing token:', e);
+          }
+        }
+
+        // Se non abbiamo userId, usa sessionId per carrelli guest
+        if (!userId) {
+          sessionId = localStorage.getItem('session_id');
+          if (!sessionId) {
+            // Genera un sessionId se non esiste
+            sessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            localStorage.setItem('session_id', sessionId);
+          }
+        }
+
+        const cartData = await getCart(orgId, userId || undefined, sessionId || undefined);
+        const itemCount = cartData.items?.length || 0;
+        setCartItemCount(itemCount);
+      } catch (error) {
+        console.warn('❌ Errore caricamento carrello:', error);
+        console.error('Error details:', error);
+        setCartItemCount(0);
+      }
+    };
+
+    updateCartCount();
+
+    // Aggiorna ogni 30 secondi o quando cambia location
+    const interval = setInterval(updateCartCount, 30000);
+
+    // Ascolta eventi custom per aggiornamenti immediati del carrello
+    const handleCartUpdate = () => {
+      updateCartCount();
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+  }, [location.pathname]);
 
   // Funzione per ottenere il ruolo dell'utente
   const getUserRole = () => {
@@ -94,6 +182,26 @@ export function Layout({ children }: LayoutProps) {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
+            {/* Carrello */}
+            <button
+              onClick={() => {
+                if (isAuthenticated) {
+                  navigate('/buyer/carrello');
+                } else {
+                  navigate('/login?redirect=/buyer/carrello');
+                }
+              }}
+              className="relative inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+              title="Carrello"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[8px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                  {cartItemCount > 99 ? '99+' : cartItemCount}
+                </span>
+              )}
+            </button>
+
             {isAuthenticated ? (
               <>
                 <Link

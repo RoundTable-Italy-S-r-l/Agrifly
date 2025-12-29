@@ -1,0 +1,1376 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url = "file:./dev.db"
+}
+
+// ============================================================================
+// 1) IDENTITY, AZIENDE, RUOLI
+// ============================================================================
+
+model User {
+  id                  String         @id @default(cuid()) @map("id")
+  email               String         @unique @map("email")
+  phone               String?        @map("phone")
+  first_name          String         @map("first_name")
+  last_name           String         @map("last_name")
+  // Password hashing: PBKDF2 + salt
+  password_salt       String?        @map("password_salt")
+  password_hash       String?        @map("password_hash")
+  email_verified      Boolean        @default(false) @map("email_verified")
+  email_verified_at   DateTime?      @map("email_verified_at")
+  oauth_provider      OAuthProvider? @map("oauth_provider")
+  oauth_id            String?        @map("oauth_id")
+  // Reset password: token URL-safe 32 caratteri, 24 ore
+  reset_token         String?        @map("reset_token")
+  reset_token_expires DateTime?      @map("reset_token_expires")
+  status              UserStatus     @default(ACTIVE) @map("status")
+  created_at          DateTime       @default(now()) @map("created_at")
+  updated_at          DateTime       @updatedAt @map("updated_at")
+
+  org_memberships               OrgMembership[]
+  operator_profiles             OperatorProfile[]
+  external_calendar_connections ExternalCalendarConnection[]
+  verification_codes            VerificationCode[]
+  organization_invitations      OrganizationInvitation[]
+  notification_preferences      UserNotificationPreferences?
+  messages                      Message[]
+
+  @@unique([oauth_provider, oauth_id])
+  @@map("users")
+}
+
+enum OAuthProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+model Organization {
+  id            String    @id @default(cuid()) @map("id")
+  legal_name    String    @map("legal_name")
+  logo_url      String?   @map("logo_url")
+  phone         String?   @map("phone")
+  support_email String?   @map("support_email")
+  vat_number    String?   @map("vat_number")
+  tax_code      String?   @map("tax_code")
+  kind          OrgKind   @map("kind")
+  can_buy       Boolean   @default(true)  @map("can_buy")
+  can_sell      Boolean   @default(false) @map("can_sell")
+  can_operate   Boolean   @default(false) @map("can_operate")
+  can_dispatch  Boolean   @default(false) @map("can_dispatch")
+  address_line  String    @map("address_line")
+  city          String    @map("city")
+  province      String    @map("province")
+  region        String    @map("region")
+  postal_code   String?   @map("postal_code")
+  country       String    @default("IT") @map("country")
+  status        OrgStatus @default(ACTIVE) @map("status")
+  show_individual_operators Boolean @default(true) @map("show_individual_operators")
+  created_at    DateTime  @default(now()) @map("created_at")
+
+  org_memberships                OrgMembership[]
+  organization_invitations       OrganizationInvitation[]
+  org_payment_accounts           OrgPaymentAccount[]
+  org_billing_profiles           OrgBillingProfile[]
+  locations                      Location[]
+  inventories                    Inventory[]
+  assets_owned                   Asset[]                  @relation("AssetOwner")
+  assets_managed                 Asset[]                  @relation("AssetManager")
+  vendor_catalog_items           VendorCatalogItem[]
+  price_lists                    PriceList[]
+  offers                         Offer[]
+  // Deprecated: org_service_policies_vendor e vendor_operator_links sostituiti da ApprovedNetwork
+  platform_fees                  PlatformFee[]
+  rate_cards                     RateCard[]
+  operator_profiles              OperatorProfile[]
+  service_area_sets              ServiceAreaSet[]
+  // service_area_rules gestiti tramite scope_id (polimorfico)
+  // Job marketplace
+  jobs_buyer                     Job[]                    @relation("BuyerJob")
+  jobs_broker                    Job[]                    @relation("BrokerJob")
+  job_offers_operator            JobOffer[]               @relation("OperatorOffer")
+  networks_source                ApprovedNetwork[]        @relation("NetworkSource")
+  networks_target                ApprovedNetwork[]        @relation("NetworkTarget")
+  job_invites_operator           JobInvite[]              @relation("InvitedOperator")
+  conversation_participants      ConversationParticipant[]
+  wishlist_items                 WishlistItem[]
+
+  // Legacy CPQ (deprecated)
+  quote_requests_buyer           QuoteRequest[]           @relation("BuyerQuoteRequest")
+  quotes_seller                  Quote[]                  @relation("SellerQuote")
+  quotes_executor                Quote[]                  @relation("ExecutorQuote")
+  orders_buyer                   Order[]                  @relation("BuyerOrder")
+  orders_seller                  Order[]                  @relation("SellerOrder")
+  bookings_buyer                 Booking[]                @relation("BuyerBooking")
+  bookings_broker                Booking[]                @relation("BrokerBooking")
+  bookings_executor              Booking[]                @relation("ExecutorBooking")
+  payments_payer                 Payment[]                @relation("PayerPayment")
+  payments_payee                 Payment[]                @relation("PayeePayment")
+  service_sites                  ServiceSite[]
+
+  @@map("organizations")
+}
+
+enum OrgKind {
+  BUSINESS
+  INDIVIDUAL
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model OrgMembership {
+  id         String   @id @default(cuid()) @map("id")
+  org_id     String   @map("org_id")
+  user_id    String   @map("user_id")
+  role       OrgRole  @map("role")
+  is_active  Boolean  @default(true) @map("is_active")
+  created_at DateTime @default(now()) @map("created_at")
+
+  org  Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, user_id])
+  @@map("org_memberships")
+}
+
+enum OrgRole {
+  ADMIN        // Admin generale dell'organizzazione
+  BUYER        // Può comprare prodotti e servizi
+  SELLER       // Può vendere prodotti
+  OPERATOR     // Può eseguire servizi/operatori
+  DISPATCHER   // Può assegnare e coordinare servizi
+}
+
+// ============================================================================
+// AUTHENTICATION & VERIFICATION
+// ============================================================================
+
+model VerificationCode {
+  id         String              @id @default(cuid()) @map("id")
+  user_id    String?             @map("user_id")
+  email      String              @map("email")
+  code       String              @map("code") // 6 cifre
+  purpose    VerificationPurpose @map("purpose")
+  expires_at DateTime            @map("expires_at")
+  used       Boolean             @default(false) @map("used")
+  used_at    DateTime?           @map("used_at")
+  created_at DateTime            @default(now()) @map("created_at")
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([email, code, used])
+  @@map("verification_codes")
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model OrganizationInvitation {
+  id                 String    @id @default(cuid()) @map("id")
+  organization_id    String    @map("organization_id")
+  email              String    @map("email")
+  token              String    @unique @map("token")
+  role               OrgRole   @map("role")
+  invited_by_user_id String    @map("invited_by_user_id")
+  expires_at         DateTime  @map("expires_at")
+  accepted_at        DateTime? @map("accepted_at")
+  created_at         DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  invited_by   User         @relation(fields: [invited_by_user_id], references: [id], onDelete: Cascade)
+
+  @@index([email, token])
+  @@map("organization_invitations")
+}
+
+// ============================================================================
+// 2) MARKETPLACE RULES: VENDOR/OPERATOR SEPARATI
+// ============================================================================
+
+// DEPRECATED: Sostituito da ApprovedNetwork per Job marketplace
+model OrgServicePolicy {
+  id                       String                 @id @default(cuid()) @map("id")
+  // Campo rinominato per evitare conflitti
+  vendor_org_id_legacy     String                 @map("vendor_org_id")
+  service_type             ServiceType            @map("service_type")
+  operator_assignment_mode OperatorAssignmentMode @map("operator_assignment_mode")
+  allow_external_operator  Boolean                @default(false) @map("allow_external_operator")
+  default_operator_org_id  String?                @map("default_operator_org_id")
+  min_lead_time_hours      Int                    @default(48) @map("min_lead_time_hours")
+  cancellation_policy_json String?                @map("cancellation_policy_json")
+  created_at               DateTime               @default(now()) @map("created_at")
+
+  @@unique([vendor_org_id_legacy, service_type])
+  @@map("org_service_policies")
+}
+
+enum ServiceType {
+  SPRAY
+  SPREAD
+  MAPPING
+}
+
+enum OperatorAssignmentMode {
+  VENDOR_ONLY
+  APPROVED_NETWORK
+}
+
+// DEPRECATED: Sostituito da ApprovedNetwork per Job marketplace
+model VendorOperatorLink {
+  id              String                   @id @default(cuid()) @map("id")
+  // Campi rinominati per evitare conflitti
+  vendor_org_id_legacy   String            @map("vendor_org_id")
+  operator_org_id_legacy String            @map("operator_org_id")
+  status          VendorOperatorLinkStatus @default(INVITED) @map("status")
+  is_exclusive    Boolean                  @default(false) @map("is_exclusive")
+  created_at      DateTime                 @default(now()) @map("created_at")
+
+  @@unique([vendor_org_id_legacy, operator_org_id_legacy])
+  @@map("vendor_operator_links")
+}
+
+enum VendorOperatorLinkStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+// ============================================================================
+// 3) STRIPE / MONETIZZAZIONE
+// ============================================================================
+
+model OrgPaymentAccount {
+  id                String           @id @default(cuid()) @map("id")
+  org_id            String           @unique @map("org_id")
+  provider          String           @default("stripe") @map("provider")
+  stripe_account_id String?          @map("stripe_account_id")
+  charges_enabled   Boolean          @default(false) @map("charges_enabled")
+  payouts_enabled   Boolean          @default(false) @map("payouts_enabled")
+  details_submitted Boolean          @default(false) @map("details_submitted")
+  onboarding_status OnboardingStatus @default(PENDING) @map("onboarding_status")
+  created_at        DateTime         @default(now()) @map("created_at")
+  updated_at        DateTime         @updatedAt @map("updated_at")
+
+  org Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@map("org_payment_accounts")
+}
+
+enum OnboardingStatus {
+  PENDING
+  COMPLETE
+  ERROR
+}
+
+model PlatformFee {
+  id              String       @id @default(cuid()) @map("id")
+  vendor_org_id   String       @map("vendor_org_id")
+  fee_type        FeeType      @map("fee_type")
+  fee_percent     Float?       @map("fee_percent")
+  fee_fixed_cents Int?         @map("fee_fixed_cents")
+  applies_to      FeeAppliesTo @map("applies_to")
+  valid_from      DateTime     @map("valid_from")
+  valid_to        DateTime?    @map("valid_to")
+  created_at      DateTime     @default(now()) @map("created_at")
+
+  vendor_org Organization @relation(fields: [vendor_org_id], references: [id], onDelete: Cascade)
+
+  @@map("platform_fees")
+}
+
+enum FeeType {
+  PERCENT
+  FIXED
+  MIXED
+}
+
+enum FeeAppliesTo {
+  PURCHASE
+  RENTAL
+  BOTH
+}
+
+model OrgBillingProfile {
+  id                   String   @id @default(cuid()) @map("id")
+  org_id               String   @map("org_id")
+  billing_name         String   @map("billing_name")
+  vat_number           String?  @map("vat_number")
+  tax_code             String?  @map("tax_code")
+  billing_address_json String   @map("billing_address_json")
+  sdi_code             String?  @map("sdi_code")
+  pec_email            String?  @map("pec_email")
+  invoice_email        String   @map("invoice_email")
+  created_at           DateTime @default(now()) @map("created_at")
+
+  org Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@map("org_billing_profiles")
+}
+
+// ============================================================================
+// 4) CATALOGO PRODOTTI (VENDITA E ASSET)
+// ============================================================================
+
+model Product {
+  id                     String        @id @default(cuid()) @map("id")
+  product_type           ProductType   @map("product_type")
+  brand                  String        @map("brand")
+  model                  String        @map("model")
+  name                   String        @map("name")
+  specs_json             String?       @map("specs_json")
+  specs_core_json        String?       @map("specs_core_json") // Core specs per scheda drone
+  specs_extra_json       String?       @map("specs_extra_json") // Extra specs per pagina dettaglio
+  // Media e documentazione
+  videos_json            String?       @map("videos_json") // Array di URL video: [{url, title, type}]
+  glb_files_json         String?       @map("glb_files_json") // Array di path/URL file GLB 3D: [{url, filename, size}]
+  images_json            String?       @map("images_json") // Array di URL immagini: [{url, alt, is_primary}]
+  manuals_extracted_json String?       @map("manuals_extracted_json") // Testi estratti: {manual_type: {text, extracted_at}}
+  manuals_pdf_json       String?       @map("manuals_pdf_json") // Array di path/URL PDF: [{url, filename, type, size}]
+  status                 ProductStatus @default(ACTIVE) @map("status")
+
+  skus   Sku[]
+  assets Asset[]
+
+  @@map("products")
+}
+
+enum ProductType {
+  DRONE
+  BATTERY
+  SPARE
+  SERVICE_PACKAGE
+}
+
+enum ProductStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Sku {
+  id           String    @id @default(cuid()) @map("id")
+  product_id   String    @map("product_id")
+  sku_code     String    @unique @map("sku_code")
+  variant_tags String?  @map("variant_tags") // JSON string
+  uom          String    @default("unit") @map("uom")
+  status       SkuStatus @default(ACTIVE) @map("status")
+
+  product              Product             @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  vendor_catalog_items VendorCatalogItem[]
+  price_list_items     PriceListItem[]
+  inventories          Inventory[]
+  assets               Asset[]
+  order_lines          OrderLine[]
+  wishlist_items       WishlistItem[]
+
+  @@map("skus")
+}
+
+enum SkuStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model VendorCatalogItem {
+  id             String  @id @default(cuid()) @map("id")
+  vendor_org_id  String  @map("vendor_org_id")
+  sku_id         String  @map("sku_id")
+  is_for_sale    Boolean @default(true) @map("is_for_sale")
+  is_for_rent    Boolean @default(false) @map("is_for_rent")
+  lead_time_days Int?    @map("lead_time_days")
+  notes          String? @map("notes")
+
+  vendor_org Organization @relation(fields: [vendor_org_id], references: [id], onDelete: Cascade)
+  sku        Sku          @relation(fields: [sku_id], references: [id], onDelete: Cascade)
+
+  @@unique([vendor_org_id, sku_id])
+  @@map("vendor_catalog_items")
+}
+
+model PriceList {
+  id            String          @id @default(cuid()) @map("id")
+  vendor_org_id String          @map("vendor_org_id")
+  name          String          @map("name")
+  currency      String          @default("EUR") @map("currency")
+  valid_from    DateTime        @map("valid_from")
+  valid_to      DateTime?       @map("valid_to")
+  status        PriceListStatus @default(ACTIVE) @map("status")
+
+  vendor_org Organization    @relation(fields: [vendor_org_id], references: [id], onDelete: Cascade)
+  items      PriceListItem[]
+
+  @@map("price_lists")
+}
+
+enum PriceListStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model PriceListItem {
+  id               String  @id @default(cuid()) @map("id")
+  price_list_id    String  @map("price_list_id")
+  sku_id           String  @map("sku_id")
+  price_cents      Int     @map("price_cents")
+  tax_code         String? @map("tax_code")
+  constraints_json String? @map("constraints_json")
+
+  price_list PriceList @relation(fields: [price_list_id], references: [id], onDelete: Cascade)
+  sku        Sku       @relation(fields: [sku_id], references: [id], onDelete: Cascade)
+
+  @@unique([price_list_id, sku_id])
+  @@map("price_list_items")
+}
+
+model Offer {
+  id            String      @id @default(cuid()) @map("id")
+  vendor_org_id String      @map("vendor_org_id")
+  offer_type    OfferType   @map("offer_type")
+  name          String      @map("name")
+  rules_json    String      @map("rules_json")
+  valid_from    DateTime    @map("valid_from")
+  valid_to      DateTime?   @map("valid_to")
+  status        OfferStatus @default(ACTIVE) @map("status")
+
+  vendor_org Organization @relation(fields: [vendor_org_id], references: [id], onDelete: Cascade)
+
+  @@map("offers")
+}
+
+enum OfferType {
+  BUNDLE
+  PROMO
+  SEASON_PACKAGE
+}
+
+enum OfferStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// ============================================================================
+// 5) STOCK (VENDITA) + FLOTTA (ASSET)
+// ============================================================================
+
+model Location {
+  id           String   @id @default(cuid()) @map("id")
+  org_id       String   @map("org_id")
+  name         String   @map("name")
+  address_json String   @map("address_json")
+  lat          Float?   @map("lat")
+  lon          Float?   @map("lon")
+  is_hub       Boolean  @default(false) @map("is_hub")
+
+  org               Organization      @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  inventories       Inventory[]
+  assets            Asset[]
+  operator_profiles OperatorProfile[]
+
+  @@map("locations")
+}
+
+model Inventory {
+  id            String @id @default(cuid()) @map("id")
+  vendor_org_id String @map("vendor_org_id")
+  location_id   String @map("location_id")
+  sku_id        String @map("sku_id")
+  qty_on_hand   Int    @default(0) @map("qty_on_hand")
+  qty_reserved  Int    @default(0) @map("qty_reserved")
+
+  vendor_org Organization @relation(fields: [vendor_org_id], references: [id], onDelete: Cascade)
+  location   Location     @relation(fields: [location_id], references: [id], onDelete: Cascade)
+  sku        Sku          @relation(fields: [sku_id], references: [id], onDelete: Cascade)
+
+  @@unique([vendor_org_id, location_id, sku_id])
+  @@map("inventories")
+}
+
+model Asset {
+  id                String      @id @default(cuid()) @map("id")
+  owning_org_id     String      @map("owning_org_id")
+  managed_by_org_id String      @map("managed_by_org_id")
+  sku_id            String      @map("sku_id")
+  serial_number     String?     @map("serial_number")
+  asset_status      AssetStatus @default(AVAILABLE) @map("asset_status")
+  home_location_id  String?     @map("home_location_id")
+  hours_total       Float?      @map("hours_total")
+  battery_cycles    Int?        @map("battery_cycles")
+  capabilities_json String?     @map("capabilities_json")
+  notes             String?     @map("notes")
+
+  owning_org          Organization        @relation("AssetOwner", fields: [owning_org_id], references: [id], onDelete: Cascade)
+  managed_by_org      Organization        @relation("AssetManager", fields: [managed_by_org_id], references: [id], onDelete: Cascade)
+  sku                 Sku                 @relation(fields: [sku_id], references: [id], onDelete: Restrict)
+  home_location       Location?           @relation(fields: [home_location_id], references: [id], onDelete: SetNull)
+  maintenance_events  MaintenanceEvent[]
+  booking_assignments BookingAssignment[]
+  product             Product?            @relation(fields: [productId], references: [id])
+  productId           String?
+
+  @@map("assets")
+}
+
+enum AssetStatus {
+  AVAILABLE
+  BOOKED
+  MAINTENANCE
+  TRANSIT
+  RETIRED
+}
+
+model MaintenanceEvent {
+  id          String               @id @default(cuid()) @map("id")
+  asset_id    String               @map("asset_id")
+  event_type  MaintenanceEventType @map("event_type")
+  started_at  DateTime             @map("started_at")
+  ended_at    DateTime?            @map("ended_at")
+  cost_cents  Int?                 @map("cost_cents")
+  notes       String?              @map("notes")
+  next_due_at DateTime?            @map("next_due_at")
+
+  asset Asset @relation(fields: [asset_id], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_events")
+}
+
+enum MaintenanceEventType {
+  ROUTINE
+  FAULT
+  REPAIR
+}
+
+// ============================================================================
+// 6) JOB MARKETPLACE: LAVORI AGRICOLI
+// ============================================================================
+
+model Job {
+  id              String     @id @default(cuid()) @map("id")
+  buyer_org_id    String     @map("buyer_org_id")
+  broker_org_id   String?    @map("broker_org_id")
+  service_type    ServiceType @map("service_type")
+  status          JobStatus  @default(DRAFT) @map("status")
+
+  // Campo e contesto
+  field_name      String?    @map("field_name")
+  field_polygon   String     @map("field_polygon")
+  area_ha         Float?    @map("area_ha")
+  location_json   String?   @map("location_json")
+
+  // Vincoli & richieste
+  requested_window_start DateTime? @map("requested_window_start")
+  requested_window_end   DateTime? @map("requested_window_end")
+  constraints_json       String?   @map("constraints_json")
+
+  // Moderazione / rete curata
+  visibility_mode JobVisibilityMode @default(WHITELIST_ONLY) @map("visibility_mode")
+
+  accepted_offer_id String? @unique @map("accepted_offer_id")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  buyer_org Organization @relation("BuyerJob", fields: [buyer_org_id], references: [id], onDelete: Cascade)
+  broker_org Organization? @relation("BrokerJob", fields: [broker_org_id], references: [id], onDelete: SetNull)
+
+  offers     JobOffer[]
+  booking Booking?
+  invites JobInvite[]
+
+  @@map("jobs")
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum JobVisibilityMode {
+  WHITELIST_ONLY
+  APPROVED_NETWORK
+  PUBLIC
+}
+
+model JobOffer {
+  id             String @id @default(cuid()) @map("id")
+  job_id         String @map("job_id")
+  operator_org_id String @map("operator_org_id")
+
+  status         JobOfferStatus @default(SUBMITTED) @map("status")
+
+  // proposta economica + struttura
+  pricing_snapshot_json String @map("pricing_snapshot_json")
+  total_cents     Int @map("total_cents")
+  currency        String @default("EUR") @map("currency")
+
+  // proposta temporale
+  proposed_start  DateTime? @map("proposed_start")
+  proposed_end    DateTime? @map("proposed_end")
+
+  // affidabilità congelata al momento dell'offerta
+  reliability_snapshot_json String? @map("reliability_snapshot_json")
+
+  // tool "preventivo costruito": linee o PDF
+  offer_lines_json String? @map("offer_lines_json")
+  provider_note     String? @map("provider_note")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  operator_org Organization @relation("OperatorOffer", fields: [operator_org_id], references: [id], onDelete: Cascade)
+
+  @@index([job_id, status])
+  @@map("job_offers")
+}
+
+enum JobOfferStatus {
+  SUBMITTED
+  WITHDRAWN
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model ApprovedNetwork {
+  id               String @id @default(cuid()) @map("id")
+  source_org_id    String @map("source_org_id") // buyer o broker/vendor
+  target_org_id    String @map("target_org_id") // operator org
+  status           ApprovedStatus @default(ACTIVE) @map("status")
+  scope            NetworkScope @default(SERVICES_ONLY) @map("scope")
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  source_org Organization @relation("NetworkSource", fields: [source_org_id], references: [id], onDelete: Cascade)
+  target_org Organization @relation("NetworkTarget", fields: [target_org_id], references: [id], onDelete: Cascade)
+
+  @@unique([source_org_id, target_org_id])
+  @@map("approved_networks")
+}
+
+enum ApprovedStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum NetworkScope {
+  SERVICES_ONLY
+  ALL
+}
+
+model JobInvite {
+  id              String @id @default(cuid()) @map("id")
+  job_id          String @map("job_id")
+  operator_org_id String @map("operator_org_id")
+  status          InviteStatus @default(PENDING) @map("status")
+  invited_by      String @map("invited_by") // user_id che ha invitato
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  operator_org Organization @relation("InvitedOperator", fields: [operator_org_id], references: [id], onDelete: Cascade)
+
+  @@unique([job_id, operator_org_id])
+  @@map("job_invites")
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+// ============================================================================
+// 6) CPQ: RICHIESTE E PREVENTIVI (DEPRECATED - sostituito da Job + JobOffer)
+// ============================================================================
+
+model QuoteRequest {
+  id                  String             @id @default(cuid()) @map("id")
+  buyer_org_id        String             @map("buyer_org_id")
+  request_type        QuoteRequestType   @map("request_type")
+  service_params_json String             @map("service_params_json")
+  status              QuoteRequestStatus @default(OPEN) @map("status")
+  created_at          DateTime           @default(now()) @map("created_at")
+
+  buyer_org Organization @relation("BuyerQuoteRequest", fields: [buyer_org_id], references: [id], onDelete: Cascade)
+  quotes    Quote[]
+
+  @@map("quote_requests")
+}
+
+enum QuoteRequestType {
+  PURCHASE
+  RENTAL_SERVICE
+}
+
+enum QuoteRequestStatus {
+  OPEN
+  QUOTED
+  CLOSED
+}
+
+model Quote {
+  id                    String      @id @default(cuid()) @map("id")
+  quote_request_id      String      @map("quote_request_id")
+  seller_org_id         String      @map("seller_org_id")
+  executor_org_id       String      @map("executor_org_id")
+  revision              Int         @default(1) @map("revision")
+  pricing_snapshot_json String      @map("pricing_snapshot_json")
+  total_estimated_cents Int         @map("total_estimated_cents")
+  currency              String      @default("EUR") @map("currency")
+  valid_until           DateTime    @map("valid_until")
+  status                QuoteStatus @default(DRAFT) @map("status")
+
+  quote_request QuoteRequest @relation(fields: [quote_request_id], references: [id], onDelete: Cascade)
+  seller_org    Organization @relation("SellerQuote", fields: [seller_org_id], references: [id], onDelete: Cascade)
+  executor_org  Organization @relation("ExecutorQuote", fields: [executor_org_id], references: [id], onDelete: Cascade)
+  quote_lines   QuoteLine[]
+
+  @@map("quotes")
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  EXPIRED
+}
+
+model QuoteLine {
+  id               String        @id @default(cuid()) @map("id")
+  quote_id         String        @map("quote_id")
+  line_type        QuoteLineType @map("line_type")
+  ref_id           String?       @map("ref_id")
+  qty              Float         @map("qty")
+  unit_price_cents Int           @map("unit_price_cents")
+  line_total_cents Int           @map("line_total_cents")
+  tags             String?       @map("tags") // JSON string
+
+  quote Quote @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+
+  @@map("quote_lines")
+}
+
+enum QuoteLineType {
+  SKU
+  SERVICE
+  TRAVEL
+  DEPOSIT
+  DISCOUNT
+}
+
+model RateCard {
+  id                         String      @id @default(cuid()) @map("id")
+  seller_org_id              String      @map("seller_org_id")
+  service_type               ServiceType @map("service_type")
+  base_rate_per_ha_cents     Int         @map("base_rate_per_ha_cents")
+  min_charge_cents           Int         @map("min_charge_cents")
+  travel_rate_per_km_cents   Int         @map("travel_rate_per_km_cents")
+  hourly_operator_rate_cents Int?        @map("hourly_operator_rate_cents")
+  seasonal_multipliers_json  String?     @map("seasonal_multipliers_json")
+  risk_multipliers_json      String?     @map("risk_multipliers_json")
+  show_company_only          Boolean     @default(false) @map("show_company_only")
+  assigned_operator_ids      String?     @map("assigned_operator_ids") // JSON string
+  supported_model_codes      String?     @map("supported_model_codes") // JSON string
+  operator_assignment_mode   String      @map("operator_assignment_mode") // ASSIGNED_ONLY, ALL_AVAILABLE, INTERNAL_DISPATCH
+  service_area_set_id        String?     @map("service_area_set_id") // FK a service_area_sets
+  crop_types                 String?     @map("crop_types") // JSON string
+
+  seller_org Organization @relation(fields: [seller_org_id], references: [id], onDelete: Cascade)
+
+  @@unique([seller_org_id, service_type])
+  @@map("rate_cards")
+}
+
+// ============================================================================
+// 7) VENDITA: ORDINI
+// ============================================================================
+
+model Order {
+  id            String      @id @default(cuid()) @map("id")
+  buyer_org_id  String      @map("buyer_org_id")
+  seller_org_id String      @map("seller_org_id")
+  quote_id      String?     @map("quote_id")
+  order_status  OrderStatus @default(PAID) @map("order_status")
+  total_cents   Int         @map("total_cents")
+  currency      String      @default("EUR") @map("currency")
+  created_at    DateTime    @default(now()) @map("created_at")
+
+  buyer_org   Organization @relation("BuyerOrder", fields: [buyer_org_id], references: [id], onDelete: Cascade)
+  seller_org  Organization @relation("SellerOrder", fields: [seller_org_id], references: [id], onDelete: Cascade)
+  order_lines OrderLine[]
+  // payments gestiti tramite related_id (polimorfico)
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PAID
+  SHIPPED
+  FULFILLED
+  CANCELLED
+  PROBLEMATIC
+}
+
+model OrderLine {
+  id                        String @id @default(cuid()) @map("id")
+  order_id                  String @map("order_id")
+  sku_id                    String @map("sku_id")
+  qty                       Int    @map("qty")
+  unit_price_snapshot_cents Int    @map("unit_price_snapshot_cents")
+  line_total_cents          Int    @map("line_total_cents")
+
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  sku   Sku   @relation(fields: [sku_id], references: [id], onDelete: Restrict)
+
+  @@map("order_lines")
+}
+
+// ============================================================================
+// 8) SERVIZIO: BOOKING, ASSEGNAZIONI, MISSIONI
+// ============================================================================
+
+model Booking {
+  id                 String        @id @default(cuid()) @map("id")
+  job_id             String        @unique @map("job_id") // Nuovo: collega al job
+  accepted_offer_id  String        @map("accepted_offer_id") // Nuovo: offerta accettata
+  buyer_org_id       String        @map("buyer_org_id")
+  broker_org_id      String?       @map("broker_org_id") // Nuovo: vendor che coordina
+  executor_org_id    String        @map("executor_org_id")
+  service_type       ServiceType   @map("service_type")
+  service_site_id    String?       @map("service_site_id")
+  site_snapshot_json String        @map("site_snapshot_json")
+  status             BookingStatus @default(CONFIRMED) @map("status")
+  created_at         DateTime      @default(now()) @map("created_at")
+
+  job                Job                  @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  buyer_org          Organization         @relation("BuyerBooking", fields: [buyer_org_id], references: [id], onDelete: Cascade)
+  broker_org         Organization?        @relation("BrokerBooking", fields: [broker_org_id], references: [id], onDelete: SetNull)
+  executor_org       Organization         @relation("ExecutorBooking", fields: [executor_org_id], references: [id], onDelete: Cascade)
+  service_site       ServiceSite?         @relation(fields: [service_site_id], references: [id], onDelete: SetNull)
+  booking_slots      BookingSlot[]
+  booking_assignments BookingAssignment[]
+  missions           Mission[]
+  // payments gestiti tramite related_id (polimorfico)
+
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model BookingSlot {
+  id                     String   @id @default(cuid()) @map("id")
+  booking_id             String   @map("booking_id")
+  start_at               DateTime @map("start_at")
+  end_at                 DateTime @map("end_at")
+  timezone               String   @default("Europe/Rome") @map("timezone")
+  buffer_minutes         Int      @default(30) @map("buffer_minutes")
+  workload_snapshot_json String?  @map("workload_snapshot_json")
+
+  booking     Booking             @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+  assignments BookingAssignment[]
+  missions    Mission[]
+
+  @@map("booking_slots")
+}
+
+model BookingAssignment {
+  id                 String           @id @default(cuid()) @map("id")
+  booking_id         String           @map("booking_id")
+  booking_slot_id    String?          @map("booking_slot_id")
+  asset_id           String           @map("asset_id")
+  pilot_user_id      String?          @map("pilot_user_id")
+  dispatcher_user_id String?          @map("dispatcher_user_id")
+  assigned_at        DateTime         @default(now()) @map("assigned_at")
+  status             AssignmentStatus @default(ASSIGNED) @map("status")
+
+  booking      Booking      @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+  booking_slot BookingSlot? @relation(fields: [booking_slot_id], references: [id], onDelete: SetNull)
+  asset        Asset        @relation(fields: [asset_id], references: [id], onDelete: Restrict)
+
+  @@map("booking_assignments")
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  REASSIGNED
+  COMPLETED
+}
+
+model Mission {
+  id                 String    @id @default(cuid()) @map("id")
+  booking_id         String    @map("booking_id")
+  booking_slot_id    String?   @map("booking_slot_id")
+  executed_start_at  DateTime  @map("executed_start_at")
+  executed_end_at    DateTime? @map("executed_end_at")
+  actual_area_ha     Float?    @map("actual_area_ha")
+  actual_hours       Float?    @map("actual_hours")
+  notes              String?   @map("notes")
+  mission_files_json String?   @map("mission_files_json")
+
+  booking      Booking      @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+  booking_slot BookingSlot? @relation(fields: [booking_slot_id], references: [id], onDelete: SetNull)
+
+  @@map("missions")
+}
+
+// ============================================================================
+// 9) OPERATORI: PROFILI E DISPONIBILITÀ (TEMPO)
+// ============================================================================
+
+model OperatorProfile {
+  id                          String          @id @default(cuid()) @map("id")
+  org_id                      String          @map("org_id")
+  user_id                     String          @map("user_id")
+  home_location_id            String?         @map("home_location_id")
+  max_hours_per_day           Float?          @map("max_hours_per_day")
+  max_ha_per_day              Float?          @map("max_ha_per_day")
+  service_tags                String?         @map("service_tags") // JSON string
+  default_service_area_set_id String?         @map("default_service_area_set_id")
+  service_area_mode           ServiceAreaMode @default(ORG_DEFAULT) @map("service_area_mode")
+  status                      OperatorStatus  @default(ACTIVE) @map("status")
+
+  org                      Organization      @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user                     User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  home_location            Location?         @relation(fields: [home_location_id], references: [id], onDelete: SetNull)
+  default_service_area_set ServiceAreaSet?   @relation(fields: [default_service_area_set_id], references: [id], onDelete: SetNull)
+  busy_blocks              BusyBlock[]
+  service_area_rules       ServiceAreaRule[]
+
+  @@unique([org_id, user_id])
+  @@map("operator_profiles")
+}
+
+enum ServiceAreaMode {
+  ORG_DEFAULT
+  OPERATOR_OWN
+}
+
+enum OperatorStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model AvailabilityRule {
+  id                String    @id @default(cuid()) @map("id")
+  scope_type        ScopeType @map("scope_type")
+  scope_id          String    @map("scope_id")
+  rule_type         RuleType  @map("rule_type")
+  days_of_week      String?   @map("days_of_week") // JSON string
+  time_window_start String?   @map("time_window_start")
+  time_window_end   String?   @map("time_window_end")
+  date_from         DateTime? @map("date_from")
+  date_to           DateTime? @map("date_to")
+  rule_json         String?   @map("rule_json")
+  timezone          String    @default("Europe/Rome") @map("timezone")
+  priority          Int       @default(10) @map("priority")
+  created_at        DateTime  @default(now()) @map("created_at")
+
+  // scope_id può riferirsi a Organization o OperatorProfile in base a scope_type
+  // Gestito a livello applicativo, non con foreign key diretta
+
+  @@map("availability_rules")
+}
+
+enum ScopeType {
+  ORG
+  OPERATOR
+}
+
+enum RuleType {
+  WORKING_HOURS
+  BLACKOUT
+}
+
+model BusyBlock {
+  id                  String              @id @default(cuid()) @map("id")
+  operator_profile_id String              @map("operator_profile_id")
+  source_type         BusyBlockSourceType @map("source_type")
+  source_id           String              @map("source_id")
+  start_at            DateTime            @map("start_at")
+  end_at              DateTime            @map("end_at")
+  timezone            String              @default("Europe/Rome") @map("timezone")
+  status              BusyBlockStatus     @default(ACTIVE) @map("status")
+  created_at          DateTime            @default(now()) @map("created_at")
+
+  operator_profile OperatorProfile @relation(fields: [operator_profile_id], references: [id], onDelete: Cascade)
+
+  @@map("busy_blocks")
+}
+
+enum BusyBlockSourceType {
+  BOOKING
+  EXTERNAL_CALENDAR
+  MANUAL
+}
+
+enum BusyBlockStatus {
+  ACTIVE
+  IGNORED
+}
+
+// ============================================================================
+// 10) CALENDAR ESTERNI
+// ============================================================================
+
+model ExternalCalendarConnection {
+  id                      String           @id @default(cuid()) @map("id")
+  user_id                 String           @map("user_id")
+  provider                CalendarProvider @map("provider")
+  account_email           String           @map("account_email")
+  access_token_encrypted  String?          @map("access_token_encrypted")
+  refresh_token_encrypted String?          @map("refresh_token_encrypted")
+  token_expires_at        DateTime?        @map("token_expires_at")
+  sync_status             SyncStatus       @default(OK) @map("sync_status")
+  last_synced_at          DateTime?        @map("last_synced_at")
+
+  user      User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  calendars ExternalCalendar[]
+
+  @@map("external_calendar_connections")
+}
+
+enum CalendarProvider {
+  GOOGLE
+  MICROSOFT
+  ICS
+}
+
+enum SyncStatus {
+  OK
+  ERROR
+}
+
+model ExternalCalendar {
+  id                   String   @id @default(cuid()) @map("id")
+  connection_id        String   @map("connection_id")
+  external_calendar_id String   @map("external_calendar_id")
+  name                 String   @map("name")
+  is_selected          Boolean  @default(true) @map("is_selected")
+  created_at           DateTime @default(now()) @map("created_at")
+
+  connection ExternalCalendarConnection @relation(fields: [connection_id], references: [id], onDelete: Cascade)
+  events     ExternalCalendarEvent[]
+
+  @@unique([connection_id, external_calendar_id])
+  @@map("external_calendars")
+}
+
+model ExternalCalendarEvent {
+  id                String      @id @default(cuid()) @map("id")
+  calendar_id       String      @map("calendar_id")
+  external_event_id String      @map("external_event_id")
+  title             String      @map("title")
+  start_at          DateTime    @map("start_at")
+  end_at            DateTime    @map("end_at")
+  is_all_day        Boolean     @default(false) @map("is_all_day")
+  status            EventStatus @default(CONFIRMED) @map("status")
+  updated_at        DateTime    @updatedAt @map("updated_at")
+
+  calendar ExternalCalendar @relation(fields: [calendar_id], references: [id], onDelete: Cascade)
+
+  @@unique([calendar_id, external_event_id])
+  @@map("external_calendar_events")
+}
+
+enum EventStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+// ============================================================================
+// 11) PAGAMENTI (AGENCY)
+// ============================================================================
+
+model Payment {
+  id                       String             @id @default(cuid()) @map("id")
+  payer_org_id             String             @map("payer_org_id")
+  payee_org_id             String             @map("payee_org_id")
+  related_type             PaymentRelatedType @map("related_type")
+  related_id               String             @map("related_id")
+  payment_purpose          PaymentPurpose     @map("payment_purpose")
+  amount_authorized_cents  Int?               @map("amount_authorized_cents")
+  amount_captured_cents    Int?               @map("amount_captured_cents")
+  currency                 String             @default("EUR") @map("currency")
+  stripe_payment_intent_id String?            @map("stripe_payment_intent_id")
+  stripe_charge_id         String?            @map("stripe_charge_id")
+  stripe_account_id        String?            @map("stripe_account_id")
+  application_fee_cents    Int?               @map("application_fee_cents")
+  payment_status           PaymentStatus      @default(REQUIRES_PAYMENT) @map("payment_status")
+  created_at               DateTime           @default(now()) @map("created_at")
+  captured_at              DateTime?          @map("captured_at")
+
+  payer_org Organization @relation("PayerPayment", fields: [payer_org_id], references: [id], onDelete: Cascade)
+  payee_org Organization @relation("PayeePayment", fields: [payee_org_id], references: [id], onDelete: Cascade)
+
+  // related_id può riferirsi a Order o Booking in base a related_type
+  // Gestito a livello applicativo (non foreign key diretta per evitare conflitti)
+
+  @@map("payments")
+}
+
+enum PaymentRelatedType {
+  ORDER
+  BOOKING
+  JOB
+}
+
+enum PaymentPurpose {
+  DEPOSIT
+  BALANCE
+  ADJUSTMENT
+  REFUND
+}
+
+enum PaymentStatus {
+  REQUIRES_PAYMENT
+  PAID
+  REFUNDED
+  DISPUTED
+}
+
+// ============================================================================
+// 12) GEOGRAPHY (TERRITORIO)
+// ============================================================================
+
+model GeoAdminUnit {
+  id            String     @id @default(cuid()) @map("id")
+  country       String     @default("IT") @map("country")
+  level         AdminLevel @map("level")
+  code          String     @unique @map("code")
+  name          String     @map("name")
+  province_code String?    @map("province_code")
+  region_code   String?    @map("region_code")
+
+  service_area_set_items ServiceAreaSetItem[]
+
+  @@map("geo_admin_units")
+}
+
+enum AdminLevel {
+  PROVINCE
+  MUNICIPALITY
+}
+
+model ServiceAreaSet {
+  id         String    @id @default(cuid()) @map("id")
+  owner_type OwnerType @map("owner_type")
+  owner_id   String    @map("owner_id")
+  name       String    @map("name")
+  is_default Boolean   @default(false) @map("is_default")
+  created_at DateTime  @default(now()) @map("created_at")
+
+  items              ServiceAreaSetItem[]
+  service_area_rules ServiceAreaRule[]
+  operator_profiles  OperatorProfile[]
+  organization       Organization?        @relation(fields: [organizationId], references: [id])
+  organizationId     String?
+
+  @@map("service_area_sets")
+}
+
+enum OwnerType {
+  ORG
+  OPERATOR_PROFILE
+}
+
+model ServiceAreaSetItem {
+  id                  String      @id @default(cuid()) @map("id")
+  service_area_set_id String      @map("service_area_set_id")
+  geo_admin_unit_id   String      @map("geo_admin_unit_id")
+  include_mode        IncludeMode @default(INCLUDE) @map("include_mode")
+  created_at          DateTime    @default(now()) @map("created_at")
+
+  service_area_set ServiceAreaSet @relation(fields: [service_area_set_id], references: [id], onDelete: Cascade)
+  geo_admin_unit   GeoAdminUnit   @relation(fields: [geo_admin_unit_id], references: [id], onDelete: Cascade)
+
+  @@unique([service_area_set_id, geo_admin_unit_id])
+  @@map("service_area_set_items")
+}
+
+enum IncludeMode {
+  INCLUDE
+  EXCLUDE
+}
+
+model ServiceAreaRule {
+  id                  String       @id @default(cuid()) @map("id")
+  scope_type          ScopeType    @map("scope_type")
+  scope_id            String       @map("scope_id")
+  service_type        ServiceType? @map("service_type")
+  days_of_week        String?      @map("days_of_week") // JSON string
+  time_window_start   String?      @map("time_window_start")
+  time_window_end     String?      @map("time_window_end")
+  date_from           DateTime?    @map("date_from")
+  date_to             DateTime?    @map("date_to")
+  service_area_set_id String       @map("service_area_set_id")
+  priority            Int          @default(10) @map("priority")
+  is_active           Boolean      @default(true) @map("is_active")
+  created_at          DateTime     @default(now()) @map("created_at")
+
+  service_area_set ServiceAreaSet @relation(fields: [service_area_set_id], references: [id], onDelete: Cascade)
+
+  // scope_id può riferirsi a Organization o OperatorProfile in base a scope_type
+  // Gestito a livello applicativo (non foreign key diretta per evitare conflitti)
+  operatorProfile   OperatorProfile? @relation(fields: [operatorProfileId], references: [id])
+  operatorProfileId String?
+
+  @@map("service_area_rules")
+}
+
+model ServiceSite {
+  id                String   @id @default(cuid()) @map("id")
+  buyer_org_id      String   @map("buyer_org_id")
+  name              String   @map("name")
+  address           String   @map("address")
+  lat               Float?   @map("lat")
+  lon               Float?   @map("lon")
+  municipality_code String?  @map("municipality_code")
+  province_code     String?  @map("province_code")
+  created_at        DateTime @default(now()) @map("created_at")
+
+  buyer_org Organization @relation(fields: [buyer_org_id], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+
+  @@map("service_sites")
+}
+
+// ============================================================================
+// 12) MESSAGING: CHAT DOPO PAGAMENTO
+// ============================================================================
+
+model Conversation {
+  id           String @id @default(cuid()) @map("id")
+  context_type ConversationContext @map("context_type")
+  context_id   String @map("context_id")
+
+  status       ConversationStatus @default(LOCKED) @map("status")
+  unlocked_at  DateTime? @map("unlocked_at")
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@unique([context_type, context_id])
+  @@map("conversations")
+}
+
+enum ConversationContext {
+  JOB
+  BOOKING
+  ORDER
+}
+
+enum ConversationStatus {
+  LOCKED    // Non ancora pagato
+  OPEN      // Accessibile dopo pagamento
+  CLOSED    // Chiusa
+}
+
+model ConversationParticipant {
+  id              String @id @default(cuid()) @map("id")
+  conversation_id String @map("conversation_id")
+  org_id          String @map("org_id")
+  role            ParticipantRole @map("role")
+  joined_at       DateTime @default(now()) @map("joined_at")
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  org          Organization  @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([conversation_id, org_id])
+  @@map("conversation_participants")
+}
+
+enum ParticipantRole {
+  BUYER
+  BROKER
+  OPERATOR
+  VENDOR
+}
+
+model Message {
+  id              String @id @default(cuid()) @map("id")
+  conversation_id String @map("conversation_id")
+  sender_user_id  String @map("sender_user_id")
+  body            String @map("body")
+  attachments_json String? @map("attachments_json")
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [sender_user_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id, created_at])
+  @@map("messages")
+}
+
+// ============================================================================
+// 13) WISHLIST: ACQUISTI BUYER
+// ============================================================================
+
+model WishlistItem {
+  id          String @id @default(cuid()) @map("id")
+  buyer_org_id String @map("buyer_org_id")
+  sku_id      String @map("sku_id")
+  note        String? @map("note")
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  buyer_org Organization @relation(fields: [buyer_org_id], references: [id], onDelete: Cascade)
+  sku       Sku          @relation(fields: [sku_id], references: [id], onDelete: Cascade)
+
+  @@unique([buyer_org_id, sku_id])
+  @@map("wishlist_items")
+}
+
+// ============================================================================
+// USER NOTIFICATION PREFERENCES
+// ============================================================================
+
+model UserNotificationPreferences {
+  id                String   @id @default(cuid()) @map("id")
+  user_id           String   @unique @map("user_id")
+
+  // Email notifications
+  email_orders      Boolean  @default(true) @map("email_orders")
+  email_payments    Boolean  @default(true) @map("email_payments")
+  email_updates     Boolean  @default(false) @map("email_updates")
+
+  // In-app notifications
+  inapp_orders      Boolean  @default(true) @map("inapp_orders")
+  inapp_messages    Boolean  @default(true) @map("inapp_messages")
+
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
+}
+

@@ -1,33 +1,19 @@
 [build]
-  command = "npm run build:client"
-  publish = "dist/spa"
-  functions = "netlify/functions"
+  command = "npm run build"
+  publish = "dist"
 
-# Escludi documentazione e nuove variabili PG dalla scansione segreti
 [build.environment]
-  SECRETS_SCAN_OMIT_KEYS = "DATABASE_URL,PGHOST,PGPORT,PGDATABASE,PGUSER,PGPASSWORD,VITE_SUPABASE_ANON_KEY,SUPABASE_STORAGE_BUCKET"
-  SECRETS_SCAN_OMIT_PATHS = "scripts/**,package-lock.json,pnpm-lock.yaml,prisma/schema.prisma,**/*.md,**/*.sh,scripts/README-DB-SETUP.md,scripts/check-db-connection.md,scripts/connect-db.sh,scripts/test-pooler.sh"
+  NODE_VERSION = "18"
 
-# Routing per API e SPA
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api"
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login"
   status = 200
 
-# IMPORTANTE: I redirect sono processati in ordine
-# I file statici (GLB, immagini, etc.) devono essere serviti prima del catch-all
-# Netlify serve automaticamente i file dalla cartella pubblicata (dist/spa)
-# Non serve un redirect per /glb/* se i file sono nella cartella pubblicata
-
-# Catch-all per SPA - Netlify serve automaticamente i file statici PRIMA di questo redirect
-# I file GLB devono essere nella cartella public/glb/ per essere copiati durante il build
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/api/services/*"
+  to = "/.netlify/functions/services"
   status = 200
 
-# Headers per file GLB (modelli 3D)
-[[headers]]
-  for = "*.glb"
-  [headers.values]
-    Content-Type = "model/gltf-binary"
+[functions]
+  directory = "netlify/functions"

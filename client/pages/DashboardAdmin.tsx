@@ -35,23 +35,23 @@ export default function DashboardAdmin() {
     }
   }, []);
 
-  // Query per statistiche ordini
+  // Query per statistiche ordini - TEMPORANEAMENTE DISABILITATO
   const { data: orderStats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['orderStats', currentOrgId],
-    queryFn: () => currentOrgId ? fetchOrderStats(currentOrgId) : Promise.resolve({
+    queryFn: () => Promise.resolve({
       totalRevenue: 0,
       activeOrders: 0,
       completedOrdersThisMonth: 0,
       recentOrders: []
     }),
-    enabled: !!currentOrgId
+    enabled: false // Disabilitato fino all'implementazione degli endpoint
   });
 
-  // Query per missioni attive
+  // Query per missioni attive - TEMPORANEAMENTE DISABILITATO
   const { data: activeMissions = [], isLoading: missionsLoading } = useQuery({
     queryKey: ['activeMissions', currentOrgId],
-    queryFn: () => currentOrgId ? fetchActiveMissions(currentOrgId) : Promise.resolve([]),
-    enabled: !!currentOrgId
+    queryFn: () => Promise.resolve([]),
+    enabled: false // Disabilitato fino all'implementazione degli endpoint
   });
 
   // Dati calcolati

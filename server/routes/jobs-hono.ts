@@ -1,0 +1,1513 @@
+import { Hono } from 'hono';
+import { authMiddleware } from '../middleware/auth';
+import { query } from '../utils/database';
+import { readData, writeData } from '../utils/file-db';
+
+const app = new Hono();
+
+// GET /api/jobs - Get buyer's jobs
+app.get('/', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Ensure table exists (compatible with both SQLite and PostgreSQL)
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    
+    const createTableQuery = isPostgreSQL
+      ? `
+      CREATE TABLE IF NOT EXISTS jobs (
+          id VARCHAR(255) PRIMARY KEY,
+          buyer_org_id VARCHAR(255) NOT NULL,
+          field_name VARCHAR(255) NOT NULL,
+          service_type VARCHAR(255) NOT NULL,
+        area_ha DECIMAL(10,4),
+        location_json TEXT,
+        target_date_start TIMESTAMP,
+        target_date_end TIMESTAMP,
+          notes TEXT,
+          status VARCHAR(50) DEFAULT 'OPEN',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `
+      : `
+        CREATE TABLE IF NOT EXISTS jobs (
+          id TEXT PRIMARY KEY,
+          buyer_org_id TEXT NOT NULL,
+          field_name TEXT NOT NULL,
+          service_type TEXT NOT NULL,
+          area_ha REAL,
+          location_json TEXT,
+          target_date_start TEXT,
+          target_date_end TEXT,
+        notes TEXT,
+        status TEXT DEFAULT 'OPEN',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+    
+    try {
+      await query(createTableQuery);
+    } catch (error: any) {
+      console.error('Error creating jobs table:', error.message);
+      // Continue anyway - table might already exist
+    }
+
+    const result = await query(`
+      SELECT id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at
+      FROM jobs
+      WHERE buyer_org_id = $1
+      ORDER BY created_at DESC
+    `, [user.organizationId]);
+
+    // Deserialize location_json for frontend and add field_polygon
+    const jobs = result.rows.map(job => {
+      const locJson = job.location_json ? (typeof job.location_json === 'string' ? JSON.parse(job.location_json) : job.location_json) : null;
+      return {
+      ...job,
+        location_json: locJson,
+        field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null)
+      };
+    });
+
+    return c.json({ jobs });
+  } catch (error: any) {
+    console.error('Error fetching jobs:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// GET /api/operator/jobs - Get all available jobs for operators/vendors
+app.get('/operator/jobs', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Ensure tables exist (compatible with both SQLite and PostgreSQL)
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    
+    const createJobsTableQuery = isPostgreSQL
+      ? `
+      CREATE TABLE IF NOT EXISTS jobs (
+          id VARCHAR(255) PRIMARY KEY,
+          buyer_org_id VARCHAR(255) NOT NULL,
+          field_name VARCHAR(255) NOT NULL,
+          service_type VARCHAR(255) NOT NULL,
+        area_ha DECIMAL(10,4),
+        location_json TEXT,
+        target_date_start TIMESTAMP,
+        target_date_end TIMESTAMP,
+          notes TEXT,
+          status VARCHAR(50) DEFAULT 'OPEN',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `
+      : `
+        CREATE TABLE IF NOT EXISTS jobs (
+          id TEXT PRIMARY KEY,
+          buyer_org_id TEXT NOT NULL,
+          field_name TEXT NOT NULL,
+          service_type TEXT NOT NULL,
+          area_ha REAL,
+          location_json TEXT,
+          target_date_start TEXT,
+          target_date_end TEXT,
+        notes TEXT,
+        status TEXT DEFAULT 'OPEN',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+    
+    try {
+      await query(createJobsTableQuery);
+    } catch (error: any) {
+      console.error('Error creating jobs table:', error.message);
+    }
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS job_offers (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        operator_org_id TEXT NOT NULL,
+        status TEXT DEFAULT 'OFFERED',
+        pricing_snapshot_json TEXT,
+        total_cents INTEGER NOT NULL,
+        currency TEXT DEFAULT 'EUR',
+        proposed_start TIMESTAMP,
+        proposed_end TIMESTAMP,
+        provider_note TEXT,
+        created_at TEXT,
+        updated_at TEXT
+      )
+    `);
+
+    // Get all open jobs (not from the user's own organization) with buyer organization details
+    // TEMPORANEO: Per testing, mostriamo tutti i job OPEN indipendentemente dall'organizzazione
+    const result = await query(`
+      SELECT
+        j.id, j.buyer_org_id, j.field_name, j.service_type, j.area_ha, j.location_json,
+        j.target_date_start, j.target_date_end, j.notes, j.status, j.created_at, j.updated_at,
+        o.legal_name as buyer_org_legal_name
+      FROM jobs j
+      LEFT JOIN organizations o ON j.buyer_org_id = o.id
+      WHERE j.status = 'OPEN'
+      ORDER BY j.created_at DESC
+    `, []);
+
+    // Deserialize location_json for frontend and structure buyer_org
+    // Also check for existing offers by this operator
+    const jobsWithOfferStatus = await Promise.all(
+      result.rows.map(async (job) => {
+        // Check if this operator already submitted an ACTIVE offer for this job
+        // OFFERED e AWARDED sono considerati "attivi" e bloccano nuove offerte
+        // WITHDRAWN e DECLINED permettono di rifare un'offerta
+        const existingOfferResult = await query(`
+          SELECT id, status FROM job_offers
+          WHERE job_id = $1 AND operator_org_id = $2
+          AND status IN ('OFFERED', 'AWARDED')
+          LIMIT 1
+        `, [job.id, user.organizationId]);
+
+        // Check anche per offerte ritirate/rifiutate per mostrare lo stato
+        const anyOfferResult = await query(`
+          SELECT id, status FROM job_offers
+          WHERE job_id = $1 AND operator_org_id = $2
+          ORDER BY created_at DESC
+          LIMIT 1
+        `, [job.id, user.organizationId]);
+
+        const hasActiveOffer = existingOfferResult.rows.length > 0;
+        const hasAnyOffer = anyOfferResult.rows.length > 0;
+        const existingOfferStatus = hasAnyOffer ? anyOfferResult.rows[0].status : null;
+        const canOffer = !hasActiveOffer; // Can offer if no active offer (OFFERED/AWARDED)
+
+        const locJson = job.location_json ? (typeof job.location_json === 'string' ? JSON.parse(job.location_json) : job.location_json) : null;
+        return {
+          ...job,
+          location_json: locJson,
+          field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
+          buyer_org: {
+            legal_name: job.buyer_org_legal_name || 'Organizzazione sconosciuta'
+          },
+          can_offer: canOffer,
+          has_existing_offer: hasActiveOffer,
+          existing_offer_status: existingOfferStatus
+        };
+      })
+    );
+
+    return c.json({ jobs: jobsWithOfferStatus });
+  } catch (error: any) {
+    console.error('Error fetching operator jobs:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+
+// GET /api/jobs/:jobId - Get a specific job by ID (buyer can see their own jobs, operators can see open jobs)
+// IMPORTANTE: questa route deve essere DOPO /operator/jobs e /offers/:orgId per evitare conflitti di routing
+app.get('/:jobId', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const jobId = c.req.param('jobId');
+
+    // Fetch the job
+    const jobResult = await query(`
+      SELECT j.*, o.legal_name as buyer_org_legal_name
+      FROM jobs j
+      LEFT JOIN organizations o ON j.buyer_org_id = o.id
+      WHERE j.id = $1
+    `, [jobId]);
+
+    if (jobResult.rows.length === 0) {
+      return c.json({ error: 'Job not found' }, 404);
+    }
+
+    const job = jobResult.rows[0];
+
+    // Check permissions: buyer can see their own jobs, operators can see open jobs
+    const isBuyer = job.buyer_org_id === user.organizationId;
+    const isOpen = job.status === 'OPEN';
+
+    if (!isBuyer && !isOpen) {
+      return c.json({ error: 'Non hai i permessi per visualizzare questo job' }, 403);
+    }
+
+    // Deserialize location_json
+    const locJson = job.location_json ? (typeof job.location_json === 'string' ? JSON.parse(job.location_json) : job.location_json) : null;
+
+    // Fetch offers for this job
+    const offersResult = await query(`
+      SELECT jo.*, o.legal_name as operator_org_legal_name
+      FROM job_offers jo
+      LEFT JOIN organizations o ON jo.operator_org_id = o.id
+      WHERE jo.job_id = $1
+      ORDER BY jo.created_at DESC
+    `, [jobId]);
+
+    const offers = offersResult.rows.map((offer: any) => ({
+      id: offer.id,
+      job_id: offer.job_id,
+      operator_org_id: offer.operator_org_id,
+      status: offer.status,
+      pricing_snapshot_json: offer.pricing_snapshot_json ? (typeof offer.pricing_snapshot_json === 'string' ? JSON.parse(offer.pricing_snapshot_json) : offer.pricing_snapshot_json) : null,
+      total_cents: parseInt(offer.total_cents) || 0,
+      currency: offer.currency || 'EUR',
+      proposed_start: offer.proposed_start,
+      proposed_end: offer.proposed_end,
+      provider_note: offer.provider_note,
+      created_at: offer.created_at,
+      updated_at: offer.updated_at,
+      operator_org: {
+        id: offer.operator_org_id,
+        legal_name: offer.operator_org_legal_name || 'Operatore sconosciuto'
+      }
+    }));
+
+    return c.json({
+      id: job.id,
+      buyer_org_id: job.buyer_org_id,
+      field_name: job.field_name,
+      service_type: job.service_type,
+      area_ha: job.area_ha ? parseFloat(job.area_ha) : null,
+      location_json: locJson,
+      field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
+      target_date_start: job.target_date_start,
+      target_date_end: job.target_date_end,
+      notes: job.notes,
+      status: job.status,
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+      buyer_org: {
+        id: job.buyer_org_id,
+        legal_name: job.buyer_org_legal_name || 'Organizzazione sconosciuta'
+      },
+      offers: offers
+    });
+  } catch (error: any) {
+    console.error('Error fetching job:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// POST /api/jobs - Create a new job
+app.post('/', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const body = await c.req.json();
+    const {
+      field_name,
+      service_type,
+      area_ha,
+      location_json,
+      field_polygon,
+      target_date_start,
+      target_date_end,
+      notes
+    } = body;
+    
+    // Se field_polygon è presente ma non è in location_json, aggiungilo
+    let finalLocationJson = location_json;
+    if (field_polygon && (!location_json || !location_json.polygon)) {
+      finalLocationJson = {
+        ...(location_json || {}),
+        polygon: field_polygon
+      };
+    }
+
+    if (!field_name || !service_type || !area_ha) {
+      return c.json({ error: 'Missing required fields' }, 400);
+    }
+
+    // Ensure table exists (compatible with both SQLite and PostgreSQL)
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    
+    const createTableQuery = isPostgreSQL
+      ? `
+      CREATE TABLE IF NOT EXISTS jobs (
+          id VARCHAR(255) PRIMARY KEY,
+          buyer_org_id VARCHAR(255) NOT NULL,
+          field_name VARCHAR(255) NOT NULL,
+          service_type VARCHAR(255) NOT NULL,
+        area_ha DECIMAL(10,4),
+        location_json TEXT,
+        target_date_start TIMESTAMP,
+        target_date_end TIMESTAMP,
+          notes TEXT,
+          status VARCHAR(50) DEFAULT 'OPEN',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `
+      : `
+        CREATE TABLE IF NOT EXISTS jobs (
+          id TEXT PRIMARY KEY,
+          buyer_org_id TEXT NOT NULL,
+          field_name TEXT NOT NULL,
+          service_type TEXT NOT NULL,
+          area_ha REAL,
+          location_json TEXT,
+          target_date_start TEXT,
+          target_date_end TEXT,
+        notes TEXT,
+        status TEXT DEFAULT 'OPEN',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+    
+    try {
+      await query(createTableQuery);
+    } catch (error: any) {
+      console.error('Error creating jobs table:', error.message);
+      // Continue anyway - table might already exist
+    }
+
+    // Generate ID
+    const generateId = () => {
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substring(2, 15);
+      return `job_${timestamp}${random}`.substring(0, 30);
+    };
+
+    const jobId = generateId();
+    const now = new Date().toISOString();
+
+    if (isPostgreSQL) {
+      // PostgreSQL: use RETURNING
+    const result = await query(`
+        INSERT INTO jobs (id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at
+    `, [
+        jobId,
+      user.organizationId,
+      field_name,
+      service_type,
+      parseFloat(area_ha),
+        finalLocationJson ? JSON.stringify(finalLocationJson) : null,
+        target_date_start || null,
+        target_date_end || null,
+        notes || null,
+        'OPEN',
+        now,
+        now
+    ]);
+
+    const newJob = result.rows[0];
+
+      // Deserialize location_json for frontend and add field_polygon
+      const locJson = newJob.location_json ? (typeof newJob.location_json === 'string' ? JSON.parse(newJob.location_json) : newJob.location_json) : null;
+    const jobResponse = {
+      ...newJob,
+        location_json: locJson,
+        field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null)
+    };
+
+    return c.json({ job: jobResponse }, 201);
+    } else {
+      // SQLite: insert then fetch
+      await query(`
+        INSERT INTO jobs (id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [
+        jobId,
+        user.organizationId,
+        field_name,
+        service_type,
+        parseFloat(area_ha),
+        finalLocationJson ? JSON.stringify(finalLocationJson) : null,
+        target_date_start || null,
+        target_date_end || null,
+        notes || null,
+        'OPEN',
+        now,
+        now
+      ]);
+
+      // Fetch the inserted job
+      const result = await query(`
+        SELECT id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at
+        FROM jobs
+        WHERE id = $1
+      `, [jobId]);
+
+      const newJob = result.rows[0];
+
+      // Deserialize location_json for frontend and add field_polygon
+      const locJson = newJob.location_json ? (typeof newJob.location_json === 'string' ? JSON.parse(newJob.location_json) : newJob.location_json) : null;
+    const jobResponse = {
+      ...newJob,
+        location_json: locJson,
+        field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null)
+    };
+
+    return c.json({ job: jobResponse }, 201);
+    }
+  } catch (error: any) {
+    console.error('Error creating job:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// POST /api/jobs/:jobId/offers - Create job offer (operator)
+app.post('/:jobId/offers', authMiddleware, async (c) => {
+  try {
+    console.log('🚀 [CREATE OFFER] Inizio richiesta');
+    
+    const user = c.get('user');
+    console.log('👤 [CREATE OFFER] User:', { hasUser: !!user, orgId: user?.organizationId });
+    
+    if (!user || !user.organizationId) {
+      console.log('❌ [CREATE OFFER] Unauthorized - no user or orgId');
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const jobId = c.req.param('jobId');
+    console.log('📋 [CREATE OFFER] Job ID:', jobId);
+    
+    let body;
+    try {
+      body = await c.req.json();
+      console.log('📦 [CREATE OFFER] Body ricevuto:', JSON.stringify(body).substring(0, 200));
+    } catch (parseError: any) {
+      console.error('❌ [CREATE OFFER] Errore parsing body:', parseError.message);
+      return c.json({ error: 'Invalid JSON body' }, 400);
+    }
+    
+    const {
+      pricing_snapshot_json = null,
+      total_cents,
+      currency = 'EUR',
+      proposed_start,
+      proposed_end,
+      provider_note
+    } = body;
+
+    console.log('🔍 [CREATE OFFER] Parametri estratti:', {
+      total_cents,
+      currency,
+      has_proposed_start: !!proposed_start,
+      has_proposed_end: !!proposed_end,
+      has_provider_note: !!provider_note,
+      has_pricing_snapshot: !!pricing_snapshot_json
+    });
+
+    if (!total_cents || total_cents <= 0) {
+      console.log('❌ [CREATE OFFER] Invalid pricing:', total_cents);
+      return c.json({ error: 'Invalid pricing' }, 400);
+    }
+
+    console.log('📝 [CREATE OFFER] Creazione job offer:', { jobId, operatorOrgId: user.organizationId });
+
+    // Verifica che il job esista nel database
+    console.log('🔍 [CREATE OFFER] Verifica job esistente...');
+    let jobResult;
+    try {
+      jobResult = await query('SELECT id, status, buyer_org_id FROM jobs WHERE id = $1', [jobId]);
+      console.log('✅ [CREATE OFFER] Job query result:', { rowsCount: jobResult?.rows?.length || 0 });
+    } catch (jobQueryError: any) {
+      console.error('❌ [CREATE OFFER] Errore query job:', jobQueryError.message);
+      console.error('❌ [CREATE OFFER] Stack:', jobQueryError.stack);
+      throw jobQueryError;
+    }
+    
+    if (!jobResult || !jobResult.rows || jobResult.rows.length === 0) {
+      console.log('❌ [CREATE OFFER] Job non trovato:', jobId);
+      return c.json({ error: 'Job not found' }, 404);
+    }
+
+    const job = jobResult.rows[0];
+    console.log('📋 [CREATE OFFER] Job trovato:', { id: job.id, status: job.status });
+
+    if (job.status !== 'OPEN') {
+      console.log('❌ [CREATE OFFER] Job non aperto:', job.status);
+      return c.json({ error: 'Job is not open for offers' }, 400);
+    }
+
+    // Check if operator already submitted an ACTIVE offer (OFFERED or AWARDED)
+    // WITHDRAWN and DECLINED offers allow creating a new offer
+    console.log('🔍 [CREATE OFFER] Verifica offerte esistenti...');
+    let existingOfferResult;
+    try {
+      existingOfferResult = await query(
+        'SELECT id, status FROM job_offers WHERE job_id = $1 AND operator_org_id = $2 AND status IN (\'OFFERED\', \'AWARDED\')',
+        [jobId, user.organizationId]
+      );
+      console.log('✅ [CREATE OFFER] Existing offers query result:', { count: existingOfferResult?.rows?.length || 0 });
+    } catch (existingOfferError: any) {
+      console.error('❌ [CREATE OFFER] Errore query offerte esistenti:', existingOfferError.message);
+      throw existingOfferError;
+    }
+
+    if (existingOfferResult && existingOfferResult.rows && existingOfferResult.rows.length > 0) {
+      console.log('❌ [CREATE OFFER] Offerta già esistente:', existingOfferResult.rows[0]);
+      return c.json({ error: 'Operator already submitted an active offer for this job' }, 400);
+    }
+
+    // Generate unique ID
+    const offerId = `offer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+    console.log('🆔 [CREATE OFFER] ID generato:', offerId);
+    console.log('⏰ [CREATE OFFER] Timestamp:', now);
+
+    // Insert job offer into database
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    console.log('💾 [CREATE OFFER] Database type:', isPostgreSQL ? 'PostgreSQL' : 'SQLite');
+
+    // For SQLite, we need to handle the existing schema which may have additional columns
+    // and pricing_snapshot_json might be NOT NULL
+    const pricingSnapshotStr = pricing_snapshot_json 
+      ? (typeof pricing_snapshot_json === 'string' ? pricing_snapshot_json : JSON.stringify(pricing_snapshot_json))
+      : '{}'; // Default to empty JSON object instead of null for SQLite compatibility
+    
+    console.log('📦 [CREATE OFFER] Valori per INSERT:', {
+      offerId,
+      jobId,
+      operatorOrgId: user.organizationId,
+      total_cents: parseInt(total_cents),
+      total_cents_type: typeof total_cents,
+      pricingSnapshotStr: pricingSnapshotStr.substring(0, 100),
+      currency: currency || 'EUR',
+      proposed_start,
+      proposed_end,
+      provider_note,
+      now
+    });
+
+    const insertQuery = isPostgreSQL
+      ? `
+        INSERT INTO job_offers (
+          id, job_id, operator_org_id, status, pricing_snapshot_json,
+          total_cents, currency, proposed_start, proposed_end, provider_note,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *
+      `
+      : `
+        INSERT INTO job_offers (
+          id, job_id, operator_org_id, status, pricing_snapshot_json,
+          total_cents, currency, proposed_start, proposed_end, provider_note,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+    const insertValues = [
+      offerId,
+      jobId,
+      user.organizationId,
+      'OFFERED',
+      pricingSnapshotStr,
+      parseInt(total_cents),
+      currency || 'EUR',
+      proposed_start || null,
+      proposed_end || null,
+      provider_note || null,
+      now,
+      now
+    ];
+
+    console.log('📤 [CREATE OFFER] Esecuzione INSERT query...');
+    console.log('📤 [CREATE OFFER] Query:', insertQuery.substring(0, 200));
+    console.log('📤 [CREATE OFFER] Values count:', insertValues.length);
+    console.log('📤 [CREATE OFFER] Values types:', insertValues.map(v => typeof v));
+    
+    let insertResult;
+    try {
+      insertResult = await query(insertQuery, insertValues);
+      console.log('✅ [CREATE OFFER] INSERT completato:', { 
+        hasResult: !!insertResult,
+        changes: insertResult?.changes,
+        lastInsertRowid: insertResult?.lastInsertRowid
+      });
+    } catch (insertError: any) {
+      console.error('❌ [CREATE OFFER] Errore durante INSERT:');
+      console.error('❌ [CREATE OFFER] Message:', insertError.message);
+      console.error('❌ [CREATE OFFER] Stack:', insertError.stack);
+      console.error('❌ [CREATE OFFER] Query:', insertQuery);
+      console.error('❌ [CREATE OFFER] Values:', insertValues);
+      throw insertError;
+    }
+
+    // Fetch the created offer using the generated ID (for SQLite, we can't use RETURNING)
+    console.log('📥 [CREATE OFFER] Recupero offerta creata con ID:', offerId);
+    let offerResult;
+    try {
+      offerResult = await query('SELECT * FROM job_offers WHERE id = $1', [offerId]);
+      console.log('📥 [CREATE OFFER] Query SELECT result:', { 
+        hasResult: !!offerResult,
+        rowsCount: offerResult?.rows?.length || 0 
+      });
+    } catch (selectError: any) {
+      console.error('❌ [CREATE OFFER] Errore durante SELECT:');
+      console.error('❌ [CREATE OFFER] Message:', selectError.message);
+      console.error('❌ [CREATE OFFER] Stack:', selectError.stack);
+      throw selectError;
+    }
+    
+    if (!offerResult || !offerResult.rows || offerResult.rows.length === 0) {
+      console.error('❌ [CREATE OFFER] Offerta non trovata dopo INSERT!');
+      console.error('❌ [CREATE OFFER] ID cercato:', offerId);
+      console.error('❌ [CREATE OFFER] Result:', offerResult);
+      return c.json({ error: 'Failed to create offer - offer not found after insert' }, 500);
+    }
+    
+    const newOffer = offerResult.rows[0];
+    console.log('✅ [CREATE OFFER] Offerta recuperata:', { 
+      id: newOffer.id, 
+      status: newOffer.status,
+      total_cents: newOffer.total_cents 
+    });
+
+    return c.json({ offer: newOffer }, 201);
+  } catch (error: any) {
+    console.error('❌ [CREATE OFFER] Error creating job offer:');
+    console.error('❌ [CREATE OFFER] Error type:', error.constructor.name);
+    console.error('❌ [CREATE OFFER] Error message:', error.message);
+    console.error('❌ [CREATE OFFER] Error stack:', error.stack);
+    if (error.code) console.error('❌ [CREATE OFFER] Error code:', error.code);
+    if (error.errno) console.error('❌ [CREATE OFFER] Error errno:', error.errno);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// POST /api/jobs/:jobId/accept-offer/:offerId - Accept job offer (buyer)
+app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const jobId = c.req.param('jobId');
+    const offerId = c.req.param('offerId');
+
+    console.log('✅ [ACCEPT OFFER] Accettazione offerta:', { jobId, offerId, buyerOrgId: user.organizationId });
+
+    // Fetch the job
+    const jobResult = await query('SELECT id, buyer_org_id, status FROM jobs WHERE id = $1', [jobId]);
+    if (jobResult.rows.length === 0) {
+      return c.json({ error: 'Job not found' }, 404);
+    }
+
+    const job = jobResult.rows[0];
+
+    // Verify the buyer owns this job
+    if (job.buyer_org_id !== user.organizationId) {
+      console.log('❌ [ACCEPT OFFER] Unauthorized: buyer org mismatch', { jobBuyerOrgId: job.buyer_org_id, userOrgId: user.organizationId });
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    if (job.status !== 'OPEN') {
+      return c.json({ error: 'Job is not open' }, 400);
+    }
+
+    // Fetch the offer
+    const offerResult = await query('SELECT id, job_id, operator_org_id, status FROM job_offers WHERE id = $1 AND job_id = $2', [offerId, jobId]);
+    if (offerResult.rows.length === 0) {
+      return c.json({ error: 'Offer not found' }, 404);
+    }
+
+    const offer = offerResult.rows[0];
+
+    if (offer.status !== 'OFFERED') {
+      return c.json({ error: 'Offer is not available' }, 400);
+    }
+
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const now = new Date().toISOString();
+
+    // Ensure bookings table exists with all required columns
+    const createBookingsTableQuery = isPostgreSQL
+      ? `
+        CREATE TABLE IF NOT EXISTS bookings (
+          id VARCHAR(255) PRIMARY KEY,
+          job_id VARCHAR(255) NOT NULL,
+          accepted_offer_id VARCHAR(255),
+          buyer_org_id VARCHAR(255) NOT NULL,
+          executor_org_id VARCHAR(255) NOT NULL,
+          service_type VARCHAR(255) NOT NULL,
+          site_snapshot_json TEXT,
+          status VARCHAR(50) DEFAULT 'CONFIRMED',
+          payment_status VARCHAR(50) DEFAULT 'PENDING',
+          paid_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `
+      : `
+        CREATE TABLE IF NOT EXISTS bookings (
+          id TEXT PRIMARY KEY,
+          job_id TEXT NOT NULL,
+          accepted_offer_id TEXT,
+          buyer_org_id TEXT NOT NULL,
+          executor_org_id TEXT NOT NULL,
+          service_type TEXT NOT NULL,
+          site_snapshot_json TEXT,
+          status TEXT DEFAULT 'CONFIRMED',
+          payment_status TEXT DEFAULT 'PENDING',
+          paid_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+    
+    try {
+      await query(createBookingsTableQuery);
+    } catch (error: any) {
+      console.error('Error creating bookings table:', error.message);
+      // Continue anyway - table might already exist
+    }
+
+    // Update job status to AWARDED
+    await query(
+      'UPDATE jobs SET status = $1, updated_at = $2 WHERE id = $3',
+      ['AWARDED', now, jobId]
+    );
+
+    // Update offer status to AWARDED
+    await query(
+      'UPDATE job_offers SET status = $1, updated_at = $2 WHERE id = $3',
+      ['AWARDED', now, offerId]
+    );
+
+    // Decline all other offers for this job
+    await query(
+      'UPDATE job_offers SET status = $1, updated_at = $2 WHERE job_id = $3 AND id != $4 AND status = $5',
+      ['DECLINED', now, jobId, offerId, 'OFFERED']
+    );
+
+    console.log('✅ [ACCEPT OFFER] Offerta accettata con successo:', offerId);
+
+    return c.json({
+      message: 'Offerta accettata con successo. Il lavoro è stato assegnato.'
+    });
+  } catch (error: any) {
+    console.error('❌ [ACCEPT OFFER] Error accepting offer:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// PUT /api/jobs/:jobId/offers/:offerId - Update job offer (operator/vendor)
+// IMPORTANTE: questa route deve essere PRIMA di /:orgId per evitare conflitti di routing
+app.put('/:jobId/offers/:offerId', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const jobId = c.req.param('jobId');
+    const offerId = c.req.param('offerId');
+    const body = await c.req.json();
+    const {
+      total_cents,
+      currency = 'EUR',
+      proposed_start,
+      proposed_end,
+      provider_note,
+      pricing_snapshot_json = null
+    } = body;
+
+    if (!total_cents || total_cents <= 0) {
+      return c.json({ error: 'Invalid pricing' }, 400);
+    }
+
+    console.log('🔄 [UPDATE OFFER] Aggiornamento offerta:', { jobId, offerId, operatorOrgId: user.organizationId });
+
+    // Verifica che l'offerta esista e appartenga all'operatore
+    const offerResult = await query(
+      'SELECT id, job_id, operator_org_id, status FROM job_offers WHERE id = $1 AND job_id = $2',
+      [offerId, jobId]
+    );
+
+    if (offerResult.rows.length === 0) {
+      return c.json({ error: 'Offerta non trovata' }, 404);
+    }
+
+    const offer = offerResult.rows[0];
+
+    // Verifica che l'offerta appartenga all'operatore
+    if (offer.operator_org_id !== user.organizationId) {
+      return c.json({ error: 'Non autorizzato a modificare questa offerta' }, 403);
+    }
+
+    // Verifica che l'offerta sia ancora modificabile (OFFERED)
+    if (offer.status !== 'OFFERED') {
+      return c.json({ error: 'L\'offerta non può essere modificata (stato: ' + offer.status + ')' }, 400);
+    }
+
+    // Aggiorna l'offerta
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const now = new Date().toISOString();
+    const pricingSnapshotStr = pricing_snapshot_json 
+      ? (typeof pricing_snapshot_json === 'string' ? pricing_snapshot_json : JSON.stringify(pricing_snapshot_json))
+      : null;
+
+    await query(
+      `UPDATE job_offers SET 
+        total_cents = $1, 
+        currency = $2, 
+        proposed_start = $3, 
+        proposed_end = $4, 
+        provider_note = $5,
+        pricing_snapshot_json = $6,
+        updated_at = $7 
+      WHERE id = $8`,
+      [
+        parseInt(total_cents),
+        currency || 'EUR',
+        proposed_start || null,
+        proposed_end || null,
+        provider_note || null,
+        pricingSnapshotStr || offer.pricing_snapshot_json || '{}',
+        now,
+        offerId
+      ]
+    );
+
+    // Recupera l'offerta aggiornata
+    const updatedOfferResult = await query('SELECT * FROM job_offers WHERE id = $1', [offerId]);
+    const updatedOffer = updatedOfferResult.rows[0];
+
+    console.log('✅ [UPDATE OFFER] Offerta aggiornata con successo:', offerId);
+
+    return c.json({ offer: updatedOffer });
+  } catch (error: any) {
+    console.error('❌ [UPDATE OFFER] Error updating offer:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// POST /api/jobs/:jobId/withdraw-offer/:offerId - Withdraw job offer (operator/vendor)
+// IMPORTANTE: questa route deve essere PRIMA di /:orgId per evitare conflitti di routing
+app.post('/:jobId/withdraw-offer/:offerId', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const jobId = c.req.param('jobId');
+    const offerId = c.req.param('offerId');
+
+    console.log('🔄 Ritiro offerta:', { jobId, offerId, operatorOrgId: user.organizationId });
+
+    // Verifica che l'offerta esista e appartenga all'operatore
+    const offerResult = await query(
+      'SELECT id, job_id, operator_org_id, status FROM job_offers WHERE id = $1 AND job_id = $2',
+      [offerId, jobId]
+    );
+
+    if (offerResult.rows.length === 0) {
+      return c.json({ error: 'Offerta non trovata' }, 404);
+    }
+
+    const offer = offerResult.rows[0];
+
+    // Verifica che l'offerta appartenga all'operatore
+    if (offer.operator_org_id !== user.organizationId) {
+      return c.json({ error: 'Non autorizzato a ritirare questa offerta' }, 403);
+    }
+
+    // Verifica che l'offerta sia ancora in stato OFFERED
+    if (offer.status !== 'OFFERED') {
+      return c.json({ error: 'L\'offerta non può essere ritirata (stato: ' + offer.status + ')' }, 400);
+    }
+
+    // Aggiorna lo stato dell'offerta a WITHDRAWN
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const now = new Date().toISOString();
+
+    await query(
+      `UPDATE job_offers SET status = $1, updated_at = $2 WHERE id = $3`,
+      ['WITHDRAWN', now, offerId]
+    );
+
+    console.log('✅ Offerta ritirata con successo:', offerId);
+
+    return c.json({
+      message: 'Offerta ritirata con successo',
+      offer: {
+        id: offerId,
+        status: 'WITHDRAWN'
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error withdrawing offer:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// ============================================================================
+// JOB OFFER MESSAGES ROUTES (deve essere PRIMA di /offers/:orgId per evitare conflitti)
+// ============================================================================
+
+// GET MESSAGES FOR OFFER
+app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
+  try {
+    const offerId = c.req.param('offerId');
+    const user = c.get('user');
+
+    if (!offerId) {
+      return c.json({ error: 'Offer ID required' }, 400);
+    }
+
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    console.log('💬 Richiesta messaggi per offerta:', offerId);
+
+    // Verifica che l'offerta esista e che l'utente sia buyer o operator
+    const offerCheck = await query(`
+      SELECT jo.id, jo.job_id, jo.operator_org_id, j.buyer_org_id
+      FROM job_offers jo
+      JOIN jobs j ON jo.job_id = j.id
+      WHERE jo.id = $1
+    `, [offerId]);
+
+    if (offerCheck.rows.length === 0) {
+      return c.json({ error: 'Offer not found' }, 404);
+    }
+
+    const offer = offerCheck.rows[0];
+    
+    // Verifica che l'utente sia buyer o operator dell'offerta
+    if (offer.buyer_org_id !== user.organizationId && offer.operator_org_id !== user.organizationId) {
+      return c.json({ error: 'Unauthorized: You can only view messages for your own offers' }, 403);
+    }
+
+    const messagesQuery = `
+      SELECT
+        jom.id,
+        jom.offer_id,
+        jom.sender_org_id,
+        jom.sender_user_id,
+        jom.message_text,
+        jom.is_read,
+        jom.created_at,
+        o.legal_name as sender_org_name
+      FROM job_offer_messages jom
+      LEFT JOIN organizations o ON jom.sender_org_id = o.id
+      WHERE jom.offer_id = $1
+      ORDER BY jom.created_at ASC
+    `;
+
+    const result = await query(messagesQuery, [offerId]);
+
+    const messages = result.rows.map(msg => ({
+      id: msg.id,
+      offer_id: msg.offer_id,
+      sender_org_id: msg.sender_org_id,
+      sender_user_id: msg.sender_user_id,
+      message_text: msg.message_text,
+      is_read: msg.is_read === 1 || msg.is_read === true,
+      created_at: msg.created_at,
+      sender_org_name: msg.sender_org_name
+    }));
+
+    console.log('✅ Recuperati', messages.length, 'messaggi per offerta');
+
+    return c.json(messages);
+
+  } catch (error: any) {
+    console.error('❌ Errore get offer messages:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// POST MESSAGE FOR OFFER
+app.post('/offers/:offerId/messages', authMiddleware, async (c) => {
+  try {
+    const offerId = c.req.param('offerId');
+    const { sender_org_id, sender_user_id, message_text } = await c.req.json();
+    const user = c.get('user');
+
+    if (!offerId || !sender_org_id || !message_text) {
+      return c.json({ error: 'Offer ID, sender org ID, and message text required' }, 400);
+    }
+
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Verifica che sender_org_id corrisponda all'organizzazione dell'utente
+    if (sender_org_id !== user.organizationId) {
+      return c.json({ error: 'Unauthorized: sender_org_id must match your organization' }, 403);
+    }
+
+    console.log('💬 Creazione messaggio per offerta:', offerId);
+
+    // Verifica che l'offerta esista
+    const offerCheck = await query(`
+      SELECT jo.id, jo.job_id, jo.operator_org_id, j.buyer_org_id
+      FROM job_offers jo
+      JOIN jobs j ON jo.job_id = j.id
+      WHERE jo.id = $1
+    `, [offerId]);
+
+    if (offerCheck.rows.length === 0) {
+      return c.json({ error: 'Offer not found' }, 404);
+    }
+
+    const offer = offerCheck.rows[0];
+    
+    // Verifica che il sender sia buyer o operator dell'offerta
+    if (offer.buyer_org_id !== sender_org_id && offer.operator_org_id !== sender_org_id) {
+      return c.json({ error: 'Unauthorized: You can only send messages for your own offers' }, 403);
+    }
+
+    // Crea messaggio
+    const messageId = `jom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const insertQuery = `
+      INSERT INTO job_offer_messages (id, offer_id, sender_org_id, sender_user_id, message_text, is_read, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `;
+
+    await query(insertQuery, [
+      messageId,
+      offerId,
+      sender_org_id,
+      sender_user_id || null,
+      message_text,
+      0, // is_read = false
+      new Date().toISOString()
+    ]);
+
+    // Recupera il messaggio appena creato
+    const messageResult = await query(`
+      SELECT jom.id, jom.offer_id, jom.sender_org_id, jom.sender_user_id, jom.message_text, jom.is_read, jom.created_at,
+             o.legal_name as sender_org_name
+      FROM job_offer_messages jom
+      LEFT JOIN organizations o ON jom.sender_org_id = o.id
+      WHERE jom.id = $1
+    `, [messageId]);
+
+    const message = messageResult.rows[0];
+
+    console.log('✅ Messaggio creato per offerta:', messageId);
+
+      return c.json({ 
+      id: message.id,
+      offer_id: message.offer_id,
+      sender_org_id: message.sender_org_id,
+      sender_user_id: message.sender_user_id,
+      message_text: message.message_text,
+      is_read: message.is_read === 1 || message.is_read === true,
+      created_at: message.created_at,
+      sender_org_name: message.sender_org_name
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore create offer message:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// MARK MESSAGES AS READ FOR OFFER
+app.put('/offers/:offerId/messages/read', authMiddleware, async (c) => {
+  try {
+    const offerId = c.req.param('offerId');
+    const { reader_org_id } = await c.req.json();
+    const user = c.get('user');
+
+    if (!offerId || !reader_org_id) {
+      return c.json({ error: 'Offer ID and reader org ID required' }, 400);
+    }
+
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Verifica che reader_org_id corrisponda all'organizzazione dell'utente
+    if (reader_org_id !== user.organizationId) {
+      return c.json({ error: 'Unauthorized: reader_org_id must match your organization' }, 403);
+    }
+
+    console.log('💬 Marca messaggi come letti per offerta:', offerId);
+
+    // Verifica che l'offerta esista e che il reader sia buyer o operator
+    const offerCheck = await query(`
+      SELECT jo.id, jo.job_id, jo.operator_org_id, j.buyer_org_id
+      FROM job_offers jo
+      JOIN jobs j ON jo.job_id = j.id
+      WHERE jo.id = $1
+    `, [offerId]);
+
+    if (offerCheck.rows.length === 0) {
+      return c.json({ error: 'Offer not found' }, 404);
+    }
+
+    const offer = offerCheck.rows[0];
+    
+    // Verifica che il reader sia buyer o operator dell'offerta
+    if (offer.buyer_org_id !== reader_org_id && offer.operator_org_id !== reader_org_id) {
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    // Marca come letti solo i messaggi NON inviati dal reader stesso
+    await query(`
+      UPDATE job_offer_messages 
+      SET is_read = 1 
+      WHERE offer_id = $1 
+        AND sender_org_id != $2
+        AND is_read = 0
+    `, [offerId, reader_org_id]);
+
+    console.log('✅ Messaggi marcati come letti per offerta');
+
+    return c.json({ success: true });
+
+  } catch (error: any) {
+    console.error('❌ Errore mark offer messages as read:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// POST /api/jobs/offers/:offerId/complete - Complete mission (operator/vendor)
+// IMPORTANTE: questa route deve essere PRIMA di /offers/:orgId per evitare conflitti
+app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const offerId = c.req.param('offerId');
+
+    console.log('✅ [COMPLETE MISSION] Completamento missione per offerta:', { offerId, operatorOrgId: user.organizationId });
+
+    // Fetch the offer with job details
+    const offerResult = await query(`
+      SELECT jo.id, jo.job_id, jo.operator_org_id, jo.status,
+             j.buyer_org_id, j.service_type, j.field_name, j.area_ha
+      FROM job_offers jo
+      JOIN jobs j ON jo.job_id = j.id
+      WHERE jo.id = $1
+    `, [offerId]);
+
+    if (offerResult.rows.length === 0) {
+      return c.json({ error: 'Offerta non trovata' }, 404);
+    }
+
+    const offer = offerResult.rows[0];
+    const jobId = offer.job_id;
+
+    // Verify the offer is AWARDED
+    if (offer.status !== 'AWARDED') {
+      return c.json({ error: 'L\'offerta deve essere accettata per completare la missione' }, 400);
+    }
+
+    // Verify the user is the operator
+    if (offer.operator_org_id !== user.organizationId) {
+      return c.json({ error: 'Non autorizzato a completare questa missione' }, 403);
+    }
+
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const now = new Date().toISOString();
+
+    // Ensure bookings table exists with all required columns
+    const createBookingsTableQuery = isPostgreSQL
+      ? `
+        CREATE TABLE IF NOT EXISTS bookings (
+          id VARCHAR(255) PRIMARY KEY,
+          job_id VARCHAR(255) NOT NULL,
+          accepted_offer_id VARCHAR(255),
+          buyer_org_id VARCHAR(255) NOT NULL,
+          executor_org_id VARCHAR(255) NOT NULL,
+          service_type VARCHAR(255) NOT NULL,
+          site_snapshot_json TEXT,
+          status VARCHAR(50) DEFAULT 'CONFIRMED',
+          payment_status VARCHAR(50) DEFAULT 'PENDING',
+          paid_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `
+      : `
+        CREATE TABLE IF NOT EXISTS bookings (
+          id TEXT PRIMARY KEY,
+          job_id TEXT NOT NULL,
+          accepted_offer_id TEXT,
+          buyer_org_id TEXT NOT NULL,
+          executor_org_id TEXT NOT NULL,
+          service_type TEXT NOT NULL,
+          site_snapshot_json TEXT,
+          status TEXT DEFAULT 'CONFIRMED',
+          payment_status TEXT DEFAULT 'PENDING',
+          paid_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+    
+    try {
+      await query(createBookingsTableQuery);
+    } catch (error: any) {
+      console.error('Error creating bookings table:', error.message);
+      // Continue anyway - table might already exist
+    }
+
+    // Check if booking already exists
+    const existingBookingResult = await query(
+      'SELECT id, status FROM bookings WHERE job_id = $1',
+      [jobId]
+    );
+
+    const siteSnapshot = JSON.stringify({
+      name: offer.field_name || 'Campo',
+      area_ha: offer.area_ha || 0
+    });
+
+    if (existingBookingResult.rows.length > 0) {
+      // Update existing booking
+      const booking = existingBookingResult.rows[0];
+      console.log('📋 [COMPLETE MISSION] Booking esistente trovato:', {
+        bookingId: booking.id,
+        jobId,
+        currentStatus: booking.status,
+        offerId,
+        buyerOrgId: offer.buyer_org_id,
+        operatorOrgId: offer.operator_org_id
+      });
+      await query(
+        'UPDATE bookings SET status = $1, accepted_offer_id = $2, updated_at = $3 WHERE id = $4',
+        ['DONE', offerId, now, booking.id]
+      );
+      console.log('✅ [COMPLETE MISSION] Booking aggiornato:', booking.id);
+      
+      // Verify the update worked
+      const verifyResult = await query(
+        'SELECT id, job_id, accepted_offer_id, buyer_org_id, executor_org_id, status FROM bookings WHERE id = $1',
+        [booking.id]
+      );
+      console.log('📋 [COMPLETE MISSION] Booking dopo aggiornamento:', verifyResult.rows[0]);
+    } else {
+      // Create new booking
+      const bookingId = `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('📋 [COMPLETE MISSION] Creazione nuovo booking:', {
+        bookingId,
+        jobId,
+        offerId,
+        buyerOrgId: offer.buyer_org_id,
+        operatorOrgId: offer.operator_org_id,
+        serviceType: offer.service_type || 'SPRAY'
+      });
+      await query(`
+        INSERT INTO bookings (
+          id, job_id, accepted_offer_id, buyer_org_id, executor_org_id,
+          service_type, site_snapshot_json, status, payment_status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [
+        bookingId,
+        jobId,
+        offerId,
+        offer.buyer_org_id,
+        offer.operator_org_id,
+        offer.service_type || 'SPRAY',
+        siteSnapshot,
+        'DONE',
+        'PENDING',
+        now,
+        now
+      ]);
+      console.log('✅ [COMPLETE MISSION] Booking creato:', bookingId);
+      
+      // Verify the insert worked
+      const verifyResult = await query(
+        'SELECT id, job_id, accepted_offer_id, buyer_org_id, executor_org_id, status FROM bookings WHERE id = $1',
+        [bookingId]
+      );
+      console.log('📋 [COMPLETE MISSION] Booking dopo creazione:', verifyResult.rows[0]);
+    }
+
+    // Update job status to DONE (optional, for consistency)
+    await query(
+      'UPDATE jobs SET status = $1, updated_at = $2 WHERE id = $3',
+      ['DONE', now, jobId]
+    );
+
+    console.log('✅ [COMPLETE MISSION] Missione completata con successo');
+
+    return c.json({
+      message: 'Missione completata con successo',
+      offer_id: offerId,
+      job_id: jobId
+    });
+  } catch (error: any) {
+    console.error('❌ [COMPLETE MISSION] Error completing mission:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// GET /api/jobs/offers/:orgId - Get offers for organization (received and made)
+// IMPORTANTE: questa route deve essere DOPO le route dei messaggi per evitare conflitti
+app.get('/offers/:orgId', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const orgId = c.req.param('orgId');
+
+    console.log('🎁 Richiesta job offers per org:', orgId, 'user org:', user?.organizationId);
+
+    // Users can only see offers for their own organization
+    if (!user || user.organizationId !== orgId) {
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    // Get offers received (where user's org is the buyer)
+    const receivedOffersResult = await query(`
+      SELECT 
+        jo.id, jo.job_id, jo.operator_org_id, jo.status, jo.pricing_snapshot_json,
+        jo.total_cents, jo.currency, jo.proposed_start, jo.proposed_end, jo.provider_note,
+        jo.created_at, jo.updated_at,
+        j.field_name, j.service_type, j.area_ha, j.location_json,
+        j.target_date_start, j.target_date_end, j.notes, j.status as job_status,
+        buyer_org.legal_name as buyer_org_legal_name,
+        operator_org.legal_name as operator_org_legal_name
+      FROM job_offers jo
+      JOIN jobs j ON jo.job_id = j.id
+      JOIN organizations buyer_org ON j.buyer_org_id = buyer_org.id
+      LEFT JOIN organizations operator_org ON jo.operator_org_id = operator_org.id
+      WHERE j.buyer_org_id = $1
+      ORDER BY jo.created_at DESC
+    `, [orgId]);
+
+    // Get offers made (where user's org is the operator)
+    const madeOffersResult = await query(`
+      SELECT 
+        jo.id, jo.job_id, jo.operator_org_id, jo.status, jo.pricing_snapshot_json,
+        jo.total_cents, jo.currency, jo.proposed_start, jo.proposed_end, jo.provider_note,
+        jo.created_at, jo.updated_at,
+        j.field_name, j.service_type, j.area_ha, j.location_json,
+        j.target_date_start, j.target_date_end, j.notes, j.status as job_status,
+        buyer_org.legal_name as buyer_org_legal_name,
+        operator_org.legal_name as operator_org_legal_name
+      FROM job_offers jo
+      JOIN jobs j ON jo.job_id = j.id
+      JOIN organizations buyer_org ON j.buyer_org_id = buyer_org.id
+      LEFT JOIN organizations operator_org ON jo.operator_org_id = operator_org.id
+      WHERE jo.operator_org_id = $1
+      ORDER BY jo.created_at DESC
+    `, [orgId]);
+
+    // Format received offers
+    const received = receivedOffersResult.rows.map((row: any) => {
+      const locJson = row.location_json ? (typeof row.location_json === 'string' ? JSON.parse(row.location_json) : row.location_json) : null;
+      return {
+        id: row.id,
+        job_id: row.job_id,
+        operator_org_id: row.operator_org_id,
+        status: row.status,
+        pricing_snapshot_json: row.pricing_snapshot_json ? (typeof row.pricing_snapshot_json === 'string' ? JSON.parse(row.pricing_snapshot_json) : row.pricing_snapshot_json) : null,
+        total_cents: parseInt(row.total_cents) || 0,
+        currency: row.currency || 'EUR',
+        proposed_start: row.proposed_start,
+        proposed_end: row.proposed_end,
+        provider_note: row.provider_note,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        job: {
+          id: row.job_id,
+          field_name: row.field_name,
+          service_type: row.service_type,
+          area_ha: row.area_ha ? parseFloat(row.area_ha) : null,
+          location_json: locJson,
+          field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
+          target_date_start: row.target_date_start,
+          target_date_end: row.target_date_end,
+          notes: row.notes,
+          status: row.job_status,
+          buyer_org: {
+            legal_name: row.buyer_org_legal_name || 'N/A'
+          }
+        },
+        operator_org: {
+          id: row.operator_org_id,
+          legal_name: row.operator_org_legal_name || 'N/A'
+        }
+      };
+    });
+
+    // Format made offers
+    const made = madeOffersResult.rows.map((row: any) => {
+      const locJson = row.location_json ? (typeof row.location_json === 'string' ? JSON.parse(row.location_json) : row.location_json) : null;
+        return {
+        id: row.id,
+        job_id: row.job_id,
+        operator_org_id: row.operator_org_id,
+        status: row.status,
+        pricing_snapshot_json: row.pricing_snapshot_json ? (typeof row.pricing_snapshot_json === 'string' ? JSON.parse(row.pricing_snapshot_json) : row.pricing_snapshot_json) : null,
+        total_cents: parseInt(row.total_cents) || 0,
+        currency: row.currency || 'EUR',
+        proposed_start: row.proposed_start,
+        proposed_end: row.proposed_end,
+        provider_note: row.provider_note,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        job: {
+          id: row.job_id,
+          field_name: row.field_name,
+          service_type: row.service_type,
+          area_ha: row.area_ha ? parseFloat(row.area_ha) : null,
+          location_json: locJson,
+          field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
+          target_date_start: row.target_date_start,
+          target_date_end: row.target_date_end,
+          notes: row.notes,
+          status: row.job_status,
+          buyer_org: {
+            legal_name: row.buyer_org_legal_name || 'N/A'
+          }
+        },
+        operator_org: {
+          id: row.operator_org_id,
+          legal_name: row.operator_org_legal_name || 'N/A'
+        }
+        };
+      });
+
+    console.log(`✅ Job offers trovate: received=${received.length}, made=${made.length}`);
+
+    return c.json({ received, made });
+  } catch (error: any) {
+    console.error('❌ Error fetching job offers:', error);
+    console.error('❌ Error stack:', error.stack);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+export default app;

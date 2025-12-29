@@ -5,7 +5,7 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8082';
 
 // Invia codice verifica email
 export async function sendVerificationCodeEmail(
@@ -18,8 +18,19 @@ export async function sendVerificationCodeEmail(
     return;
   }
   try {
-    await resend.emails.send({
-      from: 'DJI Agriculture <noreply@dji-agriculture.com>',
+    // Usa il dominio verificato agoralia.app come fallback se agrifly.it non è verificato
+    let fromEmail = process.env.RESEND_FROM_EMAIL || 'Agoralia <no-reply@agoralia.app>';
+    
+    // Se RESEND_FROM_EMAIL contiene agrifly.it, verifica se funziona, altrimenti usa fallback
+    if (fromEmail.includes('agrifly.it')) {
+      console.warn('⚠️  Tentativo con dominio agrifly.it...');
+      // Se fallisce, useremo il fallback
+    }
+    
+    console.log('📧 Invio email verifica:', { to, from: fromEmail, code });
+    
+    const result = await resend.emails.send({
+      from: fromEmail,
       to,
       subject: 'Codice di verifica email',
       html: `
@@ -33,9 +44,50 @@ export async function sendVerificationCodeEmail(
         </div>
       `,
     });
-  } catch (error) {
-    console.error('Error sending verification email:', error);
-    // Non bloccare il flusso se l'email fallisce
+    
+    if (result.error) {
+      console.error('❌ Errore Resend API:', result.error);
+      
+      // Se il dominio non è verificato, prova con il dominio verificato come fallback
+      if (result.error.statusCode === 403 && result.error.message?.includes('domain is not verified')) {
+        console.warn('⚠️  Dominio non verificato, provo con dominio verificato agoralia.app...');
+        const fallbackFrom = 'Agoralia <no-reply@agoralia.app>';
+        
+        const fallbackResult = await resend.emails.send({
+          from: fallbackFrom,
+          to,
+          subject: 'Codice di verifica email - Agrifly',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Verifica la tua email</h2>
+              <p>Il tuo codice di verifica è:</p>
+              <div style="background: #f0f0f0; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; margin: 20px 0;">
+                ${code}
+              </div>
+              <p>Questo codice è valido per ${expiresMinutes} minuti.</p>
+            </div>
+          `,
+        });
+        
+        if (fallbackResult.error) {
+          console.error('❌ Errore anche con fallback:', fallbackResult.error);
+          throw new Error(`Impossibile inviare email: ${fallbackResult.error.message}`);
+        } else {
+          console.log('✅ Email inviata con successo usando dominio verificato!');
+        }
+      } else {
+        throw new Error(`Errore invio email: ${result.error.message}`);
+      }
+    } else {
+      console.log('✅ Email inviata con successo!');
+      console.log('✅ Resend result:', JSON.stringify(result, null, 2));
+    }
+  } catch (error: any) {
+    console.error('❌ Error sending verification email:', error);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    // Non bloccare il flusso se l'email fallisce, ma logghiamo l'errore
+    throw error; // Rilanciamo per far vedere l'errore ai log del server
   }
 }
 

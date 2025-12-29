@@ -9,6 +9,7 @@ type Props = {
 function isAuthenticated(): boolean {
   const token = localStorage.getItem("auth_token");
   const organization = localStorage.getItem("organization");
+  const selectedRole = localStorage.getItem("selected_role");
 
   if (!token || !organization) {
     console.log('🔐 Auth check: token o organization mancanti');
@@ -85,7 +86,9 @@ export default function RequireAuth({ children }: Props) {
   }
 
   if (!isAuthed) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    // Salva il percorso corrente come redirect per dopo il login
+    const redirectPath = location.pathname + location.search;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(redirectPath)}`} replace />;
   }
 
   return <>{children}</>;

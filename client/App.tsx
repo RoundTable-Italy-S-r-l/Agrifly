@@ -11,20 +11,35 @@ import RequireAuth from "@/components/RequireAuth";
 
 import Index from "./pages/Index";
 import Catalogo from "./pages/Catalogo";
+import Carrello from "./pages/Carrello";
 import ServiziGIS from "./pages/ServiziGIS";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 import Dashboard from "./pages/Dashboard";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import AdminCatalog from "./pages/AdminCatalog";
 import Orders from "./pages/Orders";
 import Servizi from "./pages/Servizi";
-import Prenotazioni from "./pages/Prenotazioni";
 import Missioni from "./pages/Missioni";
-import Operatori from "./pages/Operatori";
+import OfferDetail from "./pages/OfferDetail";
 import AdminSettingsPage from "./pages/AdminSettingsPage";
+import ServiceDetail from "./pages/ServiceDetail";
 import DroneDetail from "./pages/DroneDetail";
+import Checkout from "./pages/Checkout";
+import OrderDetail from "./pages/OrderDetail";
 import NotFound from "./pages/NotFound";
+
+// Buyer pages
+import DashboardBuyer from "./pages/DashboardBuyer";
+import NuovoPreventivoBuyer from "./pages/NuovoPreventivoBuyer";
+import StoricoBuyer from "./pages/StoricoBuyer";
+import ImpostazioniBuyer from "./pages/ImpostazioniBuyer";
+import DettagliJobBuyer from "./pages/DettagliJobBuyer";
+import CartBuyer from "./pages/CartBuyer";
+
+// Landing page preventivo indipendente
+import PreventivoLanding from "./landing-preventivo";
 
 const queryClient = new QueryClient();
 
@@ -39,9 +54,27 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/catalogo" element={<Catalogo />} />
+            <Route
+              path="/buyer/carrello"
+              element={
+                <RequireAuth>
+                  <Carrello />
+                </RequireAuth>
+              }
+            />
+            <Route path="/checkout" element={<Checkout />} />
             <Route path="/servizi" element={<ServiziGIS />} />
+            <Route path="/preventivo" element={<PreventivoLanding />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="/verify-email"
+              element={
+                <RequireAuth>
+                  <VerifyEmail />
+                </RequireAuth>
+              }
+            />
 
             <Route
               path="/dashboard"
@@ -89,16 +122,25 @@ const App = () => {
             />
 
             <Route
-              path="/admin/prenotazioni"
+              path="/admin/servizi/:serviceType"
               element={
                 <RequireAuth>
-                  <Prenotazioni />
+                  <ServiceDetail />
                 </RequireAuth>
               }
             />
 
             <Route
-              path="/admin/missioni"
+              path="/admin/offer/:offerId"
+              element={
+                <RequireAuth>
+                  <OfferDetail />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/admin/prenotazioni"
               element={
                 <RequireAuth>
                   <Missioni />
@@ -106,14 +148,6 @@ const App = () => {
               }
             />
 
-            <Route
-              path="/admin/operatori"
-              element={
-                <RequireAuth>
-                  <Operatori />
-                </RequireAuth>
-              }
-            />
 
             <Route
               path="/admin/impostazioni"
@@ -124,7 +158,63 @@ const App = () => {
               }
             />
 
+            {/* Buyer Routes */}
+            <Route
+              path="/buyer"
+              element={
+                <RequireAuth>
+                  <DashboardBuyer />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/buyer/carrello"
+              element={
+                <RequireAuth>
+                  <CartBuyer />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/buyer/nuovo-preventivo"
+              element={
+                <RequireAuth>
+                  <NuovoPreventivoBuyer />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/buyer/servizi"
+              element={
+                <RequireAuth>
+                  <StoricoBuyer />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/buyer/impostazioni"
+              element={
+                <RequireAuth>
+                  <ImpostazioniBuyer />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/buyer/job/:jobId"
+              element={
+                <RequireAuth>
+                  <DettagliJobBuyer />
+                </RequireAuth>
+              }
+            />
+
             <Route path="/prodotti/:id" element={<DroneDetail />} />
+            <Route path="/ordini/:orderId" element={<OrderDetail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

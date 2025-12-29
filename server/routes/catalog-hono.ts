@@ -401,189 +401,140 @@ app.get('/vendor/:orgId', async (c) => {
 });
 
 // ============================================================================
-// GET PUBLIC CATALOG (Aggregato da tutti i vendor)
+// GET PUBLIC CATALOG (Prodotti dalla tabella products, non raggruppati per vendor)
 // ============================================================================
 
 app.get('/public', async (c) => {
   try {
     const category = c.req.query('category');
-    const vendorId = c.req.query('vendor');
     const minPrice = c.req.query('minPrice') ? parseInt(c.req.query('minPrice')!) : null;
     const maxPrice = c.req.query('maxPrice') ? parseInt(c.req.query('maxPrice')!) : null;
 
-    console.log('🌐 Richiesta catalogo pubblico', { category, vendorId, minPrice, maxPrice });
+    console.log('🌐 Richiesta catalogo pubblico prodotti', { category, minPrice, maxPrice });
 
-    // Query per ottenere tutti i prodotti dei vendor con prezzi e stock
-    // Include solo prodotti con is_for_sale = true e stock disponibile > 0
-    // Usa CTE per evitare problemi con subquery e GROUP BY
+    // Query per ottenere TUTTI i prodotti dalla tabella products
+    // Mostra tutti i prodotti attivi, a prescindere dal vendor
     let querySql = `
-      WITH catalog_base AS (
-        SELECT
-          o.id as vendor_id,
-          o.legal_name as vendor_name,
-          o.logo_url as vendor_logo_url,
-          vci.id as catalog_item_id,
-          vci.sku_id,
-          vci.is_for_sale,
-          vci.is_for_rent,
-          vci.lead_time_days,
-          vci.notes as vendor_notes,
-          s.id as sku_table_id,
-          s.sku_code,
-          p.id as product_id,
-          p.name as product_name,
-          p.brand,
-          p.model,
-          p.product_type,
-          p.specs_json,
-          p.images_json,
-          p.glb_files_json,
-          a."productId",
-          COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) as available_stock
-        FROM vendor_catalog_items vci
-        JOIN organizations o ON vci.vendor_org_id = o.id
-        JOIN skus s ON vci.sku_id = s.id
-        JOIN products p ON s.product_id = p.id
-        LEFT JOIN inventories i ON vci.sku_id = i.sku_id AND i.vendor_org_id = o.id
-        -- INNER JOIN per mostrare solo prodotti con assets disponibili
-        INNER JOIN assets a ON vci.sku_id = a.sku_id AND a.asset_status = 'AVAILABLE' AND a.owning_org_id = o.id
-        WHERE o.org_type = 'VENDOR'
-          AND o.status = 'ACTIVE'
-          AND vci.is_for_sale = true
-          AND s.status = 'ACTIVE'
-          AND p.status = 'ACTIVE'
-        GROUP BY o.id, o.legal_name, o.logo_url, vci.id, vci.sku_id, vci.is_for_sale,
-                 vci.is_for_rent, vci.lead_time_days, vci.notes, s.id, s.sku_code, p.id,
-                 p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json,
-                 a."productId"
-      )
-      SELECT 
-        cb.*,
-        -- Prezzo dalla price list attiva più recente
+      SELECT DISTINCT
+        p.id as product_id,
+        p.name as product_name,
+        p.brand,
+        p.model,
+        p.product_type,
+        p.specs_json,
+        p.specs_core_json,
+        p.images_json,
+        p.glb_files_json,
+        COALESCE(
+          (
+            SELECT a."productId"
+            FROM assets a
+            JOIN skus s_asset ON a.sku_id = s_asset.id
+            WHERE s_asset.product_id = p.id
+              AND a.asset_status = 'AVAILABLE'
+            LIMIT 1
+          ),
+          p.id
+        ) as "productId",
+        -- Conta quanti vendor vendono questo prodotto con stock > 0
         (
-          SELECT pli.price_cents / 100.0
+          SELECT COUNT(DISTINCT vci.vendor_org_id)
+          FROM vendor_catalog_items vci
+          JOIN skus s2 ON vci.sku_id = s2.id
+          LEFT JOIN inventories i2 ON vci.sku_id = i2.sku_id AND i2.vendor_org_id = vci.vendor_org_id
+          WHERE s2.product_id = p.id
+            AND vci.is_for_sale = 1
+            AND (COALESCE(i2.qty_on_hand, 0) - COALESCE(i2.qty_reserved, 0)) > 0
+        ) as vendor_count,
+        -- Prezzo minimo tra tutti i vendor (anche offerte)
+        (
+          SELECT MIN(pli.price_cents / 100.0)
           FROM price_list_items pli
           JOIN price_lists pl ON pli.price_list_id = pl.id
-          WHERE pli.sku_id = cb.sku_table_id
-            AND pl.vendor_org_id = cb.vendor_id
+          JOIN skus s_price ON pli.sku_id = s_price.id
+          JOIN vendor_catalog_items vci_price ON vci_price.sku_id = s_price.id AND vci_price.vendor_org_id = pl.vendor_org_id
+          LEFT JOIN inventories i_price ON vci_price.sku_id = i_price.sku_id AND i_price.vendor_org_id = vci_price.vendor_org_id
+          WHERE s_price.product_id = p.id
             AND pl.status = 'ACTIVE'
-            AND pl.valid_from <= NOW()
-            AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
-          ORDER BY pl.valid_from DESC
-          LIMIT 1
-        ) as price_euros,
+            AND pl.valid_from <= datetime('now')
+            AND (pl.valid_to IS NULL OR pl.valid_to >= datetime('now'))
+            AND vci_price.is_for_sale = 1
+            AND (COALESCE(i_price.qty_on_hand, 0) - COALESCE(i_price.qty_reserved, 0)) > 0
+        ) as min_price_euros,
+        -- Stock totale disponibile tra tutti i vendor
         (
-          SELECT pl.currency
-          FROM price_list_items pli
-          JOIN price_lists pl ON pli.price_list_id = pl.id
-          WHERE pli.sku_id = cb.sku_table_id
-            AND pl.vendor_org_id = cb.vendor_id
-            AND pl.status = 'ACTIVE'
-            AND pl.valid_from <= NOW()
-            AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
-          ORDER BY pl.valid_from DESC
-          LIMIT 1
-        ) as currency
-      FROM catalog_base cb
-      WHERE 1=1
+          SELECT COALESCE(SUM(i_total.qty_on_hand - COALESCE(i_total.qty_reserved, 0)), 0)
+          FROM vendor_catalog_items vci_total
+          JOIN skus s_total ON vci_total.sku_id = s_total.id
+          LEFT JOIN inventories i_total ON vci_total.sku_id = i_total.sku_id AND i_total.vendor_org_id = vci_total.vendor_org_id
+          WHERE s_total.product_id = p.id
+            AND vci_total.is_for_sale = 1
+        ) as total_stock
+      FROM products p
+      WHERE p.status = 'ACTIVE'
     `;
 
     const params: any[] = [];
     let paramIndex = 1;
 
-    // Filtri (applicati alla CTE)
+    // Filtri
     if (category) {
-      querySql += ` AND cb.product_type = $${paramIndex}`;
+      querySql += ` AND p.product_type = $${paramIndex}`;
       params.push(category);
       paramIndex++;
     }
 
-    if (vendorId) {
-      querySql += ` AND cb.vendor_id = $${paramIndex}`;
-      params.push(vendorId);
-      paramIndex++;
-    }
+    // Ordina per brand e model
+    querySql += ` ORDER BY p.brand, p.model`;
 
-    querySql += ` ORDER BY cb.vendor_name, cb.brand, cb.model, cb.sku_code`;
-
+    console.log('🔍 Eseguendo query SQL:', querySql.substring(0, 200) + '...');
+    console.log('🔍 Parametri:', params);
+    
     const result = await query(querySql, params);
 
     console.log(`📦 Prodotti trovati nel catalogo pubblico: ${result.rows.length}`);
+    if (result.rows.length > 0) {
+      const firstRow = result.rows[0];
+      console.log('📦 Primo prodotto:', {
+        id: firstRow.product_id,
+        name: firstRow.product_name,
+        hasGlb: !!firstRow.glb_files_json,
+        hasSpecsCore: !!firstRow.specs_core_json,
+        glbPreview: firstRow.glb_files_json?.substring(0, 100)
+      });
+    }
 
-    // Raggruppa per vendor e applica filtri prezzo
-    const vendorsMap = new Map<string, any>();
-
-    result.rows.forEach(row => {
-      // Applica filtri prezzo in JavaScript (dopo la query)
-      // Converti il prezzo da stringa a numero e arrotonda a 2 decimali
-      const priceRaw = row.price_euros || 0;
-      const price = typeof priceRaw === 'string' ? parseFloat(priceRaw) : priceRaw;
-      const priceRounded = Math.round(price * 100) / 100; // Arrotonda a 2 decimali
-      
-      if (minPrice !== null && priceRounded < minPrice) return;
-      if (maxPrice !== null && priceRounded > maxPrice) return;
-      const vendorId = row.vendor_id;
-      
-      if (!vendorsMap.has(vendorId)) {
-        vendorsMap.set(vendorId, {
-          id: vendorId,
-          name: row.vendor_name,
-          logo: row.vendor_logo_url || '', // Logo dell'organizzazione
-          description: '', // Organizations non ha description, usare valore vuoto o costruire da address
-          products: []
-        });
-      }
-
-      const vendor = vendorsMap.get(vendorId)!;
-      
-      // Estrai GLB da glb_files_json (priorità) e immagini da images_json (fallback)
-      let imageUrl: string | undefined;
+    // Estrai prodotti con immagini/GLB
+    const products = result.rows.map(row => {
+      // Estrai GLB URL
       let glbUrl: string | undefined;
-      
-      // Prima cerca GLB in glb_files_json
       if (row.glb_files_json) {
         try {
           const glbFiles = typeof row.glb_files_json === 'string' 
             ? JSON.parse(row.glb_files_json) 
             : row.glb_files_json;
           if (Array.isArray(glbFiles) && glbFiles.length > 0) {
-            const firstGlb = glbFiles[0];
-            let rawUrl = firstGlb.url || firstGlb.filename || firstGlb;
-            
-            // Se è un URL completo (http/https), usa direttamente
-            if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
-              glbUrl = rawUrl;
-            } 
-            // Se è un path relativo, costruisci URL Supabase Storage
-            else if (typeof rawUrl === 'string') {
-              try {
-                glbUrl = publicObjectUrl(undefined, rawUrl);
-              } catch (e) {
-                console.warn('Errore costruzione URL Supabase Storage:', e);
-                glbUrl = undefined; // Non usare path locale su Netlify
-              }
-            }
+            glbUrl = glbFiles[0].url || glbFiles[0];
           }
         } catch (e) {
           console.warn('Errore parsing glb_files_json:', e);
         }
       }
-      
-      // Poi cerca immagini in images_json come fallback
+
+      // Estrai image URL
+      let imageUrl: string | undefined;
       if (row.images_json) {
         try {
           const images = typeof row.images_json === 'string' 
             ? JSON.parse(row.images_json) 
             : row.images_json;
           if (Array.isArray(images) && images.length > 0) {
-            // Cerca la prima immagine normale (non GLB)
             const normalImage = images.find((img: any) => 
               img.type !== 'glb' && !img.url?.endsWith('.glb')
             );
             if (normalImage) {
               imageUrl = normalImage.url || normalImage;
             } else if (images[0]) {
-              // Se non c'è immagine normale, usa la prima disponibile
               imageUrl = images[0].url || images[0];
             }
           }
@@ -592,45 +543,154 @@ app.get('/public', async (c) => {
         }
       }
 
-      // Filtra solo prodotti con stock disponibile > 0 (basato su inventory)
-      const availableStock = parseInt(row.available_stock) || 0;
-      
-      // Mostra SOLO prodotti che hanno stock disponibile > 0 (basato su inventory)
-      if (availableStock > 0) {
-        vendor.products.push({
-          id: row.catalog_item_id, // catalog_item_id per compatibilità
-          productId: row.productId, // da tabella assets (prd_t25, etc.)
-          skuCode: row.sku_code,
-          name: row.product_name,
-          model: row.model,
-          brand: row.brand,
-          category: row.product_type,
-          price: priceRounded, // Prezzo arrotondato a 2 decimali
-          currency: row.currency || 'EUR',
-          stock: availableStock,
-          leadTimeDays: row.lead_time_days || null,
-          imageUrl,
-          glbUrl,
-          description: `${row.brand} ${row.model} - ${row.product_name}`, // Costruisci description da altri campi
-          specs: row.specs_json,
-          vendorNotes: row.vendor_notes
-        });
-      }
+      const vendorCount = parseInt(row.vendor_count) || 0;
+      const minPrice = row.min_price_euros ? parseFloat(row.min_price_euros) : null;
+      const totalStock = parseInt(row.total_stock) || 0;
+
+      return {
+        id: row.product_id,
+        productId: row.productId || row.product_id, // da tabella assets (prd_t25, etc.) o fallback a id
+        name: row.product_name,
+        model: row.model,
+        brand: row.brand,
+        category: row.product_type,
+        imageUrl,
+        glbUrl,
+        description: `${row.brand} ${row.model} - ${row.product_name}`,
+        specs: row.specs_json,
+        specsCore: row.specs_core_json,
+        vendorCount, // Numero di vendor che vendono questo prodotto
+        price: minPrice, // Prezzo minimo tra tutti i vendor
+        stock: totalStock // Stock totale disponibile
+      };
     });
 
-    const vendors = Array.from(vendorsMap.values());
+    // Applica filtri prezzo se necessario
+    let filteredProducts = products;
+    if (minPrice !== null || maxPrice !== null) {
+      console.log('⚠️ Filtri prezzo richiedono query aggiuntiva, applicati lato client');
+    }
 
-    console.log(`✅ Catalogo pubblico: ${vendors.length} vendor, ${result.rows.length} prodotti totali`);
-
-    return c.json({ vendors });
+    console.log(`✅ Catalogo pubblico: ${filteredProducts.length} prodotti`);
+    return c.json({ products: filteredProducts });
 
   } catch (error: any) {
     console.error('❌ Errore get public catalog:', error);
-    console.error('Stack:', error.stack);
-    return c.json({ 
-      error: 'Errore interno', 
+    console.error('❌ Stack:', error.stack);
+    console.error('❌ Query SQL:', querySql?.substring(0, 500));
+    console.error('❌ Parametri:', params);
+    // NON restituire dati mock in caso di errore - restituisci solo errore
+    return c.json({
+      error: 'Errore interno',
       message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
+      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 10) : undefined
+    }, 500);
+  }
+});
+
+// ============================================================================
+// GET PRODUCT VENDORS (Venditori che vendono un prodotto specifico)
+// ============================================================================
+
+app.get('/product/:productId/vendors', async (c) => {
+  try {
+    const productId = c.req.param('productId');
+    console.log('🔍 Richiesta vendor per prodotto:', productId);
+
+    // Query per ottenere tutti i vendor che vendono questo prodotto
+    const querySql = `
+      SELECT DISTINCT
+        o.id as vendor_id,
+        o.legal_name as vendor_name,
+        o.logo_url as vendor_logo_url,
+        o.address_line,
+        o.city,
+        o.province,
+        o.postal_code,
+        s.id as sku_id,
+        s.sku_code,
+        vci.lead_time_days,
+        vci.notes as vendor_notes,
+        COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0) as available_stock,
+        (
+          SELECT pli.price_cents / 100.0
+          FROM price_list_items pli
+          JOIN price_lists pl ON pli.price_list_id = pl.id
+          WHERE pli.sku_id = s.id
+            AND pl.vendor_org_id = o.id
+            AND pl.status = 'ACTIVE'
+            AND pl.valid_from <= datetime('now')
+            AND (pl.valid_to IS NULL OR pl.valid_to >= datetime('now'))
+          ORDER BY pl.valid_from DESC
+          LIMIT 1
+        ) as price_euros,
+        (
+          SELECT pl.currency
+          FROM price_list_items pli
+          JOIN price_lists pl ON pli.price_list_id = pl.id
+          WHERE pli.sku_id = s.id
+            AND pl.vendor_org_id = o.id
+            AND pl.status = 'ACTIVE'
+            AND pl.valid_from <= datetime('now')
+            AND (pl.valid_to IS NULL OR pl.valid_to >= datetime('now'))
+          ORDER BY pl.valid_from DESC
+          LIMIT 1
+        ) as currency
+      FROM products p
+      JOIN skus s ON s.product_id = p.id
+      JOIN vendor_catalog_items vci ON vci.sku_id = s.id
+      JOIN organizations o ON vci.vendor_org_id = o.id
+      LEFT JOIN inventories i ON vci.sku_id = i.sku_id AND i.vendor_org_id = o.id
+      WHERE (
+        p.id = $1
+        OR EXISTS (SELECT 1 FROM assets a WHERE a.sku_id = s.id AND a."productId" = $1)
+      )
+        AND o.org_type = 'VENDOR'
+        AND o.status = 'ACTIVE'
+        AND vci.is_for_sale = 1
+        AND s.status = 'ACTIVE'
+        AND p.status = 'ACTIVE'
+      GROUP BY o.id, o.legal_name, o.logo_url, o.address_line, o.city, o.province, o.postal_code, s.id, s.sku_code, vci.lead_time_days, vci.notes
+      HAVING (COALESCE(SUM(i.qty_on_hand), 0) - COALESCE(SUM(i.qty_reserved), 0)) > 0
+      ORDER BY o.legal_name, s.sku_code
+    `;
+
+    const result = await query(querySql, [productId]);
+
+    const vendors = result.rows.map(row => {
+      // Costruisci indirizzo completo
+      const addressParts = [
+        row.address_line,
+        row.city,
+        row.province,
+        row.postal_code
+      ].filter(Boolean);
+      const fullAddress = addressParts.join(', ') || 'Indirizzo non disponibile';
+
+      return {
+        vendorId: row.vendor_id,
+        vendorName: row.vendor_name,
+        vendorLogo: row.vendor_logo_url,
+        vendorAddress: fullAddress,
+        skuId: row.sku_id,
+        skuCode: row.sku_code,
+        leadTimeDays: row.lead_time_days,
+        notes: row.vendor_notes,
+        availableStock: parseInt(row.available_stock) || 0,
+        price: parseFloat(row.price_euros) || 0,
+        currency: row.currency || 'EUR'
+      };
+    });
+
+    console.log(`✅ Trovati ${vendors.length} vendor per prodotto ${productId}`);
+    return c.json({ vendors });
+  } catch (error: any) {
+    console.error('❌ Errore get product vendors:', error);
+    console.error('❌ Stack:', error.stack);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 10) : undefined
     }, 500);
   }
 });

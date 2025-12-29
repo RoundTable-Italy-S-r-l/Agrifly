@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { publicObjectUrl } from '../utils/storage';
+import fs from 'fs';
+import path from 'path';
 
 const app = new Hono();
 
@@ -18,7 +20,7 @@ app.get('/', async (c) => {
         p.images_json,
         p.glb_files_json
       FROM products p
-      WHERE p.status = 'ACTIVE'
+      WHERE p.status = 'ACTIVE' AND p.product_type = 'drone'
       ORDER BY p.brand, p.model
     `);
 
@@ -39,10 +41,30 @@ app.get('/', async (c) => {
             if (typeof rawPath === 'string' && (rawPath.startsWith('http://') || rawPath.startsWith('https://'))) {
               glbUrl = rawPath;
             } else if (typeof rawPath === 'string') {
-              try {
-                glbUrl = publicObjectUrl(undefined, rawPath);
-              } catch (e) {
-                console.warn('Errore costruzione URL GLB:', e);
+            // Se il path inizia con /glb/, servilo come file statico locale
+            if (rawPath.startsWith('/glb/')) {
+              const glbPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', rawPath);
+              console.log('🔍 Checking GLB file:', { rawPath, glbPath, exists: fs.existsSync(glbPath) });
+              if (fs.existsSync(glbPath)) {
+                // Per sviluppo locale, usa un endpoint che serve i file statici
+                // rawPath è tipo "/glb/t25p/t25p.glb", quindi rimuoviamo il primo "/glb/"
+                const relativePath = rawPath.replace(/^\/glb\//, '');
+                glbUrl = `/api/drones/glb/${relativePath}`;
+                console.log('✅ Using local GLB:', glbUrl);
+              } else {
+                console.warn('⚠️  Local GLB not found, using Supabase fallback');
+                try {
+                  glbUrl = publicObjectUrl(undefined, rawPath);
+                } catch (e) {
+                  console.warn('Errore costruzione URL GLB:', e);
+                }
+              }
+            } else {
+                try {
+                  glbUrl = publicObjectUrl(undefined, rawPath);
+                } catch (e) {
+                  console.warn('Errore costruzione URL GLB:', e);
+                }
               }
             }
           }
@@ -96,9 +118,11 @@ app.get('/:id', async (c) => {
   try {
     const param = c.req.param('id');
     console.log('🔍 Richiesta product detail per param:', param);
+    console.log('🔍 Tipo param:', typeof param);
 
     // Determina se è un UUID o un codice prodotto
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
+    console.log('🔍 Is UUID:', isUUID);
 
     let querySql: string;
     let queryParams: any[];
@@ -117,6 +141,7 @@ app.get('/:id', async (c) => {
           p.specs_extra_json,
           p.images_json,
           p.glb_files_json,
+          p.manuals_pdf_json,
           s.sku_code
         FROM products p
         JOIN skus s ON p.id = s.product_id
@@ -125,9 +150,9 @@ app.get('/:id', async (c) => {
       `;
       queryParams = [param];
     } else {
-      // Cerca prima per productId degli assets (es. prd_t100), poi per sku_code come fallback
+      // Cerca prima per productId degli assets (es. prd_t100), poi per id prodotto, poi per sku_code come fallback
       querySql = `
-        SELECT
+        SELECT DISTINCT
           p.id,
           p.name,
           p.model,
@@ -138,12 +163,22 @@ app.get('/:id', async (c) => {
           p.specs_extra_json,
           p.images_json,
           p.glb_files_json,
+          p.manuals_pdf_json,
           s.sku_code,
-          a."productId"
+          (
+            SELECT a2."productId"
+            FROM assets a2
+            WHERE a2.sku_id = s.id
+              AND a2.asset_status = 'AVAILABLE'
+            LIMIT 1
+          ) as "productId"
         FROM products p
         JOIN skus s ON p.id = s.product_id
-        LEFT JOIN assets a ON s.id = a.sku_id AND a."productId" = $1
-        WHERE (a."productId" = $1 OR s.sku_code = $1)
+        WHERE (
+          EXISTS (SELECT 1 FROM assets a WHERE a.sku_id = s.id AND a."productId" = $1)
+          OR p.id = $1
+          OR s.sku_code = $1
+        )
           AND p.status = 'ACTIVE'
           AND s.status = 'ACTIVE'
         LIMIT 1
@@ -154,11 +189,13 @@ app.get('/:id', async (c) => {
     const result = await query(querySql, queryParams);
 
     if (result.rows.length === 0) {
-      console.log('❌ Prodotto non trovato:', productId);
-      return c.json({ error: 'Prodotto non trovato', productId }, 404);
+      console.log('❌ Prodotto non trovato per param:', param);
+      console.log('🔍 Query eseguita:', querySql);
+      console.log('🔍 Parametri:', queryParams);
+      return c.json({ error: 'Prodotto non trovato', productId: param }, 404);
     }
 
-    console.log('✅ Prodotto trovato:', result.rows[0].model);
+    console.log('✅ Prodotto trovato:', result.rows[0].model, 'ID:', result.rows[0].id);
 
     const row = result.rows[0];
 
@@ -201,10 +238,30 @@ app.get('/:id', async (c) => {
           if (typeof rawPath === 'string' && (rawPath.startsWith('http://') || rawPath.startsWith('https://'))) {
             glbUrl = rawPath;
           } else if (typeof rawPath === 'string') {
-            try {
-              glbUrl = publicObjectUrl(undefined, rawPath);
-            } catch (e) {
-              console.warn('Errore costruzione URL GLB:', e);
+            // Se il path inizia con /glb/, servilo come file statico locale
+            if (rawPath.startsWith('/glb/')) {
+              // Costruisci URL locale per file GLB nella cartella DJI KB
+              const glbPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', rawPath);
+              if (fs.existsSync(glbPath)) {
+                // Per sviluppo locale, usa un endpoint che serve i file statici
+                // rawPath è tipo "/glb/t25p/t25p.glb", quindi rimuoviamo il primo "/glb/"
+                const relativePath = rawPath.replace(/^\/glb\//, '');
+                glbUrl = `/api/drones/glb/${relativePath}`;
+              } else {
+                // Fallback a Supabase se il file locale non esiste
+                try {
+                  glbUrl = publicObjectUrl(undefined, rawPath);
+                } catch (e) {
+                  console.warn('Errore costruzione URL GLB:', e);
+                }
+              }
+            } else {
+              // Altri path, prova Supabase
+              try {
+                glbUrl = publicObjectUrl(undefined, rawPath);
+              } catch (e) {
+                console.warn('Errore costruzione URL GLB:', e);
+              }
             }
           }
         }
@@ -234,18 +291,74 @@ app.get('/:id', async (c) => {
     }
 
     // Usa i veri specs_core_json e specs_extra_json dal database
-    // Fallback: trasforma specs_json se specs_core_json è vuoto
-    let specs_core_json = row.specs_core_json;
-    let specs_extra_json = row.specs_extra_json;
+    // Parse JSON strings se necessario
+    let specs_core_json = null;
+    let specs_extra_json = null;
 
-    // Se specs_core_json è null ma abbiamo specs_json, convertilo
+    if (row.specs_core_json) {
+      try {
+        specs_core_json = typeof row.specs_core_json === 'string' 
+          ? JSON.parse(row.specs_core_json) 
+          : row.specs_core_json;
+      } catch (e) {
+        console.warn('Errore parsing specs_core_json:', e);
+      }
+    }
+
+    if (row.specs_extra_json) {
+      try {
+        specs_extra_json = typeof row.specs_extra_json === 'string' 
+          ? JSON.parse(row.specs_extra_json) 
+          : row.specs_extra_json;
+      } catch (e) {
+        console.warn('Errore parsing specs_extra_json:', e);
+      }
+    }
+
+    // Fallback: trasforma specs_json se specs_core_json è vuoto
     if (!specs_core_json && row.specs_json) {
-      specs_core_json = Object.entries(row.specs_json).map(([key, value]) => ({
+      const specsJson = typeof row.specs_json === 'string' 
+        ? JSON.parse(row.specs_json) 
+        : row.specs_json;
+      specs_core_json = Object.entries(specsJson).map(([key, value]) => ({
         key,
         value: String(value),
         section: 'general',
         source_text: `${key}: ${value}`
       }));
+    }
+
+    // Parse specs_json se è una stringa
+    let specs_json = row.specs_json;
+    if (specs_json && typeof specs_json === 'string') {
+      try {
+        specs_json = JSON.parse(specs_json);
+      } catch (e) {
+        console.warn('Errore parsing specs_json:', e);
+      }
+    }
+
+    // Parse images_json se è una stringa
+    let images_json = row.images_json;
+    if (images_json && typeof images_json === 'string') {
+      try {
+        images_json = JSON.parse(images_json);
+      } catch (e) {
+        console.warn('Errore parsing images_json:', e);
+      }
+    }
+
+    // Parse manuals_pdf_json se è una stringa
+    let manuals_pdf_json = row.manuals_pdf_json;
+    if (manuals_pdf_json && typeof manuals_pdf_json === 'string') {
+      try {
+        manuals_pdf_json = JSON.parse(manuals_pdf_json);
+      } catch (e) {
+        console.warn('Errore parsing manuals_pdf_json:', e);
+      }
+    }
+    if (!Array.isArray(manuals_pdf_json)) {
+      manuals_pdf_json = [];
     }
 
     const product = {
@@ -255,10 +368,11 @@ app.get('/:id', async (c) => {
       brand: row.brand,
       productType: row.product_type,
       price,
-      specs: row.specs_json,
-      specs_core_json,
-      specs_extra_json,
-      images: row.images_json,
+      specs: specs_json,
+      specsCore: specs_core_json,
+      specsExtra: specs_extra_json,
+      manuals: manuals_pdf_json,
+      images: images_json,
       imageUrl,
       glbUrl
     };
@@ -266,6 +380,7 @@ app.get('/:id', async (c) => {
     return c.json(product);
   } catch (error: any) {
     console.error('Errore get product by id:', error);
+    console.error('Stack:', error.stack);
     return c.json({ error: error.message }, 500);
   }
 });
@@ -312,6 +427,53 @@ app.get('/debug/tables', async (c) => {
   } catch (error: any) {
     console.error('Errore debug tables:', error);
     return c.json({ error: error.message }, 500);
+  }
+});
+
+// Serve file GLB locali dalla cartella DJI KB
+app.get('/glb/*', async (c) => {
+  try {
+    // Estrai il path dal parametro wildcard
+    // In Hono, il wildcard * viene passato come parametro con chiave '*'
+    const wildcardParam = c.req.param('*');
+    const pathname = c.req.path;
+    
+    // Se il wildcard non funziona, usa il pathname
+    let glbPath = wildcardParam;
+    if (!glbPath || glbPath === '*') {
+      // Estrai il path dopo /api/drones/glb/
+      const match = pathname.match(/\/api\/drones\/glb\/(.+)$/);
+      glbPath = match ? match[1] : '';
+    }
+    
+    if (!glbPath) {
+      return c.json({ error: 'Invalid path' }, 400);
+    }
+    
+    const fullPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', 'glb', glbPath);
+    
+    console.log('🔍 Serving GLB file:', { glbPath, fullPath, exists: fs.existsSync(fullPath) });
+    
+    if (!fs.existsSync(fullPath)) {
+      console.error('❌ GLB file not found:', fullPath);
+      return c.json({ error: 'File not found', path: fullPath }, 404);
+    }
+
+    const fileContent = fs.readFileSync(fullPath);
+    console.log('✅ Serving GLB file:', { path: fullPath, size: fileContent.length });
+    
+    return new Response(fileContent, {
+      headers: {
+        'Content-Type': 'model/gltf-binary',
+        'Content-Length': fileContent.length.toString(),
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Errore servire GLB:', error);
+    console.error('❌ Stack:', error.stack);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
 });
 

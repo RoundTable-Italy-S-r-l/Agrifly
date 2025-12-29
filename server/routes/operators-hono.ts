@@ -10,17 +10,35 @@ const app = new Hono();
 app.get('/:orgId', async (c) => {
   try {
     const orgId = c.req.param('orgId');
+    const serviceType = c.req.query('serviceType');
+    const internal = c.req.query('internal') === 'true';
 
     if (!orgId) {
       return c.json({ error: 'Organization ID required' }, 400);
     }
 
-    console.log('👥 Richiesta lista operatori per org:', orgId);
+    console.log('👥 Richiesta lista operatori per org:', orgId, serviceType ? `servizio: ${serviceType}` : '', internal ? '(richiesta interna)' : '(richiesta esterna)');
 
-    // Controlla se l'organizzazione vuole mostrare operatori individuali
-    const orgSettingsQuery = `SELECT show_individual_operators FROM organizations WHERE id = $1`;
-    const orgResult = await query(orgSettingsQuery, [orgId]);
-    const showIndividualOperators = orgResult.rows[0]?.show_individual_operators ?? true;
+    // Determina se mostrare operatori individuali
+    // Le richieste interne (dashboard aziendale) mostrano sempre tutti gli operatori
+    let showIndividualOperators = true;
+
+    if (!internal) {
+      // Solo per richieste esterne (clienti) applica le impostazioni di visibilità
+      if (serviceType) {
+        // Controlla l'impostazione per servizio specifico
+        const serviceQuery = `SELECT show_company_only FROM rate_cards WHERE seller_org_id = $1 AND service_type = $2`;
+        const serviceResult = await query(serviceQuery, [orgId, serviceType]);
+        if (serviceResult.rows.length > 0) {
+          showIndividualOperators = !serviceResult.rows[0].show_company_only;
+        }
+      } else {
+        // Fallback all'impostazione globale dell'organizzazione
+        const orgSettingsQuery = `SELECT show_individual_operators FROM organizations WHERE id = $1`;
+        const orgResult = await query(orgSettingsQuery, [orgId]);
+        showIndividualOperators = orgResult.rows[0]?.show_individual_operators ?? true;
+      }
+    }
 
     let operatorsQuery;
     let queryParams;
@@ -75,7 +93,7 @@ app.get('/:orgId', async (c) => {
         LEFT JOIN users u ON om.user_id = u.id
         LEFT JOIN locations l ON op.home_location_id = l.id
         LEFT JOIN service_area_sets s ON op.default_service_area_set_id = s.id
-        WHERE om.org_id = $1 AND om.is_active = true AND om.role IN ('PILOT', 'DISPATCHER')
+        WHERE om.org_id = $1 AND om.is_active = true AND om.role IN ('operator', 'dispatcher')
         ORDER BY u.first_name, u.last_name
       `;
       queryParams = [orgId];

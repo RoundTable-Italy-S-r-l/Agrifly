@@ -1,6 +1,6 @@
 // Client API per autenticazione custom
 
-const API_BASE = '/api/auth';
+const API_BASE = '/api';
 
 // Tipi per le risposte API
 export interface AuthResponse {
@@ -37,7 +37,7 @@ export interface UserProfile {
 }
 
 // Utility per ottenere headers con JWT
-function getAuthHeaders(): HeadersInit {
+export function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('auth_token');
   return {
     'Content-Type': 'application/json',
@@ -56,8 +56,9 @@ export const authAPI = {
     lastName: string;
     phone?: string;
     organizationName?: string;
+    accountType?: 'buyer' | 'vendor' | 'operator';
   }): Promise<AuthResponse> => {
-    const response = await fetch(`${API_BASE}/register`, {
+    const response = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -66,7 +67,8 @@ export const authAPI = {
         firstName: data.firstName,
         lastName: data.lastName,
         phone: data.phone,
-        organizationName: data.organizationName
+        organizationName: data.organizationName,
+        accountType: data.accountType || 'buyer'
       })
     });
 
@@ -80,23 +82,42 @@ export const authAPI = {
 
   // Login
   login: async (email: string, password: string): Promise<AuthResponse> => {
-    const response = await fetch(`${API_BASE}/login`, {
+    console.log('🔐 [FRONTEND LOGIN] Sending request to:', `${API_BASE}/auth/login`);
+    console.log('🔐 [FRONTEND LOGIN] Request body:', { email, hasPassword: !!password });
+
+    const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
 
+    console.log('🔐 [FRONTEND LOGIN] Response status:', response.status);
+    console.log('🔐 [FRONTEND LOGIN] Response ok:', response.ok);
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Errore nel login');
+      try {
+        const error = await response.json();
+        console.log('🔐 [FRONTEND LOGIN] Error response:', error);
+        throw new Error(error.error || 'Errore nel login');
+      } catch (parseError) {
+        console.log('🔐 [FRONTEND LOGIN] Failed to parse error response:', parseError);
+        throw new Error('Errore nel login - risposta non valida');
+      }
     }
 
-    return response.json();
+    try {
+      const data = await response.json();
+      console.log('🔐 [FRONTEND LOGIN] Success response received');
+      return data;
+    } catch (parseError) {
+      console.log('🔐 [FRONTEND LOGIN] Failed to parse success response:', parseError);
+      throw new Error('Risposta del server non valida');
+    }
   },
 
   // Verifica email
   verifyEmail: async (code: string): Promise<{ message: string }> => {
-    const response = await fetch(`${API_BASE}/verify-email`, {
+    const response = await fetch(`${API_BASE}/auth/verify-email`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ code })
@@ -112,7 +133,7 @@ export const authAPI = {
 
   // Reinvia codice verifica
   resendVerification: async (): Promise<{ message: string }> => {
-    const response = await fetch(`${API_BASE}/resend-verification`, {
+    const response = await fetch(`${API_BASE}/auth/resend-verification`, {
       method: 'POST',
       headers: getAuthHeaders()
     });
@@ -127,7 +148,7 @@ export const authAPI = {
 
   // Richiesta reset password
   requestPasswordReset: async (email: string): Promise<{ message: string; resetUrl?: string; warning?: string }> => {
-    const response = await fetch(`${API_BASE}/request-password-reset`, {
+    const response = await fetch(`${API_BASE}/auth/request-password-reset`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
@@ -143,7 +164,7 @@ export const authAPI = {
 
   // Reset password
   resetPassword: async (token: string, newPassword: string): Promise<{ message: string }> => {
-    const response = await fetch(`${API_BASE}/reset-password`, {
+    const response = await fetch(`${API_BASE}/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, newPassword })
@@ -159,7 +180,7 @@ export const authAPI = {
 
   // Ottieni profilo utente
   getProfile: async (): Promise<UserProfile> => {
-    const response = await fetch(`${API_BASE}/me`, {
+    const response = await fetch(`${API_BASE}/auth/me`, {
       headers: getAuthHeaders()
     });
 
@@ -177,7 +198,7 @@ export const authAPI = {
     lastName?: string;
     phone?: string;
   }): Promise<UserProfile> => {
-    const response = await fetch(`${API_BASE}/me`, {
+    const response = await fetch(`${API_BASE}/auth/me`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -195,9 +216,9 @@ export const authAPI = {
     return response.json();
   },
 
-  // Cambia password
+  // Cambia password (endpoint non ancora implementato nel backend)
   changePassword: async (currentPassword: string, newPassword: string): Promise<{ message: string }> => {
-    const response = await fetch(`${API_BASE}/change-password`, {
+    const response = await fetch(`${API_BASE}/auth/change-password`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
