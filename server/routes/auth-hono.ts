@@ -288,7 +288,7 @@ app.post('/login', async (c) => {
              u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
              u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
              u.role as user_role, om.role as membership_role, o.id as org_id, o.legal_name, 
-             COALESCE(o.type, o.org_type, 'buyer') as org_type
+             COALESCE(o.type, o.org_type::text, 'buyer') as org_type
       FROM users u
       LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
       LEFT JOIN organizations o ON om.org_id = o.id
@@ -456,7 +456,7 @@ app.get('/me', async (c) => {
              u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
              u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
              u.role as user_role, om.role as membership_role, o.id as org_id, o.legal_name, 
-             COALESCE(o.type, o.org_type, 'buyer') as org_type
+             COALESCE(o.type, o.org_type::text, 'buyer') as org_type
       FROM users u
       LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
       LEFT JOIN organizations o ON om.org_id = o.id

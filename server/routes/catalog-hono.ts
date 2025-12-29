@@ -427,7 +427,7 @@ app.get('/public', async (c) => {
         p.glb_files_json,
         COALESCE(
           (
-            SELECT a.product_id as productId
+            SELECT a."productId" as productId
             FROM assets a
             JOIN skus s_asset ON a.sku_id = s_asset.id
             WHERE s_asset.product_id = p.id
