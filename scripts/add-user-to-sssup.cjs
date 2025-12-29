@@ -53,7 +53,7 @@ async function setupUser() {
       const orgIdGen = 'org_' + Date.now().toString(36);
       await client.query(
         'INSERT INTO organizations (id, legal_name, org_type, type, status, country) VALUES ($1, $2, $3, $4, $5, $6)',
-        [orgIdGen, 'SSSUP', 'buyer', 'buyer', 'ACTIVE', 'IT']
+        [orgIdGen, 'SSSUP', 'FARM', 'buyer', 'ACTIVE', 'IT']
       );
       orgId = orgIdGen;
       console.log('✅ Organizzazione creata:', orgId);
