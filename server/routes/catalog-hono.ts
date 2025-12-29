@@ -464,7 +464,7 @@ app.get('/public', async (c) => {
             AND pl.status = 'ACTIVE'
             AND pl.valid_from <= NOW()
             AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
-            AND vci_price.is_for_sale = 1
+            AND vci_price.is_for_sale = true
             AND (COALESCE(i_price.qty_on_hand, 0) - COALESCE(i_price.qty_reserved, 0)) > 0
         ) as min_price_euros,
         -- Stock totale disponibile tra tutti i vendor
