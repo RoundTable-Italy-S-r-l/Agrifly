@@ -427,7 +427,7 @@ app.get('/public', async (c) => {
         p.glb_files_json,
         COALESCE(
           (
-            SELECT a."productId"
+            SELECT a.product_id as productId
             FROM assets a
             JOIN skus s_asset ON a.sku_id = s_asset.id
             WHERE s_asset.product_id = p.id
@@ -435,7 +435,7 @@ app.get('/public', async (c) => {
             LIMIT 1
           ),
           p.id
-        ) as "productId",
+        ) as productId,
         -- Conta quanti vendor vendono questo prodotto con stock > 0
         (
           SELECT COUNT(DISTINCT vci.vendor_org_id)

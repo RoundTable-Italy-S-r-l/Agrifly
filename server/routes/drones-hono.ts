@@ -59,6 +59,25 @@ app.get('/', async (c) => {
                   console.warn('Errore costruzione URL GLB:', e);
                 }
               }
+            } else if (rawPath.startsWith('/images/') || rawPath.startsWith('/manuals/') || rawPath.startsWith('/pdf/')) {
+              // Gestisci immagini e manuali locali
+              const localPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', rawPath);
+              if (fs.existsSync(localPath)) {
+                if (rawPath.startsWith('/images/')) {
+                  const relativePath = rawPath.replace(/^\/images\//, '');
+                  glbUrl = `/api/drones/images/${relativePath}`;
+                } else if (rawPath.startsWith('/manuals/') || rawPath.startsWith('/pdf/')) {
+                  const relativePath = rawPath.replace(/^\/(manuals|pdf)\//, '');
+                  glbUrl = `/api/drones/manuals/${relativePath}`;
+                }
+                console.log('✅ Using local media:', glbUrl);
+              } else {
+                try {
+                  glbUrl = publicObjectUrl(undefined, rawPath);
+                } catch (e) {
+                  console.warn('Errore costruzione URL media:', e);
+                }
+              }
             } else {
                 try {
                   glbUrl = publicObjectUrl(undefined, rawPath);
@@ -338,7 +357,7 @@ app.get('/:id', async (c) => {
       }
     }
 
-    // Parse images_json se è una stringa
+    // Parse images_json se è una stringa e converti path locali in URL endpoint
     let images_json = row.images_json;
     if (images_json && typeof images_json === 'string') {
       try {
@@ -347,8 +366,27 @@ app.get('/:id', async (c) => {
         console.warn('Errore parsing images_json:', e);
       }
     }
+    // Converti path locali in URL endpoint per immagini
+    if (Array.isArray(images_json)) {
+      images_json = images_json.map((img: any) => {
+        const imgUrl = typeof img === 'string' ? img : (img.url || img);
+        if (typeof imgUrl === 'string' && (imgUrl.startsWith('/images/') || imgUrl.startsWith('/manuals/') || imgUrl.startsWith('/pdf/'))) {
+          const localPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', imgUrl);
+          if (fs.existsSync(localPath)) {
+            if (imgUrl.startsWith('/images/')) {
+              const relativePath = imgUrl.replace(/^\/images\//, '');
+              return typeof img === 'string' ? `/api/drones/images/${relativePath}` : { ...img, url: `/api/drones/images/${relativePath}` };
+            } else {
+              const relativePath = imgUrl.replace(/^\/(manuals|pdf)\//, '');
+              return typeof img === 'string' ? `/api/drones/manuals/${relativePath}` : { ...img, url: `/api/drones/manuals/${relativePath}` };
+            }
+          }
+        }
+        return img;
+      });
+    }
 
-    // Parse manuals_pdf_json se è una stringa
+    // Parse manuals_pdf_json se è una stringa e converti path locali in URL endpoint
     let manuals_pdf_json = row.manuals_pdf_json;
     if (manuals_pdf_json && typeof manuals_pdf_json === 'string') {
       try {
@@ -360,6 +398,18 @@ app.get('/:id', async (c) => {
     if (!Array.isArray(manuals_pdf_json)) {
       manuals_pdf_json = [];
     }
+    // Converti path locali in URL endpoint per PDF
+    manuals_pdf_json = manuals_pdf_json.map((manual: any) => {
+      const manualUrl = typeof manual === 'string' ? manual : (manual.url || manual.filename || manual);
+      if (typeof manualUrl === 'string' && (manualUrl.startsWith('/manuals/') || manualUrl.startsWith('/pdf/'))) {
+        const localPath = path.join(process.env.HOME || '', 'Desktop', 'DJI KB', manualUrl);
+        if (fs.existsSync(localPath)) {
+          const relativePath = manualUrl.replace(/^\/(manuals|pdf)\//, '');
+          return typeof manual === 'string' ? `/api/drones/manuals/${relativePath}` : { ...manual, url: `/api/drones/manuals/${relativePath}` };
+        }
+      }
+      return manual;
+    });
 
     const product = {
       id: row.id,
@@ -473,6 +523,119 @@ app.get('/glb/*', async (c) => {
   } catch (error: any) {
     console.error('❌ Errore servire GLB:', error);
     console.error('❌ Stack:', error.stack);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// GET /api/drones/images/* - Serve immagini locali
+app.get('/images/*', async (c) => {
+  try {
+    const pathname = c.req.path;
+    const wildcardParam = c.req.param('*');
+    
+    let imagePath = wildcardParam;
+    if (!imagePath || imagePath === '*') {
+      const match = pathname.match(/\/api\/drones\/images\/(.+)$/);
+      imagePath = match ? match[1] : '';
+    }
+    
+    if (!imagePath) {
+      return c.json({ error: 'Invalid path' }, 400);
+    }
+    
+    // Cerca nelle cartelle comuni per immagini
+    const possiblePaths = [
+      path.join(process.env.HOME || '', 'Desktop', 'DJI KB', 'images', imagePath),
+      path.join(process.env.HOME || '', 'Desktop', 'DJI KB', imagePath),
+    ];
+    
+    let fullPath: string | null = null;
+    for (const possiblePath of possiblePaths) {
+      if (fs.existsSync(possiblePath)) {
+        fullPath = possiblePath;
+        break;
+      }
+    }
+    
+    if (!fullPath) {
+      console.error('❌ Image file not found:', imagePath);
+      return c.json({ error: 'File not found', path: imagePath }, 404);
+    }
+
+    const fileContent = fs.readFileSync(fullPath);
+    const ext = path.extname(fullPath).toLowerCase();
+    const contentType = ext === '.png' ? 'image/png' : 
+                        ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 
+                        ext === '.webp' ? 'image/webp' : 
+                        'image/*';
+    
+    console.log('✅ Serving image file:', { path: fullPath, size: fileContent.length, contentType });
+    
+    return new Response(fileContent, {
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': fileContent.length.toString(),
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Errore servire immagine:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// GET /api/drones/manuals/* - Serve PDF manuali locali
+app.get('/manuals/*', async (c) => {
+  try {
+    const pathname = c.req.path;
+    const wildcardParam = c.req.param('*');
+    
+    let manualPath = wildcardParam;
+    if (!manualPath || manualPath === '*') {
+      const match = pathname.match(/\/api\/drones\/manuals\/(.+)$/);
+      manualPath = match ? match[1] : '';
+    }
+    
+    if (!manualPath) {
+      return c.json({ error: 'Invalid path' }, 400);
+    }
+    
+    // Cerca nelle cartelle comuni per manuali PDF
+    const possiblePaths = [
+      path.join(process.env.HOME || '', 'Desktop', 'DJI KB', 'manuals', manualPath),
+      path.join(process.env.HOME || '', 'Desktop', 'DJI KB', 'pdf', manualPath),
+      path.join(process.env.HOME || '', 'Desktop', 'DJI KB', manualPath),
+    ];
+    
+    let fullPath: string | null = null;
+    for (const possiblePath of possiblePaths) {
+      if (fs.existsSync(possiblePath)) {
+        fullPath = possiblePath;
+        break;
+      }
+    }
+    
+    if (!fullPath) {
+      console.error('❌ Manual PDF file not found:', manualPath);
+      return c.json({ error: 'File not found', path: manualPath }, 404);
+    }
+
+    const fileContent = fs.readFileSync(fullPath);
+    
+    console.log('✅ Serving manual PDF file:', { path: fullPath, size: fileContent.length });
+    
+    return new Response(fileContent, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Length': fileContent.length.toString(),
+        'Access-Control-Allow-Origin': '*',
+        'Content-Disposition': `inline; filename="${path.basename(fullPath)}"`,
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Errore servire manuale PDF:', error);
     return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
 });
