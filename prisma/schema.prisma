@@ -807,6 +807,7 @@ model RateCard {
   hourly_operator_rate_cents Int?        @map("hourly_operator_rate_cents")
   seasonal_multipliers_json  String?     @map("seasonal_multipliers_json")
   risk_multipliers_json      String?     @map("risk_multipliers_json")
+  is_active                   Boolean     @default(true) @map("is_active")
   show_company_only          Boolean     @default(false) @map("show_company_only")
   assigned_operator_ids      String?     @map("assigned_operator_ids") // JSON string
   supported_model_codes      String?     @map("supported_model_codes") // JSON string
