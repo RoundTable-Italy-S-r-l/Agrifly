@@ -456,8 +456,8 @@ app.get('/public', async (c) => {
           LEFT JOIN inventories i_price ON vci_price.sku_id = i_price.sku_id AND i_price.vendor_org_id = vci_price.vendor_org_id
           WHERE s_price.product_id = p.id
             AND pl.status = 'ACTIVE'
-            AND pl.valid_from <= datetime('now')
-            AND (pl.valid_to IS NULL OR pl.valid_to >= datetime('now'))
+            AND pl.valid_from <= NOW()
+            AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
             AND vci_price.is_for_sale = 1
             AND (COALESCE(i_price.qty_on_hand, 0) - COALESCE(i_price.qty_reserved, 0)) > 0
         ) as min_price_euros,
@@ -619,8 +619,8 @@ app.get('/product/:productId/vendors', async (c) => {
           WHERE pli.sku_id = s.id
             AND pl.vendor_org_id = o.id
             AND pl.status = 'ACTIVE'
-            AND pl.valid_from <= datetime('now')
-            AND (pl.valid_to IS NULL OR pl.valid_to >= datetime('now'))
+            AND pl.valid_from <= NOW()
+            AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
           ORDER BY pl.valid_from DESC
           LIMIT 1
         ) as price_euros,
@@ -631,8 +631,8 @@ app.get('/product/:productId/vendors', async (c) => {
           WHERE pli.sku_id = s.id
             AND pl.vendor_org_id = o.id
             AND pl.status = 'ACTIVE'
-            AND pl.valid_from <= datetime('now')
-            AND (pl.valid_to IS NULL OR pl.valid_to >= datetime('now'))
+            AND pl.valid_from <= NOW()
+            AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
           ORDER BY pl.valid_from DESC
           LIMIT 1
         ) as currency
