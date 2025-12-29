@@ -501,11 +501,19 @@ app.get('/public', async (c) => {
     console.log(`📦 [CATALOG PUBLIC] Prodotti trovati: ${result.rows.length}`);
     if (result.rows.length > 0) {
       const firstRow = result.rows[0];
-      const glbPreview = typeof firstRow.glb_files_json === 'string' 
-        ? firstRow.glb_files_json.substring(0, 100)
-        : firstRow.glb_files_json 
-          ? JSON.stringify(firstRow.glb_files_json).substring(0, 100)
-          : null;
+      let glbPreview: string | null = null;
+      if (firstRow.glb_files_json) {
+        if (typeof firstRow.glb_files_json === 'string') {
+          glbPreview = firstRow.glb_files_json.substring(0, 100);
+        } else {
+          try {
+            const glbStr = JSON.stringify(firstRow.glb_files_json);
+            glbPreview = glbStr.substring(0, 100);
+          } catch (e) {
+            glbPreview = '[unable to stringify]';
+          }
+        }
+      }
       console.log('📦 Primo prodotto:', {
         id: firstRow.product_id,
         name: firstRow.product_name,

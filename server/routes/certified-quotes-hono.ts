@@ -47,6 +47,15 @@ app.get('/', async (c) => {
       hasCertifiedColumn = false;
     }
 
+    // Check if rate_cards table has is_active column
+    let hasIsActiveColumn = true;
+    try {
+      await query('SELECT is_active FROM rate_cards LIMIT 1');
+    } catch (error: any) {
+      console.warn('⚠️  is_active column not found in rate_cards, skipping is_active filter');
+      hasIsActiveColumn = false;
+    }
+
     // Find certified operators with active rate cards for this service type
     const certifiedOrgsQuery = hasCertifiedColumn
       ? `
@@ -74,7 +83,7 @@ app.get('/', async (c) => {
           AND o.can_operate = true
           AND o.status = 'ACTIVE'
           AND rc.service_type = $1
-          AND (rc.is_active = true OR rc.is_active IS NULL)
+          ${hasIsActiveColumn ? 'AND (rc.is_active = true OR rc.is_active IS NULL)' : ''}
       `
       : `
         SELECT DISTINCT
@@ -100,7 +109,7 @@ app.get('/', async (c) => {
         WHERE o.can_operate = true
           AND o.status = 'ACTIVE'
           AND rc.service_type = $1
-          AND (rc.is_active = true OR rc.is_active IS NULL)
+          ${hasIsActiveColumn ? 'AND (rc.is_active = true OR rc.is_active IS NULL)' : ''}
       `;
 
     const orgsResult = await query(certifiedOrgsQuery, [service_type]);
