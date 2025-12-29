@@ -19,8 +19,15 @@ exports.handler = async (event, context) => {
 
   try {
     console.log('🌐 Catalog Public - Request received');
+    console.log('🔧 Environment check:');
+    console.log('  PGHOST:', process.env.PGHOST ? 'present' : 'MISSING');
+    console.log('  PGUSER:', process.env.PGUSER ? 'present' : 'MISSING');
+    console.log('  PGPASSWORD:', process.env.PGPASSWORD ? 'present' : 'MISSING');
+    console.log('  PGDATABASE:', process.env.PGDATABASE ? 'present' : 'MISSING');
+
+    console.log('🔌 Connecting to database...');
     await client.connect();
-    console.log('✅ Database connected');
+    console.log('✅ Database connected successfully');
 
     const category = event.queryStringParameters?.category;
     const minPrice = event.queryStringParameters?.minPrice ? parseInt(event.queryStringParameters.minPrice) : null;
@@ -97,8 +104,18 @@ exports.handler = async (event, context) => {
     querySql += ` ORDER BY p.brand, p.model`;
 
     console.log('🔍 Executing query...');
-    const result = await client.query(querySql, params);
-    console.log(`📦 Found ${result.rows.length} products`);
+    console.log('  Query length:', querySql.length);
+    console.log('  Params count:', params.length);
+
+    try {
+      const result = await client.query(querySql, params);
+      console.log(`📦 Query successful - Found ${result.rows.length} products`);
+    } catch (queryError) {
+      console.error('❌ Query failed:', queryError.message);
+      console.error('❌ Query:', querySql.substring(0, 200) + '...');
+      console.error('❌ Params:', params);
+      throw queryError;
+    }
 
     const products = result.rows.map(row => ({
       id: row.product_id,
