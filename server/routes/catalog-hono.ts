@@ -411,6 +411,10 @@ app.get('/public', async (c) => {
     const maxPrice = c.req.query('maxPrice') ? parseInt(c.req.query('maxPrice')!) : null;
 
     console.log('🌐 Richiesta catalogo pubblico prodotti', { category, minPrice, maxPrice });
+    
+    // Verifica tipo database per usare la sintassi corretta
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = !dbUrl.startsWith('file:') && process.env.PGHOST;
 
     // Query per ottenere TUTTI i prodotti dalla tabella products
     // Mostra tutti i prodotti attivi, a prescindere dal vendor

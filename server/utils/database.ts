@@ -168,7 +168,11 @@ export const query = async (text: string, params?: any[]) => {
   // Se è un client PostgreSQL
   try {
     await client.connect();
-    const result = await client.query(text, params);
+    // Converti funzioni SQLite in PostgreSQL
+    let postgresQuery = text;
+    // Converti datetime('now') in NOW() per PostgreSQL
+    postgresQuery = postgresQuery.replace(/datetime\s*\(\s*['"]now['"]\s*\)/gi, 'NOW()');
+    const result = await client.query(postgresQuery, params);
     return result;
   } catch (error: any) {
     console.error('PostgreSQL query error:', error.message, 'Query:', text);
