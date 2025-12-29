@@ -108,17 +108,19 @@ app.get('/cart', async (c) => {
       let insertQuery: string;
       let insertParams: any[];
 
+      // Genera ID univoco per il carrello
+      const cartId = `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
       if (userId && orgId) {
-        // SQLite non supporta RETURNING, quindi usiamo una query separata
-        insertQuery = `INSERT INTO shopping_carts (id, user_id, org_id, created_at, updated_at) VALUES (lower(hex(randomblob(16))), $1, $2, $3, $4)`;
-        insertParams = [userId, orgId, new Date().toISOString(), new Date().toISOString()];
+        insertQuery = `INSERT INTO shopping_carts (id, user_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)`;
+        insertParams = [cartId, userId, orgId, new Date().toISOString(), new Date().toISOString()];
       } else if (sessionId) {
         // Carrello guest - usa 'guest_org' come placeholder per org_id (che è NOT NULL)
-        insertQuery = `INSERT INTO shopping_carts (id, session_id, org_id, created_at, updated_at) VALUES (lower(hex(randomblob(16))), $1, $2, $3, $4)`;
-        insertParams = [sessionId, orgId || 'guest_org', new Date().toISOString(), new Date().toISOString()];
+        insertQuery = `INSERT INTO shopping_carts (id, session_id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)`;
+        insertParams = [cartId, sessionId, orgId || 'guest_org', new Date().toISOString(), new Date().toISOString()];
       } else if (orgId) {
-        insertQuery = `INSERT INTO shopping_carts (id, org_id, created_at, updated_at) VALUES (lower(hex(randomblob(16))), $1, $2, $3)`;
-        insertParams = [orgId, new Date().toISOString(), new Date().toISOString()];
+        insertQuery = `INSERT INTO shopping_carts (id, org_id, created_at, updated_at) VALUES ($1, $2, $3, $4)`;
+        insertParams = [cartId, orgId, new Date().toISOString(), new Date().toISOString()];
       } else {
         return c.json({ error: 'Cannot create cart without userId, sessionId, or orgId' }, 400);
       }
@@ -358,7 +360,7 @@ app.put('/cart/items/:itemId', async (c) => {
 
     // Aggiorna timestamp del carrello
     await query(
-      'UPDATE shopping_carts SET updated_at = datetime(\'now\') WHERE id IN (SELECT cart_id FROM cart_items WHERE id = $1)',
+      'UPDATE shopping_carts SET updated_at = NOW() WHERE id IN (SELECT cart_id FROM cart_items WHERE id = $1)',
       [itemId]
     );
 
