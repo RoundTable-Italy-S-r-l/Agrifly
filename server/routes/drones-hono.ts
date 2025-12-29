@@ -379,6 +379,10 @@ app.get('/:id', async (c) => {
         const supabaseUrl = getSupabaseUrl();
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+        if (!supabaseKey) {
+          console.log('⚠️ SUPABASE_SERVICE_ROLE_KEY non configurata - caricamento dinamico immagini disabilitato per', row.model);
+        }
+
         if (supabaseUrl && supabaseKey && possiblePaths.length > 0) {
           console.log('🔄 Tentativo caricamento dinamico immagini per', row.model);
           try {
@@ -505,9 +509,13 @@ app.get('/:id', async (c) => {
         const bucketName = getStorageBucket();
         const supabaseUrl = getSupabaseUrl();
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        
+
+        if (!supabaseKey) {
+          console.log('⚠️ SUPABASE_SERVICE_ROLE_KEY non configurata - caricamento dinamico video disabilitato per', row.model);
+        }
+
         if (supabaseUrl && supabaseKey && possiblePaths.length > 0) {
-          console.log('🔄 Tentativo caricamento dinamico video per', row.model);
+          console.log('🔄 Tentativo caricamento dinamico video per', row.model, '- paths:', possiblePaths);
           try {
             const supabase = createClient(supabaseUrl, supabaseKey);
             
