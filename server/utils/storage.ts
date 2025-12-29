@@ -19,15 +19,19 @@ export function getSupabaseUrl(): string {
 
 /**
  * Ottiene il nome del bucket da usare per i file multimediali
- * Configurabile via env var, default: "Media FIle" (nome esatto del bucket Supabase, con I maiuscola)
+ * Deve essere configurato via env var SUPABASE_STORAGE_BUCKET
  */
 export function getStorageBucket(): string {
-  return process.env.SUPABASE_STORAGE_BUCKET || "Media FIle";
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET;
+  if (!bucket) {
+    throw new Error("Missing SUPABASE_STORAGE_BUCKET env var. Set it in Netlify environment variables.");
+  }
+  return bucket;
 }
 
 /**
  * Costruisce URL per file pubblico in Supabase Storage
- * @param bucket Nome del bucket (default: da env var SUPABASE_STORAGE_BUCKET o "assets")
+ * @param bucket Nome del bucket (default: da env var SUPABASE_STORAGE_BUCKET)
  * @param key Path del file nel bucket (es. "glb/t50/T50.glb" o "/glb/t50/T50.glb")
  * @returns URL completo per accedere al file
  */
