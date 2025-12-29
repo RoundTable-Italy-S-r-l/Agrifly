@@ -12,8 +12,42 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
-  const isAuthenticated = authAPI.isAuthenticated();
+  const [isAuthenticated, setIsAuthenticated] = useState(authAPI.isAuthenticated());
   const [cartItemCount, setCartItemCount] = useState(0);
+
+  // Aggiorna lo stato di autenticazione quando cambia il token o l'organizzazione
+  useEffect(() => {
+    const checkAuth = () => {
+      setIsAuthenticated(authAPI.isAuthenticated());
+    };
+
+    // Controlla immediatamente
+    checkAuth();
+
+    // Ascolta cambiamenti nel localStorage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth_token' || e.key === 'organization') {
+        checkAuth();
+      }
+    };
+
+    // Ascolta eventi custom per aggiornamenti di autenticazione
+    const handleAuthChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('authChanged', handleAuthChange);
+
+    // Controlla periodicamente (ogni 5 secondi) per gestire cambiamenti nella stessa tab
+    const interval = setInterval(checkAuth, 5000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChanged', handleAuthChange);
+      clearInterval(interval);
+    };
+  }, [location.pathname]);
 
   // Ottieni conteggio item carrello
   useEffect(() => {

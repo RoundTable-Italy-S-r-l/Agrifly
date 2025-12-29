@@ -239,17 +239,39 @@ export const authAPI = {
   logout: () => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('organization');
+    localStorage.removeItem('user');
+    // Notifica il cambio di autenticazione
+    window.dispatchEvent(new Event('authChanged'));
   },
 
   // Verifica se autenticato
   isAuthenticated: (): boolean => {
     const token = localStorage.getItem('auth_token');
-    if (!token) return false;
+    const organization = localStorage.getItem('organization');
+
+    if (!token || !organization) {
+      return false;
+    }
 
     try {
-      // Verifica scadenza JWT
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp > Math.floor(Date.now() / 1000);
+      // Supporta sia JWT custom ({body}.{signature}) che JWT standard ({header}.{body}.{signature})
+      const parts = token.split('.');
+      if (parts.length !== 2 && parts.length !== 3) {
+        return false;
+      }
+
+      // Per JWT standard, prendi la seconda parte (body), per custom prendi la prima
+      const body = parts.length === 3 ? parts[1] : parts[0];
+      // Converti base64url a base64 standard
+      const base64 = body.replace(/-/g, '+').replace(/_/g, '/');
+      // Padding
+      const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+      // Decodifica
+      const decoded = atob(padded);
+      const payload = JSON.parse(decoded);
+      const now = Math.floor(Date.now() / 1000);
+
+      return payload.exp > now;
     } catch {
       return false;
     }

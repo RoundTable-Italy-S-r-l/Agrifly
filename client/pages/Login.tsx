@@ -228,6 +228,9 @@ export default function Login() {
 
       console.log('✅ Login completato, JWT, utente e organizzazione salvati');
 
+      // Notifica il cambio di autenticazione
+      window.dispatchEvent(new Event('authChanged'));
+
       // Migra carrello guest se esiste
       const sessionId = localStorage.getItem('session_id');
       if (sessionId && data.user?.id && data.organization?.id) {

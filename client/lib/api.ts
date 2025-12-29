@@ -1037,7 +1037,7 @@ export const getMyJobs = async (): Promise<{ jobs: Job[] }> => {
 
 // Get available jobs for operators (feed)
 export const getAvailableJobs = async (): Promise<{ jobs: Job[] }> => {
-  const response = await fetch('/api/operator/jobs', {
+  const response = await fetch('/api/jobs/operator/jobs', {
     headers: getAuthHeaders(),
   });
 

@@ -169,6 +169,7 @@ const DroneDetail = () => {
   const coreSpecs = Array.isArray(droneAny.specsCore) ? droneAny.specsCore : (Array.isArray(droneAny.specs_core_json) ? droneAny.specs_core_json : []);
   const extraSpecs = Array.isArray(droneAny.specsExtra) ? droneAny.specsExtra : (Array.isArray(droneAny.specs_extra_json) ? droneAny.specs_extra_json : []);
   const images = Array.isArray(droneAny.images) ? droneAny.images : [];
+  const videos = Array.isArray((droneAny as any).videos) ? (droneAny as any).videos : [];
   const manuals = Array.isArray(droneAny.manuals) ? droneAny.manuals : (Array.isArray(droneAny.manuals_pdf_json) ? droneAny.manuals_pdf_json : []);
 
   // Raggruppa specs per sezione
@@ -599,26 +600,67 @@ const DroneDetail = () => {
 
             {activeTab === 'gallery' && (
               <div>
-                {images.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {images.map((img: any, idx: number) => (
-                      <div
-                        key={idx}
-                        onClick={() => setSelectedImageIndex(idx)}
-                        className="aspect-square bg-slate-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                      >
-                        <img
-                          src={img.url}
-                          alt={img.alt || drone.model}
-                          className="w-full h-full object-cover"
-                        />
+                {(images.length > 0 || videos.length > 0) ? (
+                  <div className="space-y-8">
+                    {/* Video Section */}
+                    {videos.length > 0 && (
+                      <div>
+                        <h3 className="text-xl font-semibold text-slate-900 mb-4">Video</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {videos.map((video: any, idx: number) => (
+                            <div
+                              key={`video-${idx}`}
+                              className="bg-slate-100 rounded-lg overflow-hidden"
+                            >
+                              <video
+                                src={typeof video === 'string' ? video : video.url}
+                                controls
+                                className="w-full h-auto"
+                                poster={typeof video === 'object' && video.thumbnail ? video.thumbnail : undefined}
+                              >
+                                Il tuo browser non supporta il tag video.
+                              </video>
+                              {typeof video === 'object' && video.title && (
+                                <div className="p-3 bg-white">
+                                  <p className="font-medium text-slate-900">{video.title}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Images Section */}
+                    {images.length > 0 && (
+                      <div>
+                        <h3 className="text-xl font-semibold text-slate-900 mb-4">Immagini</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {images.map((img: any, idx: number) => (
+                            <div
+                              key={idx}
+                              onClick={() => setSelectedImageIndex(idx)}
+                              className="aspect-square bg-slate-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                            >
+                              <img
+                                src={typeof img === 'string' ? img : img.url}
+                                alt={typeof img === 'object' ? (img.alt || drone.model) : drone.model}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  console.error('Errore caricamento immagine:', typeof img === 'string' ? img : img.url);
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-slate-500">
                     <ImageIcon size={48} className="mx-auto mb-4 text-slate-300" />
-                    <p>Nessuna immagine disponibile</p>
+                    <p>Nessuna immagine o video disponibile</p>
                   </div>
                 )}
               </div>

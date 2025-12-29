@@ -1392,6 +1392,7 @@ app.get('/offers/:orgId', authMiddleware, async (c) => {
     }
 
     // Get offers received (where user's org is the buyer)
+    // Note: We use JOIN here because we need the job to determine buyer_org_id
     const receivedOffersResult = await query(`
       SELECT 
         jo.id, jo.job_id, jo.operator_org_id, jo.status, jo.pricing_snapshot_json,
@@ -1417,11 +1418,12 @@ app.get('/offers/:orgId', authMiddleware, async (c) => {
         jo.created_at, jo.updated_at,
         j.field_name, j.service_type, j.area_ha, j.location_json,
         j.target_date_start, j.target_date_end, j.notes, j.status as job_status,
+        j.buyer_org_id,
         buyer_org.legal_name as buyer_org_legal_name,
         operator_org.legal_name as operator_org_legal_name
       FROM job_offers jo
-      JOIN jobs j ON jo.job_id = j.id
-      JOIN organizations buyer_org ON j.buyer_org_id = buyer_org.id
+      LEFT JOIN jobs j ON jo.job_id = j.id
+      LEFT JOIN organizations buyer_org ON j.buyer_org_id = buyer_org.id
       LEFT JOIN organizations operator_org ON jo.operator_org_id = operator_org.id
       WHERE jo.operator_org_id = $1
       ORDER BY jo.created_at DESC
@@ -1481,21 +1483,22 @@ app.get('/offers/:orgId', authMiddleware, async (c) => {
         provider_note: row.provider_note,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        job: {
+        job: row.job_id ? {
           id: row.job_id,
-          field_name: row.field_name,
-          service_type: row.service_type,
+          field_name: row.field_name || null,
+          service_type: row.service_type || null,
           area_ha: row.area_ha ? parseFloat(row.area_ha) : null,
           location_json: locJson,
           field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
           target_date_start: row.target_date_start,
           target_date_end: row.target_date_end,
           notes: row.notes,
-          status: row.job_status,
+          status: row.job_status || null,
           buyer_org: {
+            id: row.buyer_org_id || null,
             legal_name: row.buyer_org_legal_name || 'N/A'
           }
-        },
+        } : null,
         operator_org: {
           id: row.operator_org_id,
           legal_name: row.operator_org_legal_name || 'N/A'

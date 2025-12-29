@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, ShoppingBag, Calendar, Users, Settings, BarChart3, Package, Truck, CreditCard, Pin, PinOff, ClipboardList, Lock, LogOut } from 'lucide-react';
+import { authAPI } from '@/lib/auth';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -20,9 +21,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const isExpanded = isPinned || isHovered;
 
   const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('organization');
-    localStorage.removeItem('user');
+    authAPI.logout();
     localStorage.removeItem('selected_role');
     navigate('/login');
   };

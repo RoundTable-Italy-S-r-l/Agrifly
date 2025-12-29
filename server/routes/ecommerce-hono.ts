@@ -40,7 +40,7 @@ app.post('/create-tables', async (c) => {
       CREATE TABLE IF NOT EXISTS wishlist_items (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         buyer_org_id TEXT NOT NULL,
-        sku_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
         note TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )
@@ -517,12 +517,11 @@ app.get('/wishlist', async (c) => {
     }
 
     const wishlistQuery = `
-      SELECT wi.id, wi.sku_id, wi.note, wi.created_at,
-             s.sku_code, p.name as product_name, p.model as product_model, p.brand,
+      SELECT wi.id, wi.product_id, wi.note, wi.created_at,
+             p.name as product_name, p.model as product_model, p.brand,
              p.images_json, p.specs_json
       FROM wishlist_items wi
-      JOIN skus s ON wi.sku_id = s.id
-      JOIN products p ON s.product_id = p.id
+      JOIN products p ON wi.product_id = p.id
       WHERE wi.buyer_org_id = $1
       ORDER BY wi.created_at DESC
     `;
@@ -540,41 +539,94 @@ app.get('/wishlist', async (c) => {
   }
 });
 
+// Funzione helper per assicurarsi che product_id esista nella tabella wishlist_items
+async function ensureWishlistProductIdColumn() {
+  const hasPostgresConfig = process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD;
+  const isPostgreSQL = hasPostgresConfig;
+  
+  try {
+    if (isPostgreSQL) {
+      // PostgreSQL: aggiungi colonna se non esiste
+      await query(`ALTER TABLE wishlist_items ADD COLUMN IF NOT EXISTS product_id TEXT`, []);
+    } else {
+      // SQLite: prova ad aggiungere la colonna, ignora errore se esiste già
+      try {
+        await query(`ALTER TABLE wishlist_items ADD COLUMN product_id TEXT`, []);
+        console.log('📋 [WISHLIST MIGRATION] Added column: product_id');
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column')) {
+          throw err;
+        }
+        // Colonna già esistente, va bene
+      }
+    }
+  } catch (err: any) {
+    // Se la tabella non esiste, sarà creata altrove con la colonna corretta
+    if (!err.message?.includes('no such table') && !err.message?.includes('relation "wishlist_items" does not exist')) {
+      console.error('❌ [WISHLIST MIGRATION] Error:', err.message);
+    }
+  }
+}
+
 // POST /api/ecommerce/wishlist - Aggiungi item alla wishlist
 app.post('/wishlist', async (c) => {
   try {
-    const { orgId, productId, skuId, note } = await c.req.json();
+    // Assicurati che product_id esista
+    await ensureWishlistProductIdColumn();
+    
+    const { orgId, productId, note } = await c.req.json();
 
     if (!orgId) {
       return c.json({ error: 'Organization ID required' }, 400);
     }
 
-    // Preferisci productId su skuId
-    if (productId) {
-      // Verifica solo che il prodotto esista (non controlliamo status o disponibilità)
-      const productCheck = await query(
-        'SELECT id FROM products WHERE id = $1',
-        [productId]
+    if (!productId) {
+      return c.json({ error: 'Product ID required' }, 400);
+    }
+
+    // Verifica che il prodotto esista
+    const productCheck = await query(
+      'SELECT id FROM products WHERE id = $1 AND status = $2',
+      [productId, 'ACTIVE']
+    );
+
+    if (productCheck.rows.length === 0) {
+      return c.json({ error: 'Product not found or not active' }, 404);
+    }
+
+    // Verifica se già in wishlist (usando product_id)
+    const existingItem = await query(
+      'SELECT id FROM wishlist_items WHERE buyer_org_id = $1 AND product_id = $2',
+      [orgId, productId]
+    );
+
+    if (existingItem.rows.length > 0) {
+      return c.json({ error: 'Item already in wishlist' }, 409);
+    }
+
+    // Aggiungi alla wishlist usando product_id
+    const hasPostgresConfig = process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD;
+    const isPostgreSQL = hasPostgresConfig;
+    
+    const noteValue = note || null;
+    
+    if (isPostgreSQL) {
+      // PostgreSQL: usa RETURNING
+      const result = await query(
+        `INSERT INTO wishlist_items (buyer_org_id, product_id, note)
+         VALUES ($1, $2, $3)
+         RETURNING *`,
+        [orgId, productId, noteValue]
       );
 
-      if (productCheck.rows.length === 0) {
-        return c.json({ error: 'Product not found' }, 404);
+      if (result.rows.length === 0) {
+        return c.json({ error: 'Failed to create wishlist item' }, 500);
       }
 
-      // Verifica se già in wishlist (per product_id)
-      const existingItem = await query(
-        'SELECT id FROM wishlist_items WHERE buyer_org_id = $1 AND product_id = $2',
-        [orgId, productId]
-      );
-
-      if (existingItem.rows.length > 0) {
-        return c.json({ error: 'Item already in wishlist' }, 409);
-      }
-
-      // Aggiungi alla wishlist usando product_id
-      // SQLite non supporta RETURNING, quindi inseriamo e poi recuperiamo
+      return c.json(result.rows[0]);
+    } else {
+      // SQLite: inserisci e poi recupera
       const insertId = `wish_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const noteValue = note || null;
       
       await query(
         `INSERT INTO wishlist_items (id, buyer_org_id, product_id, note)
@@ -593,51 +645,6 @@ app.post('/wishlist', async (c) => {
       }
 
       return c.json(result.rows[0]);
-    } else if (skuId) {
-      // Fallback a skuId per retrocompatibilità
-      // Verifica solo che lo SKU esista (non controlliamo status o disponibilità)
-      const skuCheck = await query(
-        'SELECT id FROM skus WHERE id = $1',
-        [skuId]
-      );
-
-      if (skuCheck.rows.length === 0) {
-        return c.json({ error: 'SKU not found' }, 404);
-      }
-
-      // Verifica se già in wishlist
-      const existingItem = await query(
-        'SELECT id FROM wishlist_items WHERE buyer_org_id = $1 AND sku_id = $2',
-        [orgId, skuId]
-      );
-
-      if (existingItem.rows.length > 0) {
-        return c.json({ error: 'Item already in wishlist' }, 409);
-      }
-
-      // Aggiungi alla wishlist
-      // SQLite non supporta RETURNING, quindi inseriamo e poi recuperiamo
-      const insertId = `wish_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const noteValue = note || null;
-      await query(
-        `INSERT INTO wishlist_items (id, buyer_org_id, sku_id, note)
-         VALUES ($1, $2, $3, $4)`,
-        [insertId, orgId, skuId, noteValue]
-      );
-
-      // Recupera il record appena inserito
-      const result = await query(
-        'SELECT * FROM wishlist_items WHERE id = $1',
-        [insertId]
-      );
-
-      if (result.rows.length === 0) {
-        return c.json({ error: 'Failed to create wishlist item' }, 500);
-      }
-
-      return c.json(result.rows[0]);
-    } else {
-      return c.json({ error: 'Product ID or SKU ID required' }, 400);
     }
 
   } catch (error: any) {

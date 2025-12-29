@@ -11,56 +11,50 @@ let migrationExecuted = false;
 async function ensureBookingsTableColumns() {
   if (migrationExecuted) return; // Execute only once per server instance
   
-  const dbUrl = process.env.DATABASE_URL || '';
-  const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+  // Use same logic as database.ts to determine database type
+  const hasPostgresConfig = process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD;
+  const hasFileDatabase = process.env.DATABASE_URL?.startsWith('file:');
+  const isPostgreSQL = hasPostgresConfig || (!hasFileDatabase && process.env.DATABASE_URL && (process.env.DATABASE_URL.startsWith('postgresql://') || process.env.DATABASE_URL.startsWith('postgres://')));
   
   try {
-    if (!isPostgreSQL) {
-      // SQLite: Check and add missing columns using PRAGMA
-      const columnsResult = await query(`PRAGMA table_info(bookings)`, []);
-      const existingColumns = columnsResult.rows.map((r: any) => r.name);
-      
-      if (!existingColumns.includes('updated_at')) {
-        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: updated_at');
+    if (isPostgreSQL) {
+      // PostgreSQL: Use IF NOT EXISTS
+      await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`, []);
+      await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'PENDING'`, []);
+      await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP`, []);
+    } else {
+      // SQLite: Try to add columns, ignore errors if they already exist
+      try {
         await query(`ALTER TABLE bookings ADD COLUMN updated_at TEXT`, []);
         // Popola updated_at con created_at per i record esistenti
         await query(`UPDATE bookings SET updated_at = created_at WHERE updated_at IS NULL`, []);
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column')) {
+          throw err;
+        }
       }
-      if (!existingColumns.includes('payment_status')) {
-        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: payment_status');
-        await query(`ALTER TABLE bookings ADD COLUMN payment_status TEXT DEFAULT 'PENDING'`, []);
-      }
-      if (!existingColumns.includes('paid_at')) {
-        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: paid_at');
-        await query(`ALTER TABLE bookings ADD COLUMN paid_at TEXT`, []);
-      }
-    } else {
-      // PostgreSQL: Check columns using information_schema, then add if not exist
-      const columnsResult = await query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'bookings' AND table_schema = 'public'
-      `, []);
-      const existingColumns = columnsResult.rows.map((r: any) => r.column_name);
       
-      if (!existingColumns.includes('updated_at')) {
-        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: updated_at');
-        await query(`ALTER TABLE bookings ADD COLUMN updated_at TIMESTAMP DEFAULT NOW()`, []);
+      try {
+        await query(`ALTER TABLE bookings ADD COLUMN payment_status TEXT DEFAULT 'PENDING'`, []);
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column')) {
+          throw err;
+        }
       }
-      if (!existingColumns.includes('payment_status')) {
-        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: payment_status');
-        await query(`ALTER TABLE bookings ADD COLUMN payment_status VARCHAR(50) DEFAULT 'PENDING'`, []);
-      }
-      if (!existingColumns.includes('paid_at')) {
-        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: paid_at');
-        await query(`ALTER TABLE bookings ADD COLUMN paid_at TIMESTAMP`, []);
+      
+      try {
+        await query(`ALTER TABLE bookings ADD COLUMN paid_at TEXT`, []);
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column')) {
+          throw err;
+        }
       }
     }
     migrationExecuted = true;
     console.log('✅ [BOOKINGS MIGRATION] Migration completed');
   } catch (err: any) {
     // If table doesn't exist, that's fine - it will be created elsewhere
-    if (!err.message?.includes('no such table')) {
+    if (!err.message?.includes('no such table') && !err.message?.includes('does not exist')) {
       console.log('📋 [BOOKINGS MIGRATION] Error:', err.message);
     }
     migrationExecuted = true; // Mark as executed even on error to avoid retrying

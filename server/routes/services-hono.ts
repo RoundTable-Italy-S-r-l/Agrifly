@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { expandRateCardsTable } from '../utils/database-migrations';
+import { authMiddleware } from '../middleware/auth';
 
 const app = new Hono();
 
@@ -97,9 +98,23 @@ app.get('/crop-types', async (c) => {
 // GET RATE CARDS LIST
 // ============================================================================
 
-app.get('/:orgId', async (c) => {
+app.get('/:orgId', authMiddleware, async (c: any) => {
   try {
+    console.log('💰 [GET RATE CARDS] ===========================================');
+    console.log('💰 [GET RATE CARDS] Endpoint chiamato');
+    console.log('💰 [GET RATE CARDS] Path:', c.req.path);
+    console.log('💰 [GET RATE CARDS] Method:', c.req.method);
+    
+    const user = c.get('user') as { organizationId: string } | undefined;
     const orgId = c.req.param('orgId');
+    
+    console.log('💰 [GET RATE CARDS] Params:', { orgId, userOrgId: user?.organizationId, hasUser: !!user });
+    
+    // Verifica che l'utente appartenga all'organizzazione
+    if (!user || user.organizationId !== orgId) {
+      console.log('❌ [GET RATE CARDS] Unauthorized:', { userOrgId: user?.organizationId, requestedOrgId: orgId, hasUser: !!user });
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
 
     if (!orgId) {
       return c.json({ error: 'Organization ID required' }, 400);
@@ -167,7 +182,9 @@ app.get('/:orgId', async (c) => {
       crop_types: row.crop_types || null,
     }));
 
-    console.log('✅ Recuperate', rateCards.length, 'rate cards');
+    console.log('✅ [GET RATE CARDS] Recuperate', rateCards.length, 'rate cards');
+    console.log('✅ [GET RATE CARDS] Rate cards:', JSON.stringify(rateCards, null, 2));
+    console.log('💰 [GET RATE CARDS] ===========================================');
 
     return c.json(rateCards);
 
@@ -1047,93 +1064,5 @@ app.delete('/:orgId/:serviceType', async (c) => {
   }
 });
 
-// ============================================================================
-// GET RATE CARDS LIST
-// ============================================================================
-
-app.get('/:orgId', async (c) => {
-  try {
-    console.log('🗺️ Richiesta aree geografiche disponibili');
-
-    // Recupera province
-    const provincesResult = await query(`
-      SELECT code, name
-      FROM geo_admin_units
-      WHERE level = 'PROVINCE'
-      ORDER BY name
-    `);
-
-    // Recupera regioni (distinte)
-    const regionsResult = await query(`
-      SELECT DISTINCT region_code,
-             CASE
-               WHEN region_code = '04' THEN 'Trentino-Alto Adige'
-               WHEN region_code = '05' THEN 'Veneto'
-               ELSE 'Regione ' || region_code
-             END as name
-      FROM geo_admin_units
-      WHERE region_code IS NOT NULL
-      ORDER BY name
-    `);
-
-    // Recupera comuni di Trento (per esempio)
-    const comuniResult = await query(`
-      SELECT code, name, province_code
-      FROM geo_admin_units
-      WHERE level = 'MUNICIPALITY' AND province_code = '022'
-      ORDER BY name
-    `);
-
-    const result = {
-      provinces: provincesResult.rows,
-      regions: regionsResult.rows,
-      comuni: comuniResult.rows
-    };
-
-    console.log('✅ Aree geografiche recuperate');
-    return c.json(result);
-
-  } catch (error: any) {
-    console.error('❌ Errore get geo areas:', error);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message
-    }, 500);
-  }
-});
-
-// ============================================================================
-// GET CROP TYPES
-// ============================================================================
-
-app.get('/crop-types', async (c) => {
-  try {
-    console.log('🌾 Richiesta tipi di coltura');
-
-    // Per ora restituiamo una lista statica, in futuro potrebbe venire dal database
-    const cropTypes = [
-      { id: 'wheat', name: 'Grano', category: 'cereali' },
-      { id: 'corn', name: 'Mais', category: 'cereali' },
-      { id: 'barley', name: 'Orzo', category: 'cereali' },
-      { id: 'soy', name: 'Soia', category: 'oleaginose' },
-      { id: 'sunflower', name: 'Girasole', category: 'oleaginose' },
-      { id: 'vineyard', name: 'Vigneto', category: 'viticoltura' },
-      { id: 'olive', name: 'Oliveto', category: 'orticoltura' },
-      { id: 'fruit_trees', name: 'Frutteto', category: 'orticoltura' },
-      { id: 'vegetables', name: 'Ortaggi', category: 'orticoltura' },
-      { id: 'pasture', name: 'Prato/Pascolo', category: 'foraggere' }
-    ];
-
-    console.log('✅ Tipi di coltura recuperati');
-    return c.json(cropTypes);
-
-  } catch (error: any) {
-    console.error('❌ Errore get crop types:', error);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message
-    }, 500);
-  }
-});
 
 export default app;

@@ -22,8 +22,7 @@ export function BuyerLayout({ children }: BuyerLayoutProps) {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('organization');
+    authAPI.logout();
     window.location.href = '/login';
   };
 

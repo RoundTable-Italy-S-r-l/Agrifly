@@ -207,7 +207,7 @@ app.post('/create-from-cart', async (c) => {
       JOIN skus s ON ci.sku_id = s.id
       JOIN products p ON s.product_id = p.id
       LEFT JOIN price_list_items pr ON s.id = pr.sku_id
-      LEFT JOIN vendor_catalog_items vci ON vci.sku_id = s.id AND vci.is_for_sale = 1
+      LEFT JOIN vendor_catalog_items vci ON vci.sku_id = s.id AND vci.is_for_sale = true
       WHERE sc.id = $1
     `;
 

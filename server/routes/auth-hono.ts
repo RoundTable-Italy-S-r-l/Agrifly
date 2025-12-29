@@ -288,19 +288,45 @@ app.post('/login', async (c) => {
     // Rate limiting disabilitato per ora - implementare con Redis/Upstash per produzione
 
     // Trova utente con tipo organizzazione (usa COALESCE per gestire type vs org_type)
-    // La colonna u.role DEVE esistere (fa parte della logica di autenticazione/autorizzazione)
+    // Nota: u.role potrebbe non esistere, quindi usiamo NULL se non presente
     // Seleziona esplicitamente tutte le colonne per evitare problemi con u.* su PostgreSQL
-    const userResult = await query(`
-      SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.password_salt, u.password_hash,
-             u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
-             u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
-             u.role as user_role, om.role as membership_role, o.id as org_id, o.legal_name, 
-             COALESCE(o.type, o.org_type::text, 'buyer') as org_type
-      FROM users u
-      LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
-      LEFT JOIN organizations o ON om.org_id = o.id
-      WHERE u.email = $1 AND u.status = 'ACTIVE'
-    `, [email]);
+    let userResult;
+    try {
+      userResult = await query(`
+        SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.password_salt, u.password_hash,
+               u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
+               u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
+               NULL as user_role, om.role as membership_role, o.id as org_id, o.legal_name, 
+               COALESCE(o.type::text, o.org_type::text, 'buyer') as org_type
+        FROM users u
+        LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
+        LEFT JOIN organizations o ON om.org_id = o.id
+        WHERE u.email = $1 AND u.status = 'ACTIVE'
+      `, [email]);
+    } catch (queryError: any) {
+      console.error('❌ [AUTH LOGIN] Errore query database:', queryError);
+      console.error('❌ [AUTH LOGIN] Error message:', queryError.message);
+      console.error('❌ [AUTH LOGIN] Error code:', queryError.code);
+      // Prova query semplificata senza u.role se fallisce
+      try {
+        userResult = await query(`
+          SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.password_salt, u.password_hash,
+                 u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
+                 u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
+                 om.role as membership_role, o.id as org_id, o.legal_name, 
+                 COALESCE(o.type::text, o.org_type::text, 'buyer') as org_type
+          FROM users u
+          LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
+          LEFT JOIN organizations o ON om.org_id = o.id
+          WHERE u.email = $1 AND u.status = 'ACTIVE'
+        `, [email]);
+        // Aggiungi user_role come NULL per tutte le righe
+        userResult.rows = userResult.rows.map((row: any) => ({ ...row, user_role: null }));
+      } catch (fallbackError: any) {
+        console.error('❌ [AUTH LOGIN] Errore anche nella query fallback:', fallbackError);
+        throw queryError; // Lancia l'errore originale
+      }
+    }
 
     console.log('🔍 [AUTH LOGIN] Query result:', {
       rowsFound: userResult.rows.length,
@@ -352,7 +378,8 @@ app.post('/login', async (c) => {
     console.log('✅ [AUTH LOGIN] Password verificata con successo');
 
     // Determina ruolo: normalizza e fallback (prima da user.role, poi da membership_role, poi default)
-    const rawUserRole = user.user_role || user.membership_role;
+    // user_role potrebbe non esistere nella query, quindi usiamo membership_role come fallback
+    const rawUserRole = user.user_role || user.membership_role || null;
     const userRole = rawUserRole ? String(rawUserRole).toLowerCase() : 'admin'; // Default a admin se non specificato
     const orgType = user.org_type ? String(user.org_type).toLowerCase() : 'buyer'; // Normalizza anche org_type
     const orgId = user.org_id || null;
@@ -458,19 +485,43 @@ app.get('/me', async (c) => {
     }
 
     // Trova utente e organizzazione dal database (usa COALESCE per gestire type vs org_type)
-    // La colonna u.role DEVE esistere (fa parte della logica di autenticazione/autorizzazione)
+    // Nota: u.role potrebbe non esistere, quindi usiamo NULL se non presente
     // Seleziona esplicitamente tutte le colonne per evitare problemi con u.* su PostgreSQL
-    const userResult = await query(`
-      SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.password_salt, u.password_hash,
-             u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
-             u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
-             u.role as user_role, om.role as membership_role, o.id as org_id, o.legal_name, 
-             COALESCE(o.type, o.org_type::text, 'buyer') as org_type
-      FROM users u
-      LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
-      LEFT JOIN organizations o ON om.org_id = o.id
-      WHERE u.id = $1 AND u.status = 'ACTIVE'
-    `, [payload.userId]);
+    let userResult;
+    try {
+      userResult = await query(`
+        SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.password_salt, u.password_hash,
+               u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
+               u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
+               NULL as user_role, om.role as membership_role, o.id as org_id, o.legal_name, 
+               COALESCE(o.type::text, o.org_type::text, 'buyer') as org_type
+        FROM users u
+        LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
+        LEFT JOIN organizations o ON om.org_id = o.id
+        WHERE u.id = $1 AND u.status = 'ACTIVE'
+      `, [payload.userId]);
+    } catch (queryError: any) {
+      console.error('❌ [AUTH ME] Errore query database:', queryError);
+      // Prova query semplificata senza u.role se fallisce
+      try {
+        userResult = await query(`
+          SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.password_salt, u.password_hash,
+                 u.email_verified, u.email_verified_at, u.oauth_provider, u.oauth_id,
+                 u.reset_token, u.reset_token_expires, u.status, u.created_at, u.updated_at,
+                 om.role as membership_role, o.id as org_id, o.legal_name, 
+                 COALESCE(o.type::text, o.org_type::text, 'buyer') as org_type
+          FROM users u
+          LEFT JOIN org_memberships om ON u.id = om.user_id AND om.is_active = true
+          LEFT JOIN organizations o ON om.org_id = o.id
+          WHERE u.id = $1 AND u.status = 'ACTIVE'
+        `, [payload.userId]);
+        // Aggiungi user_role come NULL per tutte le righe
+        userResult.rows = userResult.rows.map((row: any) => ({ ...row, user_role: null }));
+      } catch (fallbackError: any) {
+        console.error('❌ [AUTH ME] Errore anche nella query fallback:', fallbackError);
+        throw queryError; // Lancia l'errore originale
+      }
+    }
 
     if (userResult.rows.length === 0) {
       return c.json({ error: 'Utente non trovato' }, 404);

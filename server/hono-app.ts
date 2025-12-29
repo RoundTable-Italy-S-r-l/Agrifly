@@ -27,6 +27,10 @@ import savedFieldsRoutes from './routes/saved-fields-hono';
 import quoteEstimateRoutes from './routes/quote-estimate-hono';
 import certifiedQuotesRoutes from './routes/certified-quotes-hono';
 
+// Import utilities for offers alias route
+import { authMiddleware } from './middleware/auth';
+import { query } from './utils/database';
+
 // Crea app Hono
 const app = new Hono();
 
@@ -69,8 +73,146 @@ app.route('/api/certified-quotes', certifiedQuotesRoutes);
 // Saved fields routes
 app.route('/api/saved-fields', savedFieldsRoutes);
 
-// Offers routes
-app.route('/api/offers', jobsRoutes);
+// Offers routes - create alias for /api/offers/:orgId -> /api/jobs/offers/:orgId
+// Create a handler that duplicates the logic from jobs-hono.ts /offers/:orgId
+// This allows /api/offers/:orgId to work directly (for backward compatibility or frontend calls)
+app.get('/api/offers/:orgId', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const orgId = c.req.param('orgId');
+
+    console.log('🎁 [ALIAS /api/offers/:orgId] Richiesta job offers per org:', orgId, 'user org:', user?.organizationId);
+
+    // Users can only see offers for their own organization
+    if (!user || user.organizationId !== orgId) {
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    // Get offers received (where user's org is the buyer)
+    const receivedOffersResult = await query(`
+      SELECT 
+        jo.id, jo.job_id, jo.operator_org_id, jo.status, jo.pricing_snapshot_json,
+        jo.total_cents, jo.currency, jo.proposed_start, jo.proposed_end, jo.provider_note,
+        jo.created_at, jo.updated_at,
+        j.field_name, j.service_type, j.area_ha, j.location_json,
+        j.target_date_start, j.target_date_end, j.notes, j.status as job_status,
+        buyer_org.legal_name as buyer_org_legal_name,
+        operator_org.legal_name as operator_org_legal_name
+      FROM job_offers jo
+      JOIN jobs j ON jo.job_id = j.id
+      JOIN organizations buyer_org ON j.buyer_org_id = buyer_org.id
+      LEFT JOIN organizations operator_org ON jo.operator_org_id = operator_org.id
+      WHERE j.buyer_org_id = $1
+      ORDER BY jo.created_at DESC
+    `, [orgId]);
+
+    // Get offers made (where user's org is the operator)
+    const madeOffersResult = await query(`
+      SELECT 
+        jo.id, jo.job_id, jo.operator_org_id, jo.status, jo.pricing_snapshot_json,
+        jo.total_cents, jo.currency, jo.proposed_start, jo.proposed_end, jo.provider_note,
+        jo.created_at, jo.updated_at,
+        j.field_name, j.service_type, j.area_ha, j.location_json,
+        j.target_date_start, j.target_date_end, j.notes, j.status as job_status,
+        j.buyer_org_id,
+        buyer_org.legal_name as buyer_org_legal_name,
+        operator_org.legal_name as operator_org_legal_name
+      FROM job_offers jo
+      LEFT JOIN jobs j ON jo.job_id = j.id
+      LEFT JOIN organizations buyer_org ON j.buyer_org_id = buyer_org.id
+      LEFT JOIN organizations operator_org ON jo.operator_org_id = operator_org.id
+      WHERE jo.operator_org_id = $1
+      ORDER BY jo.created_at DESC
+    `, [orgId]);
+
+    // Format received offers
+    const received = receivedOffersResult.rows.map((row: any) => {
+      const locJson = row.location_json ? (typeof row.location_json === 'string' ? JSON.parse(row.location_json) : row.location_json) : null;
+      return {
+        id: row.id,
+        job_id: row.job_id,
+        operator_org_id: row.operator_org_id,
+        status: row.status,
+        pricing_snapshot_json: row.pricing_snapshot_json ? (typeof row.pricing_snapshot_json === 'string' ? JSON.parse(row.pricing_snapshot_json) : row.pricing_snapshot_json) : null,
+        total_cents: parseInt(row.total_cents) || 0,
+        currency: row.currency || 'EUR',
+        proposed_start: row.proposed_start,
+        proposed_end: row.proposed_end,
+        provider_note: row.provider_note,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        job: {
+          id: row.job_id,
+          field_name: row.field_name,
+          service_type: row.service_type,
+          area_ha: row.area_ha ? parseFloat(row.area_ha) : null,
+          location_json: locJson,
+          field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
+          target_date_start: row.target_date_start,
+          target_date_end: row.target_date_end,
+          notes: row.notes,
+          status: row.job_status,
+          buyer_org: {
+            legal_name: row.buyer_org_legal_name || 'N/A'
+          }
+        },
+        operator_org: {
+          id: row.operator_org_id,
+          legal_name: row.operator_org_legal_name || 'N/A'
+        }
+      };
+    });
+
+    // Format made offers
+    const made = madeOffersResult.rows.map((row: any) => {
+      const locJson = row.location_json ? (typeof row.location_json === 'string' ? JSON.parse(row.location_json) : row.location_json) : null;
+      return {
+        id: row.id,
+        job_id: row.job_id,
+        operator_org_id: row.operator_org_id,
+        status: row.status,
+        pricing_snapshot_json: row.pricing_snapshot_json ? (typeof row.pricing_snapshot_json === 'string' ? JSON.parse(row.pricing_snapshot_json) : row.pricing_snapshot_json) : null,
+        total_cents: parseInt(row.total_cents) || 0,
+        currency: row.currency || 'EUR',
+        proposed_start: row.proposed_start,
+        proposed_end: row.proposed_end,
+        provider_note: row.provider_note,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        job: row.job_id ? {
+          id: row.job_id,
+          field_name: row.field_name || null,
+          service_type: row.service_type || null,
+          area_ha: row.area_ha ? parseFloat(row.area_ha) : null,
+          location_json: locJson,
+          field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
+          target_date_start: row.target_date_start,
+          target_date_end: row.target_date_end,
+          notes: row.notes,
+          status: row.job_status || null,
+          buyer_org: {
+            id: row.buyer_org_id || null,
+            legal_name: row.buyer_org_legal_name || 'N/A'
+          }
+        } : null,
+        operator_org: {
+          id: row.operator_org_id,
+          legal_name: row.operator_org_legal_name || 'N/A'
+        }
+      };
+    });
+
+    console.log(`✅ [ALIAS /api/offers/:orgId] Job offers trovate: received=${received.length}, made=${made.length}`);
+
+    return c.json({ received, made });
+  } catch (error: any) {
+    console.error('❌ [ALIAS /api/offers/:orgId] Error fetching job offers:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// Remove the duplicate route mounting that was causing conflicts
+// app.route('/api/offers', jobsRoutes); // REMOVED - using direct handler above instead
 
 // Debug endpoint to check auth headers
 app.get('/api/debug-auth', async (c) => {
