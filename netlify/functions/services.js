@@ -106,7 +106,17 @@ exports.handler = async (event, context) => {
       console.log('🔍 Esplorando bucket Media FIle...');
 
       try {
-        const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media FIle';
+        if (!process.env.SUPABASE_STORAGE_BUCKET) {
+          return {
+            statusCode: 500,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'SUPABASE_STORAGE_BUCKET environment variable not set' })
+          };
+        }
+        const bucketName = process.env.SUPABASE_STORAGE_BUCKET;
         const { data: files, error } = await supabase.storage
           .from(bucketName)
           .list('', {
