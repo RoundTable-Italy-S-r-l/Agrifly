@@ -29,7 +29,7 @@ exports.handler = async (event, context) => {
   try {
     console.log('🔌 Connecting to database...');
     await client.connect();
-    console.log('✅ Database connected')');
+    console.log('✅ Database connected');
 
     const category = event.queryStringParameters?.category;
     const minPrice = event.queryStringParameters?.minPrice ? parseInt(event.queryStringParameters.minPrice) : null;
