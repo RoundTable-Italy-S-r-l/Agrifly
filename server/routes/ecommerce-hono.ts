@@ -217,8 +217,8 @@ app.post('/cart/items', async (c) => {
         JOIN price_lists pl ON pli.price_list_id = pl.id
         WHERE pli.sku_id = $1
           AND pl.status = 'ACTIVE'
-          AND pl.valid_from <= datetime('now')
-          AND (pl.valid_to IS NULL OR pl.valid_to >= datetime('now'))
+          AND pl.valid_from <= NOW()
+          AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
         ORDER BY pl.valid_from DESC
         LIMIT 1
       `, [skuId]);

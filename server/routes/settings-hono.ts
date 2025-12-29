@@ -241,7 +241,7 @@ app.put('/:orgId', async (c) => {
         const setParts = updateKeys.map((key, i) => `${key} = $${i + 2}`);
         const updateQuery = `
           UPDATE service_configurations
-          SET ${setParts.join(', ')}, updated_at = datetime('now')
+          SET ${setParts.join(', ')}, updated_at = NOW()
           WHERE org_id = $1
         `;
 

@@ -108,7 +108,7 @@ export const query = async (text: string, params?: any[]) => {
         console.log(`🔍 SQLite query params: ${orderedParams.length} params for ${allMatches.length} placeholders`);
         
         // Converti funzioni PostgreSQL in SQLite
-        sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "datetime('now')");
+        sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "NOW()");
         // Rimuovi cast PostgreSQL (::text, ::integer, etc.) - SQLite non li supporta
         sqliteQuery = sqliteQuery.replace(/::\w+/g, '');
         // Converti virgolette doppie in virgolette singole per valori stringa SQLite
@@ -146,7 +146,7 @@ export const query = async (text: string, params?: any[]) => {
           console.log(`🔍 SQLite query params: ${params?.length || 0} params for ${questionMarkCount} ? placeholders`);
           
           // Converti funzioni PostgreSQL in SQLite
-          sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "datetime('now')");
+          sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "NOW()");
           
           // Rimuovi RETURNING * per SQLite
           const hasReturning = /RETURNING\s+\*/i.test(sqliteQuery);
@@ -169,7 +169,7 @@ export const query = async (text: string, params?: any[]) => {
           console.log(`🔍 SQLite query: no placeholders, executing without params`);
           
           // Converti funzioni PostgreSQL in SQLite
-          sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "datetime('now')");
+          sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "NOW()");
           
           return client.query(sqliteQuery);
         }
@@ -187,7 +187,7 @@ export const query = async (text: string, params?: any[]) => {
     await client.connect();
     // Converti funzioni SQLite in PostgreSQL
     let postgresQuery = text;
-    // Converti datetime('now') in NOW() per PostgreSQL
+    // Converti NOW() in NOW() per PostgreSQL
     postgresQuery = postgresQuery.replace(/datetime\s*\(\s*['"]now['"]\s*\)/gi, 'NOW()');
     const result = await client.query(postgresQuery, params);
     return result;

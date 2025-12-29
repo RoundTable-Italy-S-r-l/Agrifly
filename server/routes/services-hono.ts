@@ -429,7 +429,7 @@ app.post('/:orgId', async (c) => {
       const updateQuery = `
         UPDATE rate_cards SET
           ${updateFields.join(', ')},
-          updated_at = ${isPostgreSQL ? 'NOW()' : "datetime('now')"}
+          updated_at = ${isPostgreSQL ? 'NOW()' : "NOW()"}
         WHERE seller_org_id = $${paramIndex++} AND service_type = $${paramIndex++}
       `;
 
@@ -839,7 +839,7 @@ app.put('/:orgId/:rateCardId', async (c) => {
     const updateQuery = `
       UPDATE rate_cards SET
         ${updateFields.join(', ')},
-        updated_at = ${isPostgreSQL ? 'NOW()' : "datetime('now')"}
+        updated_at = ${isPostgreSQL ? 'NOW()' : "NOW()"}
       WHERE id = $${paramIndex++} AND seller_org_id = $${paramIndex++}
     `;
 
@@ -970,7 +970,7 @@ app.put('/:orgId/:serviceType', async (c) => {
     const updateQuery = `
       UPDATE rate_cards SET
         ${updateFields.join(', ')},
-        updated_at = ${isPostgreSQL ? 'NOW()' : "datetime('now')"}
+        updated_at = ${isPostgreSQL ? 'NOW()' : "NOW()"}
       WHERE seller_org_id = $${paramIndex++} AND service_type = $${paramIndex++}
     `;
 
