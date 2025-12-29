@@ -320,13 +320,20 @@ app.get('/vendor/:orgId', async (c) => {
             if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
               glbUrl = rawUrl;
             } 
-            // Se è un path relativo, costruisci URL Supabase Storage
+            // Se è un path relativo, costruisci URL Supabase Storage (bucket "Media File")
             else if (typeof rawUrl === 'string') {
               try {
-                glbUrl = publicObjectUrl(undefined, rawUrl);
+                // Converti path tipo "/glb/t25p/t25p.glb" in "glb/t25p/t25p.glb" per il bucket
+                const storagePath = rawUrl.startsWith('/glb/') 
+                  ? rawUrl.replace(/^\/glb\//, 'glb/') 
+                  : rawUrl.startsWith('/') 
+                    ? rawUrl.substring(1) 
+                    : rawUrl;
+                glbUrl = publicObjectUrl(undefined, storagePath);
+                console.log('✅ Using Supabase Storage GLB:', glbUrl);
               } catch (e) {
                 console.warn('Errore costruzione URL Supabase Storage:', e);
-                glbUrl = undefined; // Non usare path locale su Netlify
+                glbUrl = undefined;
               }
             }
           }
@@ -534,10 +541,32 @@ app.get('/public', async (c) => {
             ? JSON.parse(row.glb_files_json) 
             : row.glb_files_json;
           if (Array.isArray(glbFiles) && glbFiles.length > 0) {
-            glbUrl = glbFiles[0].url || glbFiles[0];
+            const firstGlb = glbFiles[0];
+            let rawUrl = firstGlb.url || firstGlb.filename || firstGlb;
+            
+            // Se è un URL completo (http/https), usa direttamente
+            if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+              glbUrl = rawUrl;
+            } 
+            // Se è un path relativo, costruisci URL Supabase Storage
+            else if (typeof rawUrl === 'string') {
+              try {
+                // Converti path tipo "/glb/t25p/t25p.glb" in "glb/t25p/t25p.glb" per il bucket
+                const storagePath = rawUrl.startsWith('/glb/') 
+                  ? rawUrl.replace(/^\/glb\//, 'glb/') 
+                  : rawUrl.startsWith('/') 
+                    ? rawUrl.substring(1) 
+                    : rawUrl;
+                glbUrl = publicObjectUrl(undefined, storagePath);
+                console.log('✅ [CATALOG PUBLIC] Using Supabase Storage GLB:', glbUrl);
+              } catch (e) {
+                console.warn('⚠️  [CATALOG PUBLIC] Errore costruzione URL Supabase Storage:', e);
+                glbUrl = undefined;
+              }
+            }
           }
         } catch (e) {
-          console.warn('Errore parsing glb_files_json:', e);
+          console.warn('⚠️  [CATALOG PUBLIC] Errore parsing glb_files_json:', e);
         }
       }
 
