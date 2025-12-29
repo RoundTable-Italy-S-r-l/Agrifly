@@ -19,6 +19,12 @@
   to = "/.netlify/functions/services"
   status = 200
 
+# Tutte le altre route API vanno alla function api.ts
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api"
+  status = 200
+
 # SPA fallback: tutte le route non-API devono andare a index.html per permettere al router client-side di gestirle
 # Netlify processa i redirect in ordine, quindi i redirect API sopra hanno la precedenza
 [[redirects]]
