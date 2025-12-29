@@ -16,7 +16,7 @@ async function ensureBookingsTableColumns() {
   
   try {
     if (!isPostgreSQL) {
-      // SQLite: Check and add missing columns
+      // SQLite: Check and add missing columns using PRAGMA
       const columnsResult = await query(`PRAGMA table_info(bookings)`, []);
       const existingColumns = columnsResult.rows.map((r: any) => r.name);
       
@@ -35,10 +35,26 @@ async function ensureBookingsTableColumns() {
         await query(`ALTER TABLE bookings ADD COLUMN paid_at TEXT`, []);
       }
     } else {
-      // PostgreSQL: Add columns if not exist
-      await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`, []);
-      await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'PENDING'`, []);
-      await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP`, []);
+      // PostgreSQL: Check columns using information_schema, then add if not exist
+      const columnsResult = await query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'bookings' AND table_schema = 'public'
+      `, []);
+      const existingColumns = columnsResult.rows.map((r: any) => r.column_name);
+      
+      if (!existingColumns.includes('updated_at')) {
+        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: updated_at');
+        await query(`ALTER TABLE bookings ADD COLUMN updated_at TIMESTAMP DEFAULT NOW()`, []);
+      }
+      if (!existingColumns.includes('payment_status')) {
+        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: payment_status');
+        await query(`ALTER TABLE bookings ADD COLUMN payment_status VARCHAR(50) DEFAULT 'PENDING'`, []);
+      }
+      if (!existingColumns.includes('paid_at')) {
+        console.log('📋 [BOOKINGS MIGRATION] Adding missing column: paid_at');
+        await query(`ALTER TABLE bookings ADD COLUMN paid_at TIMESTAMP`, []);
+      }
     }
     migrationExecuted = true;
     console.log('✅ [BOOKINGS MIGRATION] Migration completed');

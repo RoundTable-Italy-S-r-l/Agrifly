@@ -108,7 +108,7 @@ export const query = async (text: string, params?: any[]) => {
         console.log(`🔍 SQLite query params: ${orderedParams.length} params for ${allMatches.length} placeholders`);
         
         // Converti funzioni PostgreSQL in SQLite
-        sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "NOW()");
+        sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "datetime('now')");
         // Rimuovi cast PostgreSQL (::text, ::integer, etc.) - SQLite non li supporta
         sqliteQuery = sqliteQuery.replace(/::\w+/g, '');
         // Converti virgolette doppie in virgolette singole per valori stringa SQLite
@@ -145,8 +145,8 @@ export const query = async (text: string, params?: any[]) => {
           // La query ha già placeholder ?, usa i params direttamente
           console.log(`🔍 SQLite query params: ${params?.length || 0} params for ${questionMarkCount} ? placeholders`);
           
-          // Converti funzioni PostgreSQL in SQLite
-          sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "NOW()");
+        // Converti funzioni PostgreSQL in SQLite
+        sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "datetime('now')");
           
           // Rimuovi RETURNING * per SQLite
           const hasReturning = /RETURNING\s+\*/i.test(sqliteQuery);
@@ -168,8 +168,8 @@ export const query = async (text: string, params?: any[]) => {
           // Nessun placeholder, esegui la query senza params
           console.log(`🔍 SQLite query: no placeholders, executing without params`);
           
-          // Converti funzioni PostgreSQL in SQLite
-          sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "NOW()");
+        // Converti funzioni PostgreSQL in SQLite
+        sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, "datetime('now')");
           
           return client.query(sqliteQuery);
         }

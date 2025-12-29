@@ -429,7 +429,7 @@ app.post('/:orgId', async (c) => {
       const updateQuery = `
         UPDATE rate_cards SET
           ${updateFields.join(', ')},
-          updated_at = ${isPostgreSQL ? 'NOW()' : "NOW()"}
+          updated_at = ${isPostgreSQL ? 'NOW()' : "datetime('now')"}
         WHERE seller_org_id = $${paramIndex++} AND service_type = $${paramIndex++}
       `;
 

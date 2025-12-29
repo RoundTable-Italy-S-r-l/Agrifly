@@ -40,12 +40,18 @@ app.get('/:orgId', async (c) => {
       }
     }
 
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://') || !!process.env.PGHOST;
+    
     let operatorsQuery;
     let queryParams;
 
     if (!showIndividualOperators) {
       // Se l'azienda non vuole mostrare operatori individuali,
       // restituisci un operatore "virtuale" che rappresenta l'azienda
+      const serviceTagsArray = isPostgreSQL 
+        ? "ARRAY['SPRAY', 'SPREAD', 'MAPPING']::text[]"
+        : "'[\"SPRAY\", \"SPREAD\", \"MAPPING\"]'";
       operatorsQuery = `
         SELECT
           'company_' || o.id as id,
@@ -54,7 +60,7 @@ app.get('/:orgId', async (c) => {
           NULL as home_location_id,
           NULL as max_hours_per_day,
           NULL as max_ha_per_day,
-          ARRAY['SPRAY', 'SPREAD', 'MAPPING']::text[] as service_tags,
+          ${serviceTagsArray} as service_tags,
           NULL as default_service_area_set_id,
           'ORG_DEFAULT' as service_area_mode,
           'ACTIVE' as status,
@@ -152,6 +158,9 @@ app.get('/:orgId/:operatorId', async (c) => {
 
     if (operatorId.startsWith('company_')) {
       // È l'operatore "company" (rappresenta l'azienda)
+      const serviceTagsArray = isPostgreSQL 
+        ? "ARRAY['SPRAY', 'SPREAD', 'MAPPING']::text[]"
+        : "'[\"SPRAY\", \"SPREAD\", \"MAPPING\"]'";
       operatorQuery = `
         SELECT
           'company_' || o.id as id,
@@ -160,7 +169,7 @@ app.get('/:orgId/:operatorId', async (c) => {
           NULL as home_location_id,
           NULL as max_hours_per_day,
           NULL as max_ha_per_day,
-          ARRAY['SPRAY', 'SPREAD', 'MAPPING']::text[] as service_tags,
+          ${serviceTagsArray} as service_tags,
           NULL as default_service_area_set_id,
           'ORG_DEFAULT' as service_area_mode,
           'ACTIVE' as status,
@@ -190,7 +199,7 @@ app.get('/:orgId/:operatorId', async (c) => {
           NULL as home_location_id,
           NULL as max_hours_per_day,
           NULL as max_ha_per_day,
-          ARRAY[]::text[] as service_tags,
+          ${isPostgreSQL ? "ARRAY[]::text[]" : "'[]'"} as service_tags,
           NULL as default_service_area_set_id,
           NULL as service_area_mode,
           'ACTIVE' as status,
