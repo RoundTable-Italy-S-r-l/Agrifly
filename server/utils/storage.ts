@@ -18,11 +18,11 @@ export function getSupabaseUrl(): string {
 }
 
 /**
- * Ottiene il nome del bucket da usare per i file GLB
- * Configurabile via env var, default: "assets"
+ * Ottiene il nome del bucket da usare per i file multimediali
+ * Configurabile via env var, default: "Media FIle" (nome esatto del bucket Supabase, con I maiuscola)
  */
 export function getStorageBucket(): string {
-  return process.env.SUPABASE_STORAGE_BUCKET || "assets";
+  return process.env.SUPABASE_STORAGE_BUCKET || "Media FIle";
 }
 
 /**
@@ -40,6 +40,10 @@ export function publicObjectUrl(bucket?: string, key?: string): string {
     throw new Error("Key (path) is required for publicObjectUrl");
   }
   
-  return `${base}/storage/v1/object/public/${bucketName}/${cleanKey}`;
+  // URL-encode il nome del bucket e la chiave per gestire spazi e caratteri speciali
+  const encodedBucket = encodeURIComponent(bucketName);
+  const encodedKey = encodeURIComponent(cleanKey).replace(/%2F/g, '/'); // Mantieni gli slash nel path
+  
+  return `${base}/storage/v1/object/public/${encodedBucket}/${encodedKey}`;
 }
 
