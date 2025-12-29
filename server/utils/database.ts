@@ -4,17 +4,21 @@ let Database: any = null;
 
 // Funzione per creare una nuova connessione per ogni richiesta (serverless-friendly)
 export const getClient = () => {
-  // FORZA PostgreSQL se PGHOST è configurato (anche in development)
-  // Usa SQLite solo se esplicitamente richiesto (DATABASE_URL file: E nessun PGHOST)
-  // Questo permette di usare Supabase anche in locale
-  const hasFileDatabase = process.env.DATABASE_URL?.startsWith('file:');
+  // PRIORITÀ ASSOLUTA: se PGHOST è configurato, usa PostgreSQL SEMPRE
+  // Solo se NON c'è PGHOST, considera DATABASE_URL per SQLite
   const hasPostgresConfig = process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD;
-  
-  // Se PGHOST è configurato, usa SEMPRE PostgreSQL (anche in development)
-  // Altrimenti, se DATABASE_URL punta a un file, usa SQLite
+  const hasFileDatabase = process.env.DATABASE_URL?.startsWith('file:');
+
+  console.log('🔍 Database selection logic:');
+  console.log('  hasPostgresConfig:', hasPostgresConfig);
+  console.log('  hasFileDatabase:', hasFileDatabase);
+
+  // PRIMA PRIORITÀ: PostgreSQL se configurato
   if (hasPostgresConfig) {
+    console.log('🔗 Using PostgreSQL (Supabase)');
     // Salta SQLite, usa PostgreSQL
   } else if (hasFileDatabase) {
+    console.log('💾 Using SQLite');
     // Lazy load better-sqlite3 solo se necessario (non su Netlify)
     if (!Database) {
       try {
