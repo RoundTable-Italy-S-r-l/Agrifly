@@ -32,10 +32,15 @@ export const getClient = () => {
     };
   }
 
+  // Verifica che tutte le variabili d'ambiente necessarie siano presenti
+  if (!process.env.PGHOST || !process.env.PGPORT || !process.env.PGDATABASE || !process.env.PGUSER || !process.env.PGPASSWORD) {
+    throw new Error('Missing required PostgreSQL environment variables: PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD');
+  }
+
   const config = {
     host: process.env.PGHOST,
-    port: Number(process.env.PGPORT || 5432),
-    database: process.env.PGDATABASE || 'defaultdb',
+    port: Number(process.env.PGPORT),
+    database: process.env.PGDATABASE,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
     ssl: { rejectUnauthorized: false }, // Necessario per Supabase
