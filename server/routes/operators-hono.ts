@@ -186,6 +186,7 @@ app.get('/:orgId/:operatorId', async (c) => {
       queryParams = [orgId];
     } else if (operatorId.startsWith('member_')) {
       // È un membro senza profilo operatore dedicato
+      const emptyServiceTagsArray = isPostgreSQL ? "ARRAY[]::text[]" : "'[]'";
       operatorQuery = `
         SELECT
           om.id,
@@ -199,7 +200,7 @@ app.get('/:orgId/:operatorId', async (c) => {
           NULL as home_location_id,
           NULL as max_hours_per_day,
           NULL as max_ha_per_day,
-          ${isPostgreSQL ? "ARRAY[]::text[]" : "'[]'"} as service_tags,
+          ${emptyServiceTagsArray} as service_tags,
           NULL as default_service_area_set_id,
           NULL as service_area_mode,
           'ACTIVE' as status,
