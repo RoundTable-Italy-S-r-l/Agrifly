@@ -185,8 +185,13 @@ export async function sendOrganizationInvitationEmail(
     return;
   }
   try {
-    await resend.emails.send({
-      from: 'DJI Agriculture <noreply@dji-agriculture.com>',
+    // Usa il dominio agrifly.it come richiesto
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Agrifly <noreply@agrifly.it>';
+
+    console.log('📧 Invio email invito:', { to, from: fromEmail, invitedBy, organizationName });
+
+    const result = await resend.emails.send({
+      from: fromEmail,
       to,
       subject: `Invito a ${organizationName}`,
       html: `
@@ -194,11 +199,21 @@ export async function sendOrganizationInvitationEmail(
           <h2>Sei stato invitato</h2>
           <p><strong>${invitedBy}</strong> ti ha invitato a unirti a <strong>${organizationName}</strong>.</p>
           <p><a href="${inviteUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Accetta invito</a></p>
+          <p>Il link è valido per 7 giorni.</p>
+          <p>Se non hai richiesto questo invito, puoi ignorare questa email.</p>
         </div>
       `,
     });
+
+    if (result.error) {
+      console.error('❌ Errore Resend API per email invito:', result.error);
+      throw new Error(`Errore invio email: ${result.error.message}`);
+    } else {
+      console.log('✅ Email invito inviata con successo!');
+    }
   } catch (error) {
-    console.error('Error sending invitation email:', error);
+    console.error('❌ Error sending invitation email:', error);
+    throw error; // Rilanciamo per far vedere l'errore ai log
   }
 }
 

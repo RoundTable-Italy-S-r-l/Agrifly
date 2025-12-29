@@ -505,6 +505,13 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
 
     console.log('🔍 [INVITE] Controllo se utente già invitato o membro');
 
+    // Recupera informazioni organizzazione per l'email
+    const organization = await query('SELECT legal_name, type FROM organizations WHERE id = $1', [orgId]);
+    if (organization.rows.length === 0) {
+      console.log('❌ [INVITE] Organizzazione non trovata:', orgId);
+      return c.json({ error: 'Organization not found' }, 404);
+    }
+
     // Verifica che l'email non sia già invitata o membro
     const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
@@ -528,10 +535,11 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
 
     // Genera token univoco e ID
     const token = require('crypto').randomBytes(32).toString('hex');
-    const inviteId = 'c' + require('crypto').randomBytes(12).toString('hex'); // Fake CUID
+    const inviteId = 'c' + Date.now().toString(36) + Math.random().toString(36).substr(2); // Simple CUID-like ID
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 giorni
 
     console.log('📧 [INVITE] Creando invito con ID:', inviteId);
+    console.log('📧 [INVITE] Parametri INSERT:', [inviteId, orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id]);
 
     // Crea invito
     const result = await query(`
@@ -543,8 +551,16 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     // Invia email di invito
     const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:8082'}/accept-invite?token=${token}`;
 
-    // TODO: Implementare invio email
-    console.log('📧 Invitation email would be sent to:', email, 'with URL:', inviteUrl);
+    console.log('📧 [INVITE] Invito salvato nel database con ID:', inviteId);
+
+    try {
+      const { sendOrganizationInvitationEmail } = await import('../utils/email');
+      await sendOrganizationInvitationEmail(email, `${user.first_name} ${user.last_name}`, organization.rows[0].legal_name, inviteUrl);
+      console.log('✅ [INVITE] Email di invito inviata:', email);
+    } catch (emailError: any) {
+      console.error('❌ [INVITE] Errore invio email di invito:', emailError.message);
+      // Non bloccare la creazione dell'invito se l'email fallisce
+    }
 
     return c.json({
       success: true,
