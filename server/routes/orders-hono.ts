@@ -88,7 +88,6 @@ app.get('/', async (c) => {
     const ordersQuery = `
       SELECT
         o.id,
-        o.order_number,
         o.buyer_org_id,
         o.seller_org_id,
         o.status,
@@ -141,7 +140,7 @@ app.get('/', async (c) => {
       
       return {
         id: order.id,
-        order_number: order.order_number,
+        order_number: order.id, // Usa ID come order_number se la colonna non esiste
         buyer_org_id: order.buyer_org_id,
         seller_org_id: order.seller_org_id,
         buyer_org_name: order.buyer_org_name,

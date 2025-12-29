@@ -501,12 +501,18 @@ app.get('/public', async (c) => {
     console.log(`📦 [CATALOG PUBLIC] Prodotti trovati: ${result.rows.length}`);
     if (result.rows.length > 0) {
       const firstRow = result.rows[0];
+      const glbPreview = typeof firstRow.glb_files_json === 'string' 
+        ? firstRow.glb_files_json.substring(0, 100)
+        : firstRow.glb_files_json 
+          ? JSON.stringify(firstRow.glb_files_json).substring(0, 100)
+          : null;
       console.log('📦 Primo prodotto:', {
         id: firstRow.product_id,
         name: firstRow.product_name,
         hasGlb: !!firstRow.glb_files_json,
         hasSpecsCore: !!firstRow.specs_core_json,
-        glbPreview: firstRow.glb_files_json?.substring(0, 100)
+        glbType: typeof firstRow.glb_files_json,
+        glbPreview
       });
     }
 
@@ -585,7 +591,7 @@ app.get('/public', async (c) => {
     console.error('❌ [CATALOG PUBLIC] Error message:', error.message);
     console.error('❌ [CATALOG PUBLIC] Error code:', error.code);
     console.error('❌ [CATALOG PUBLIC] Stack:', error.stack);
-    console.error('❌ [CATALOG PUBLIC] Query SQL:', querySql?.substring(0, 500));
+    // querySql è definito solo nel try block, quindi non possiamo accedervi qui
     console.error('❌ [CATALOG PUBLIC] Parametri:', params);
     // NON restituire dati mock in caso di errore - restituisci solo errore
     return c.json({
