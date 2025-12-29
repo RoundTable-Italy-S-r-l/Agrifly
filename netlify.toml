@@ -11,7 +11,7 @@
 
 [[redirects]]
   from = "/api/auth/login"
-  to = "/.netlify/functions/auth-login"
+  to = "/.netlify/functions/auth-login-pg"
   status = 200
 
 [[redirects]]
