@@ -377,9 +377,10 @@ app.get('/:id', async (c) => {
         // Prova a caricare dinamicamente le immagini dal bucket Supabase
         const bucketName = getStorageBucket();
         const supabaseUrl = getSupabaseUrl();
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-        
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
         if (supabaseUrl && supabaseKey && possiblePaths.length > 0) {
+          console.log('🔄 Tentativo caricamento dinamico immagini per', row.model);
           try {
             const supabase = createClient(supabaseUrl, supabaseKey);
             
@@ -503,9 +504,10 @@ app.get('/:id', async (c) => {
         // Prova a caricare dinamicamente i video dal bucket Supabase
         const bucketName = getStorageBucket();
         const supabaseUrl = getSupabaseUrl();
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         
         if (supabaseUrl && supabaseKey && possiblePaths.length > 0) {
+          console.log('🔄 Tentativo caricamento dinamico video per', row.model);
           try {
             const supabase = createClient(supabaseUrl, supabaseKey);
             
@@ -604,7 +606,7 @@ app.get('/:id', async (c) => {
         try {
           // PRIORITÀ: Usa Supabase Storage
           const storagePath = manualUrl.startsWith('/manuals/') || manualUrl.startsWith('/pdf/')
-            ? manualUrl.replace(/^\/(manuals|pdf)\//, 'manuals/')
+            ? manualUrl.replace(/^\/(manuals|pdf)\//, 'pdf/')
             : manualUrl.startsWith('/')
               ? manualUrl.substring(1)
               : manualUrl;
