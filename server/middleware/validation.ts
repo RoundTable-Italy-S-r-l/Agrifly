@@ -10,15 +10,11 @@ export const validateBody = <T extends z.ZodSchema>(
   } = {}
 ): MiddlewareHandler => {
   return async (c, next) => {
-    console.log('🔍 [VALIDATION] Starting validation middleware for:', c.req.path);
     let body;
     try {
-      console.log('🔍 [VALIDATION] Attempting to parse JSON body');
       body = await c.req.json();
-      console.log('✅ [VALIDATION] JSON parsed successfully, body type:', typeof body);
     } catch (parseError) {
       console.error('❌ [VALIDATION] JSON parse error:', parseError);
-      console.error('❌ [VALIDATION] Raw body might be invalid');
       return c.json({
         error: 'Invalid JSON',
         message: 'Il corpo della richiesta non è un JSON valido'
@@ -26,44 +22,34 @@ export const validateBody = <T extends z.ZodSchema>(
     }
 
     try {
-      console.log('🔍 [VALIDATION] Starting Zod validation');
       // Validate and optionally transform
       let validatedData: z.infer<T>;
 
       if (options.transform) {
-        console.log('🔍 [VALIDATION] Using transform mode');
         validatedData = schema.parse(body);
       } else {
-        console.log('🔍 [VALIDATION] Using standard validation mode');
+        // Just validate without transforming
         schema.parse(body);
         validatedData = body as z.infer<T>;
       }
 
       // Strip unknown properties if requested
       if (options.stripUnknown && typeof validatedData === 'object') {
-        console.log('🔍 [VALIDATION] Stripping unknown properties');
         const schemaKeys = new Set(Object.keys(schema.shape || {}));
         validatedData = Object.fromEntries(
           Object.entries(validatedData).filter(([key]) => schemaKeys.has(key))
         ) as z.infer<T>;
       }
 
-      console.log('✅ [VALIDATION] Validation successful, storing validatedBody');
       // Store validated data in context
       c.set('validatedBody', validatedData);
 
-      console.log('🔍 [VALIDATION] Calling next()');
       await next();
-      console.log('✅ [VALIDATION] Middleware completed successfully');
     } catch (error) {
-      console.error('❌ [VALIDATION] Error in validation block:', error);
-      console.error('❌ [VALIDATION] Error type:', error.constructor.name);
-      console.error('❌ [VALIDATION] Body status:', body ? 'defined' : 'undefined');
-
       if (error instanceof z.ZodError) {
-        console.error('❌ [VALIDATION] Zod validation failed:', {
+        console.error('❌ [VALIDATION] Validation failed:', {
           errors: error.errors,
-          body: body ? JSON.stringify(body).substring(0, 200) : 'undefined'
+          body: body || 'undefined'
         });
 
         return c.json({
@@ -79,7 +65,6 @@ export const validateBody = <T extends z.ZodSchema>(
 
       // Handle transform errors (like invalid number formats)
       console.error('❌ [VALIDATION] Transform error:', error);
-      console.error('❌ [VALIDATION] Error stack:', error.stack);
       return c.json({
         error: 'Validation failed',
         message: 'I dati forniti contengono valori non validi',
