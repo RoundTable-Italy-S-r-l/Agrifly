@@ -83,22 +83,19 @@ app.post('/register', validateBody(RegisterOrganizationSchema, { transform: true
     const orgType = accountType; // 'buyer', 'vendor', o 'operator'
     const orgTypeLower = orgType.toLowerCase();
 
-    // Mantieni kind = 'BUSINESS' per compatibilità con database esistente
-    // Il tipo reale viene determinato dalle capabilities (can_buy, can_sell, can_operate)
+    // NUOVA LOGICA COMPLETA: Capabilities calcolate dinamicamente dal ruolo utente
+    // Le organizzazioni NON hanno più capabilities hardcoded
+    // I permessi vengono calcolati dal ruolo dell'utente che le usa
     const orgKind = 'BUSINESS';
-
-    // Ruolo iniziale: tutti iniziano come admin (grado gerarchico)
-    // Secondo il nuovo modello: admin è il grado gerarchico, tutti iniziano così
     const initialRole = 'admin';
 
-    // NUOVA LOGICA: Capabilities derivano dal ruolo utente, non dal tipo organizzazione
-    // Le organizzazioni hanno solo un tipo per determinare il routing di base
-    // I permessi specifici vengono determinati dal ruolo dell'utente
+    // NON impostare capabilities hardcoded - vengono calcolate dinamicamente
+    // dal ruolo utente nel frontend e backend
     const caps = {
-      can_buy: true,     // Tutti possono comprare (buyer) o vendere (vendor)
-      can_sell: orgTypeLower === 'vendor',     // Solo vendor possono vendere
-      can_operate: orgTypeLower === 'operator' || orgTypeLower === 'vendor', // Operator e vendor possono operare
-      can_dispatch: orgTypeLower === 'operator' || orgTypeLower === 'vendor'  // Operator e vendor possono disporre
+      can_buy: false,     // Placeholder - calcolato dinamicamente
+      can_sell: false,    // Placeholder - calcolato dinamicamente
+      can_operate: false, // Placeholder - calcolato dinamicamente
+      can_dispatch: false // Placeholder - calcolato dinamicamente
     };
 
     // Crea organizzazione con tutti i campi del database
