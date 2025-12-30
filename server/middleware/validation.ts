@@ -49,7 +49,7 @@ export const validateBody = <T extends z.ZodSchema>(
       if (error instanceof z.ZodError) {
         console.error('❌ [VALIDATION] Validation failed:', {
           errors: error.errors,
-          body: body || 'undefined'
+          body: body ? JSON.stringify(body).substring(0, 200) : 'undefined'
         });
 
         return c.json({
