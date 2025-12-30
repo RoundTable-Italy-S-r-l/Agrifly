@@ -1213,9 +1213,9 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
       return c.json({ error: 'Unauthorized: You can only view messages for your own offers' }, 403);
     }
 
-    // La chat è disponibile solo dopo che l'offerta è stata accettata
-    if (offer.status !== 'ACCEPTED') {
-      return c.json({ error: 'Chat is available only after the offer is accepted' }, 403);
+    // La chat è disponibile solo dopo che l'offerta è stata accettata o assegnata
+    if (offer.status !== 'ACCEPTED' && offer.status !== 'AWARDED') {
+      return c.json({ error: 'Chat is available only after the offer is accepted or awarded' }, 403);
     }
 
     const messagesQuery = `
@@ -1298,9 +1298,9 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
       return c.json({ error: 'Unauthorized: You can only send messages for your own offers' }, 403);
     }
 
-    // I messaggi possono essere inviati solo dopo che l'offerta è stata accettata
-    if (offer.status !== 'ACCEPTED') {
-      return c.json({ error: 'Messages can only be sent after the offer is accepted' }, 403);
+    // I messaggi possono essere inviati solo dopo che l'offerta è stata accettata o assegnata
+    if (offer.status !== 'ACCEPTED' && offer.status !== 'AWARDED') {
+      return c.json({ error: 'Messages can only be sent after the offer is accepted or awarded' }, 403);
     }
 
     // Crea messaggio

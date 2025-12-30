@@ -294,22 +294,18 @@ app.get('/:orgId/:operatorId', async (c) => {
 // CREATE OPERATOR (INTERNO)
 // ============================================================================
 
-app.post('/:orgId', validateBody(CreateOperatorSchema), async (c) => {
+app.post('/:orgId', authMiddleware, validateBody(CreateOperatorSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
+    const user = c.get('user') as any;
 
     if (!orgId) {
       return c.json({ error: 'Organization ID required' }, 400);
     }
 
-    // Ottieni l'ID dell'utente admin che crea l'operatore
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Token mancante' }, 401);
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
     }
-
-    const payload = JSON.parse(atob(authHeader.split('.')[1]));
-    const creatorUserId = payload.sub;
 
     const validatedBody = c.get('validatedBody') as any;
     const {
@@ -322,7 +318,7 @@ app.post('/:orgId', validateBody(CreateOperatorSchema), async (c) => {
       home_location_id,
       default_service_area_set_id,
       user_id // Opzionale - collega a user esistente
-    } = body;
+    } = validatedBody;
 
     console.log('➕ Creazione operatore interno per org:', orgId);
 
