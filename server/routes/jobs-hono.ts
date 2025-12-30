@@ -1217,6 +1217,7 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
       SELECT
         jom.id,
         jom.job_offer_id,
+        jom.sender_org_id,
         jom.sender_user_id,
         jom.body,
         jom.created_at,
@@ -1233,7 +1234,7 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
     const messages = result.rows.map(msg => ({
       id: msg.id,
       offer_id: msg.job_offer_id,
-      sender_org_id: user.organizationId, // Tutti i messaggi sono dell'organizzazione corrente
+      sender_org_id: msg.sender_org_id, // Organizzazione del mittente reale
       sender_user_id: msg.sender_user_id,
       message_text: msg.body,
       is_read: false, // La tabella non ha questo campo
@@ -1295,13 +1296,14 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
     // Crea messaggio
     const messageId = `jom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const insertQuery = `
-      INSERT INTO job_offer_messages (id, job_offer_id, sender_user_id, body, created_at)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO job_offer_messages (id, job_offer_id, sender_org_id, sender_user_id, body, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
     `;
 
     await query(insertQuery, [
       messageId,
       offerId,
+      sender_org_id,
       sender_user_id || null,
       message_text,
       new Date().toISOString()
@@ -1309,7 +1311,7 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
 
     // Recupera il messaggio appena creato
     const messageResult = await query(`
-      SELECT jom.id, jom.job_offer_id, jom.sender_user_id, jom.body, jom.created_at,
+      SELECT jom.id, jom.job_offer_id, jom.sender_org_id, jom.sender_user_id, jom.body, jom.created_at,
              u.first_name, u.last_name
       FROM job_offer_messages jom
       LEFT JOIN users u ON jom.sender_user_id = u.id
@@ -1323,7 +1325,7 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
       return c.json({
       id: message.id,
       offer_id: message.job_offer_id,
-      sender_org_id: sender_org_id,
+      sender_org_id: message.sender_org_id,
       sender_user_id: message.sender_user_id,
       message_text: message.body,
       is_read: false, // La tabella non ha questo campo
