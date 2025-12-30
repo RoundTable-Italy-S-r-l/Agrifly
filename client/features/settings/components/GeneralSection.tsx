@@ -48,6 +48,13 @@ export function GeneralSection() {
   const { data: organization, isLoading } = useOrganizationGeneral()
   const updateMutation = useUpdateOrganizationGeneral()
 
+  // DEBUG: Log dettagliato dei dati ricevuti
+  console.log('🔍 [GENERAL SECTION] Organization data received:', organization)
+  if (organization) {
+    console.log('🔍 [GENERAL SECTION] Organization type field:', organization.type)
+    console.log('🔍 [GENERAL SECTION] Organization org_type field:', organization.org_type)
+  }
+
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>('')
 
@@ -276,13 +283,23 @@ export function GeneralSection() {
                 {(() => {
                   const org = organization;
                   const orgType = org?.type || org?.org_type;
+                  console.log('🔍 [GENERAL SECTION] Determining org type display:', {
+                    org_type: org?.type,
+                    org_org_type: org?.org_type,
+                    determined_orgType: orgType
+                  });
+
+                  let result;
                   if (orgType === 'vendor' || orgType === 'operator') {
-                    return 'Fornitore/Operatore (Vendor/Operator)';
+                    result = 'Fornitore/Operatore (Vendor/Operator)';
                   } else if (orgType === 'buyer') {
-                    return 'Cliente (Buyer)';
+                    result = 'Cliente (Buyer)';
                   } else {
-                    return 'Non specificato';
+                    result = 'Non specificato';
                   }
+
+                  console.log('🔍 [GENERAL SECTION] Display result:', result);
+                  return result;
                 })()}
               </div>
               <p className="text-xs text-gray-500">
