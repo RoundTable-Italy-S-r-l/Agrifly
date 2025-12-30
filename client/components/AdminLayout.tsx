@@ -103,26 +103,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         // Se non ci sono dati, riprova dopo un breve delay
         setTimeout(loadUserAndOrgData, 500);
         return;
-      } else if (token) {
-        // Prova a decodificare il token JWT
-        try {
-          const parts = token.split('.');
-          const body = parts.length === 3 ? parts[1] : parts[0];
-          const base64 = body.replace(/-/g, '+').replace(/_/g, '/');
-          const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
-          const decoded = atob(padded);
-          const payload = JSON.parse(decoded);
-          
-          // Il token potrebbe contenere email, ma non nome completo
-          // Usa email come fallback
-          if (payload.email) {
-            const emailParts = payload.email.split('@')[0];
-            setUserName(emailParts);
-            setUserInitials(emailParts.substring(0, 2).toUpperCase());
-          }
-        } catch (error) {
-          console.error('Errore nel parsing del token:', error);
-        }
       }
     };
 
