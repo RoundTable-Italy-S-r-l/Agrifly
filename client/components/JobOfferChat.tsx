@@ -29,9 +29,7 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
   // Mutation per inviare messaggio
   const sendMessageMutation = useMutation({
     mutationFn: (text: string) => sendJobOfferMessage(offerId, {
-      sender_org_id: currentOrgId,
-      sender_user_id: currentUserId,
-      message_text: text
+      content: text
     }),
     onSuccess: () => {
       setMessageText('');

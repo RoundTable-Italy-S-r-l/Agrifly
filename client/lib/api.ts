@@ -342,9 +342,7 @@ export const fetchJobOfferMessages = (offerId: string): Promise<JobOfferMessage[
   apiRequest<JobOfferMessage[]>(`/jobs/offers/${offerId}/messages`);
 
 export const sendJobOfferMessage = (offerId: string, data: {
-  sender_org_id: string;
-  sender_user_id?: string;
-  message_text: string;
+  content: string;
 }): Promise<JobOfferMessage> =>
   apiRequest<JobOfferMessage>(`/jobs/offers/${offerId}/messages`, {
     method: 'POST',
