@@ -270,10 +270,10 @@ app.post('/create-from-cart', async (c) => {
     const orderQuery = `
       INSERT INTO orders (
         id, order_number, buyer_org_id, seller_org_id, quote_id, order_status, status, payment_status,
-        subtotal_cents, tax_cents, shipping_cents, total_cents, currency,
+        total_cents, currency,
         shipping_address, billing_address, shipped_at, delivered_at, vendor_org_id,
         customer_notes, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     `;
 
     const orderValues = [
@@ -285,9 +285,6 @@ app.post('/create-from-cart', async (c) => {
       'CONFIRMED', // order_status
       'CONFIRMED', // status (duplicato per sicurezza)
       'PAID', // payment_status - Mock Stripe
-      subtotalCents,
-      0, // tax_cents
-      shippingCents,
       totalCents,
       'EUR',
       shippingAddress ? JSON.stringify(shippingAddress) : null,

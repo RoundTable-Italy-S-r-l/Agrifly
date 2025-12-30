@@ -1032,8 +1032,8 @@ app.post('/accept-invite', async (c) => {
     // 4. Aggiungi membership all'organizzazione
     console.log('🏢 [ACCEPT INVITE] Aggiunta membership organizzazione...');
     const membershipResult = await query(`
-      INSERT INTO org_memberships (id, user_id, org_id, role, is_active, created_at, updated_at)
-      VALUES (cuid(), $1, $2, $3, true, NOW(), NOW())
+      INSERT INTO org_memberships (id, user_id, org_id, role, is_active, created_at)
+      VALUES (cuid(), $1, $2, $3, true, NOW())
       RETURNING id
     `, [userId, invite.organization_id, invite.role]);
 
