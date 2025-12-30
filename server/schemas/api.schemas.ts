@@ -23,7 +23,18 @@ export const TerrainConditionSchema = z.enum(['FLAT', 'HILLY', 'MOUNTAINOUS']);
 export const CreateJobSchema = z.object({
   field_name: z.string().min(1, 'Nome campo obbligatorio'),
   service_type: ServiceTypeSchema,
-  area_ha: z.number().positive('Area deve essere positiva'),
+  area_ha: z.union([
+    z.number().positive('Area deve essere positiva'),
+    z.string().transform((val) => {
+      // Handle Italian format for area: "25,5" -> 25.5
+      const normalized = val.replace(',', '.');
+      const parsed = parseFloat(normalized);
+      if (isNaN(parsed) || parsed <= 0) {
+        throw new Error('Area deve essere un numero positivo');
+      }
+      return parsed;
+    })
+  ]),
   location_json: z.any().optional(),
   field_polygon: z.any().optional(),
   target_date_start: z.string().optional(),

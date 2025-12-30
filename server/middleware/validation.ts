@@ -10,9 +10,18 @@ export const validateBody = <T extends z.ZodSchema>(
   } = {}
 ): MiddlewareHandler => {
   return async (c, next) => {
+    let body;
     try {
-      const body = await c.req.json();
+      body = await c.req.json();
+    } catch (parseError) {
+      console.error('❌ [VALIDATION] JSON parse error:', parseError);
+      return c.json({
+        error: 'Invalid JSON',
+        message: 'Il corpo della richiesta non è un JSON valido'
+      }, 400);
+    }
 
+    try {
       // Validate and optionally transform
       let validatedData: z.infer<T>;
 
@@ -40,7 +49,7 @@ export const validateBody = <T extends z.ZodSchema>(
       if (error instanceof z.ZodError) {
         console.error('❌ [VALIDATION] Validation failed:', {
           errors: error.errors,
-          body: await c.req.json().catch(() => 'Unable to parse body')
+          body
         });
 
         return c.json({
@@ -54,8 +63,13 @@ export const validateBody = <T extends z.ZodSchema>(
         }, 400);
       }
 
-      // Re-throw non-validation errors
-      throw error;
+      // Handle transform errors (like invalid number formats)
+      console.error('❌ [VALIDATION] Transform error:', error);
+      return c.json({
+        error: 'Validation failed',
+        message: 'I dati forniti contengono valori non validi',
+        details: [{ field: 'unknown', message: error.message, code: 'transform_error' }]
+      }, 400);
     }
   };
 };
