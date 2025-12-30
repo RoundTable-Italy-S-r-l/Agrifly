@@ -1072,7 +1072,7 @@ app.put('/:jobId/offers/:offerId', authMiddleware, async (c) => {
 
     const jobId = c.req.param('jobId');
     const offerId = c.req.param('offerId');
-    const body = await c.req.json();
+    const validatedBody = c.get('validatedBody');
     const {
       total_cents,
       currency = 'EUR',
@@ -1080,7 +1080,7 @@ app.put('/:jobId/offers/:offerId', authMiddleware, async (c) => {
       proposed_end,
       provider_note,
       pricing_snapshot_json = null
-    } = body;
+    } = validatedBody;
 
     if (!total_cents || total_cents <= 0) {
       return c.json({ error: 'Invalid pricing' }, 400);
@@ -1504,14 +1504,14 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
       return c.json({ error: 'L\'offerta deve essere accettata per completare la missione' }, 400);
     }
 
-    // Verify the user is the operator (or allow completion for AWARDED offers as workaround)
-    if (offer.operator_org_id !== user.organizationId && offer.status !== 'AWARDED') {
-      return c.json({ error: 'Non autorizzato a completare questa missione' }, 403);
-    }
-
-    // For AWARDED offers, temporarily allow completion even if org doesn't match (workaround for existing data)
-    if (offer.operator_org_id !== user.organizationId && offer.status === 'AWARDED') {
-      console.log('⚠️ [COMPLETE MISSION] Workaround: allowing completion of AWARDED offer with mismatched operator org');
+    // TEMPORARY WORKAROUND: Allow completion of any AWARDED offer for testing
+    if (offer.status !== 'AWARDED') {
+      // For non-AWARDED offers, still check authorization
+      if (offer.operator_org_id !== user.organizationId) {
+        return c.json({ error: 'Non autorizzato a completare questa missione' }, 403);
+      }
+    } else {
+      console.log('⚠️ [COMPLETE MISSION] TEMPORARY WORKAROUND: Allowing completion of AWARDED offer');
       console.log('⚠️ [COMPLETE MISSION] Offer operator_org_id:', offer.operator_org_id, 'User org:', user.organizationId);
     }
 
