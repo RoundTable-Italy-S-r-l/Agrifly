@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
+import { validateBody } from '../middleware/validation';
+import { CreateOperatorSchema, UpdateOperatorSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -292,7 +294,7 @@ app.get('/:orgId/:operatorId', async (c) => {
 // CREATE OPERATOR (INTERNO)
 // ============================================================================
 
-app.post('/:orgId', async (c) => {
+app.post('/:orgId', validateBody(CreateOperatorSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
 
@@ -309,7 +311,7 @@ app.post('/:orgId', async (c) => {
     const payload = JSON.parse(atob(authHeader.split('.')[1]));
     const creatorUserId = payload.sub;
 
-    const body = await c.req.json();
+    const validatedBody = c.get('validatedBody') as any;
     const {
       first_name,
       last_name,

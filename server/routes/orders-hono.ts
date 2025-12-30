@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
+import { validateBody } from '../middleware/validation';
+import { CreateOrderFromCartSchema, UpdateOrderStatusSchema, CreateMessageSchema, MarkMessagesReadSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -175,13 +177,10 @@ app.get('/', async (c) => {
 // CREATE ORDER FROM CART
 // ============================================================================
 
-app.post('/create-from-cart', async (c) => {
+app.post('/create-from-cart', validateBody(CreateOrderFromCartSchema), async (c) => {
   try {
-    const { cartId, shippingAddress, billingAddress, customerNotes } = await c.req.json();
-
-    if (!cartId) {
-      return c.json({ error: 'Cart ID required' }, 400);
-    }
+    const validatedBody = c.get('validatedBody') as any;
+    const { cartId, shippingAddress, billingAddress, customerNotes } = validatedBody;
 
     console.log('🛒 Creazione ordine dal carrello:', cartId);
 

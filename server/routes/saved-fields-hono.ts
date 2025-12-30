@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { query } from '../utils/database';
+import { validateBody } from '../middleware/validation';
+import { CreateSavedFieldSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -91,15 +93,15 @@ app.get('/', authMiddleware, async (c) => {
 });
 
 // POST / - Save a field
-app.post('/', authMiddleware, async (c) => {
+app.post('/', authMiddleware, validateBody(CreateSavedFieldSchema), async (c) => {
   try {
     const user = c.get('user');
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const body = await c.req.json();
-    const { name, polygon, area_ha, location_json } = body;
+    const validatedBody = c.get('validatedBody') as any;
+    const { name, polygon, area_ha, location_json } = validatedBody;
 
     console.log('💾 Save field request:', {
       hasName: !!name,

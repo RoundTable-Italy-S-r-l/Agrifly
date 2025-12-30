@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
+import { validateBody } from '../middleware/validation';
+import { AddCartItemSchema, UpdateCartItemSchema, CreateAddressSchema, UpdateAddressSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -194,18 +196,10 @@ app.get('/cart', async (c) => {
 });
 
 // POST /api/ecommerce/cart/items - Aggiungi item al carrello
-app.post('/cart/items', async (c) => {
+app.post('/cart/items', validateBody(AddCartItemSchema), async (c) => {
   try {
-    const { cartId, skuId, quantity = 1 } = await c.req.json();
-
-    if (!cartId || !skuId) {
-      return c.json({ error: 'Cart ID and SKU ID required' }, 400);
-    }
-
-    // Verifica che lo SKU esista (per ora solo controllo formato)
-    if (!skuId || typeof skuId !== 'string' || skuId.length === 0) {
-      return c.json({ error: 'SKU ID non valido' }, 400);
-    }
+    const validatedBody = c.get('validatedBody') as any;
+    const { cartId, skuId, quantity = 1 } = validatedBody;
 
     // Recupera il prezzo dalla price list attiva per questo SKU
     let unitPriceCents: number | null = null;

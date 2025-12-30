@@ -2,6 +2,17 @@
 // MODELLO AUTENTICAZIONE E AUTORIZZAZIONE
 // ============================================================================
 //
+import { validateBody } from '../middleware/validation';
+import {
+  RegisterOrganizationSchema,
+  LoginSchema,
+  VerifyEmailSchema,
+  ResendVerificationSchema,
+  RequestPasswordResetSchema,
+  ResetPasswordSchema,
+  AcceptInviteSchema
+} from '../schemas/api.schemas';
+
 // ORGANIZZAZIONI (type scelto alla registrazione):
 // - buyer: compra prodotti/servizi → tutti membri vanno a /buyer
 // - vendor: vende prodotti → membri admin/vendor vanno a /admin/catalogo
@@ -34,14 +45,10 @@ const app = new Hono();
 // REGISTRAZIONE SEMPLIFICATA
 // ============================================================================
 
-app.post('/register', async (c) => {
+app.post('/register', validateBody(RegisterOrganizationSchema, { transform: true }), async (c) => {
   try {
-    const { email, password, firstName, lastName, phone, organizationName, accountType } = await c.req.json();
-
-    // Validazione
-    if (!email || !password || !firstName || !lastName) {
-      return c.json({ error: 'Campi obbligatori mancanti' }, 400);
-    }
+    const validatedBody = c.get('validatedBody') as any;
+    const { email, password, firstName, lastName, phone, organizationName, accountType } = validatedBody;
 
     // Rate limiting
     const rateLimit = rateLimiter.check(`register_${email}`, 3, 60 * 60 * 1000);
@@ -186,13 +193,10 @@ app.post('/register', async (c) => {
 // VERIFICA EMAIL
 // ============================================================================
 
-app.post('/verify-email', async (c) => {
+app.post('/verify-email', validateBody(VerifyEmailSchema), async (c) => {
   try {
-    const { code } = await c.req.json();
-
-    if (!code) {
-      return c.json({ error: 'Codice obbligatorio' }, 400);
-    }
+    const validatedBody = c.get('validatedBody') as any;
+    const { code } = validatedBody;
 
     // Verifica che utente sia autenticato (token JWT)
     const authHeader = c.req.header('Authorization');
@@ -310,10 +314,10 @@ app.post('/resend-verification', async (c) => {
 // LOGIN SEMPLIFICATO
 // ============================================================================
 
-app.post('/login', async (c) => {
+app.post('/login', validateBody(LoginSchema), async (c) => {
   try {
-    const body = await c.req.json();
-    const { email, password } = body;
+    const validatedBody = c.get('validatedBody') as any;
+    const { email, password } = validatedBody;
 
     console.log('🔐 [AUTH LOGIN] Login attempt:', { 
       email, 
@@ -940,12 +944,13 @@ app.get('/health', async (c) => {
 // ============================================================================
 
 // POST /api/auth/accept-invite - Accept organization invitation
-app.post('/accept-invite', async (c) => {
+app.post('/accept-invite', validateBody(AcceptInviteSchema), async (c) => {
   try {
     console.log('🎫 [ACCEPT INVITE] ===========================================');
     console.log('🎫 [ACCEPT INVITE] Inizio accettazione invito');
 
-    const { token, password, firstName, lastName } = await c.req.json();
+    const validatedBody = c.get('validatedBody') as any;
+    const { token, password, firstName, lastName } = validatedBody;
 
     console.log('🎫 [ACCEPT INVITE] Token presente:', !!token);
     console.log('🎫 [ACCEPT INVITE] Password presente:', !!password);
