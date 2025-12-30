@@ -16,6 +16,7 @@ import ServiziGIS from "./pages/ServiziGIS";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
+import AcceptInvite from "./pages/AcceptInvite";
 import Dashboard from "./pages/Dashboard";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import AdminCatalog from "./pages/AdminCatalog";
@@ -67,6 +68,7 @@ const App = () => {
             <Route path="/preventivo" element={<PreventivoLanding />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
             <Route
               path="/verify-email"
               element={

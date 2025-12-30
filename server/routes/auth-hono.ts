@@ -66,24 +66,28 @@ app.post('/register', async (c) => {
 
     // Determina tipo organizzazione basato su accountType
     const orgType = accountType; // 'buyer', 'vendor', o 'operator'
-    const userRole = 'admin'; // Tutti gli utenti registrati diventano admin della loro org
+    const orgTypeLower = orgType.toLowerCase();
+    
+    // Ruolo iniziale: tutti iniziano come admin (grado gerarchico)
+    // Secondo il nuovo modello: admin è il grado gerarchico, tutti iniziano così
+    const initialRole = 'admin';
 
     // Crea organizzazione (nuovo schema: type invece di can_*)
     await query(
       'INSERT INTO organizations (id, legal_name, type, address_line, city, province, region, country, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-      [orgId, organizationName || `${firstName} ${lastName}`, orgType, 'Da completare', 'Da completare', 'Da completare', 'Da completare', 'IT', 'ACTIVE']
+      [orgId, organizationName || `${firstName} ${lastName}`, orgTypeLower, 'Da completare', 'Da completare', 'Da completare', 'Da completare', 'IT', 'ACTIVE']
     );
 
-    // Crea utente con role
+    // Crea utente (senza role nella tabella users, il ruolo è solo in org_memberships)
     await query(
-      'INSERT INTO users (id, email, first_name, last_name, password_salt, password_hash, email_verified, status, role) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-      [userId, email, firstName, lastName, salt, hash, false, 'ACTIVE', userRole]
+      'INSERT INTO users (id, email, first_name, last_name, password_salt, password_hash, email_verified, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [userId, email, firstName, lastName, salt, hash, false, 'ACTIVE']
     );
-
-    // Crea membership
+    
+    // Crea membership con nuovo ruolo standardizzato
     await query(
       'INSERT INTO org_memberships (org_id, user_id, role, is_active) VALUES ($1, $2, $3, $4)',
-      [orgId, userId, 'BUYER_ADMIN', true]
+      [orgId, userId, initialRole, true]
     );
 
     // Genera codice verifica
@@ -97,28 +101,29 @@ app.post('/register', async (c) => {
     // Invia email verifica
     await sendVerificationCodeEmail(email, code, 10);
 
-    // Genera JWT (buyer non è admin)
+    // Determina capabilities secondo il nuovo modello
+    // Importa funzione per derivare capabilities
+    const { deriveCapabilities } = await import('../utils/role-mapping');
+    const capabilities = deriveCapabilities(orgTypeLower, initialRole);
+
+    // Genera JWT con nuovo modello
     const token = generateJWT({
       userId,
       orgId,
-      role: 'BUYER_ADMIN',
-      isAdmin: false, // Buyer non è admin
+      role: initialRole,
+      isAdmin: true, // Admin è grado gerarchico, tutti iniziano così
       emailVerified: false
     });
 
     return c.json({
       message: 'Registrazione completata',
       token,
-      user: { id: userId, email, first_name: firstName, last_name: lastName, email_verified: false },
+      user: { id: userId, email, first_name: firstName, last_name: lastName, email_verified: false, role: initialRole },
       organization: { 
         id: orgId, 
         name: organizationName || `${firstName} ${lastName}`, 
-        role: 'BUYER_ADMIN', 
-        isAdmin: false, // Buyer non è admin
-        can_buy: true,
-        can_sell: false,
-        can_operate: false,
-        can_dispatch: false
+        type: orgTypeLower,
+        ...capabilities
       }
     }, 201);
 
@@ -377,14 +382,18 @@ app.post('/login', async (c) => {
 
     console.log('✅ [AUTH LOGIN] Password verificata con successo');
 
-    // Determina ruolo: normalizza e fallback (prima da user.role, poi da membership_role, poi default)
+    // Determina ruolo: mappa ruoli legacy ai nuovi ruoli standardizzati
     // user_role potrebbe non esistere nella query, quindi usiamo membership_role come fallback
     const rawUserRole = user.user_role || user.membership_role || null;
-    const userRole = rawUserRole ? String(rawUserRole).toLowerCase() : 'admin'; // Default a admin se non specificato
     const orgType = user.org_type ? String(user.org_type).toLowerCase() : 'buyer'; // Normalizza anche org_type
+    
+    // Importa funzione di mappatura ruoli legacy
+    const { mapLegacyRoleToNewRole, isAdminRole, deriveCapabilities } = await import('../utils/role-mapping');
+    
+    const userRole = mapLegacyRoleToNewRole(rawUserRole, orgType);
     const orgId = user.org_id || null;
     const orgName = user.legal_name || null;
-    const isAdmin = userRole === 'admin';
+    const isAdmin = isAdminRole(userRole);
 
     console.log('🎭 Ruoli determinati:', {
       rawUserRole,
@@ -412,12 +421,7 @@ app.post('/login', async (c) => {
     }
 
     // Capabilities derivate dal tipo organizzazione e ruolo utente
-    const capabilities = {
-      can_buy: orgType === 'buyer',
-      can_sell: orgType === 'vendor',
-      can_operate: userRole === 'operator' || userRole === 'dispatcher',
-      can_dispatch: userRole === 'dispatcher'
-    };
+    const capabilities = deriveCapabilities(orgType, userRole);
 
     console.log('🔧 Building response object...');
     const response = {
@@ -529,15 +533,20 @@ app.get('/me', async (c) => {
 
     const user = userResult.rows[0];
     const rawUserRole = user.user_role || user.membership_role;
-    const userRole = rawUserRole ? String(rawUserRole).toLowerCase() : 'admin'; // Default a admin se non specificato
     const orgType = user.org_type ? String(user.org_type).toLowerCase() : 'buyer'; // Normalizza anche org_type
+    
+    // Importa funzione di mappatura ruoli legacy
+    const { mapLegacyRoleToNewRole, isAdminRole, deriveCapabilities } = await import('../utils/role-mapping');
+    
+    const userRole = mapLegacyRoleToNewRole(rawUserRole, orgType);
     const orgId = user.org_id || null;
     const orgName = user.legal_name || null;
-    const isAdmin = userRole === 'admin';
+    const isAdmin = isAdminRole(userRole);
     
     console.log('🔍 [AUTH ME] User data:', {
       userId: user.id,
       email: user.email,
+      rawUserRole,
       userRole,
       orgType,
       orgId,
@@ -546,12 +555,7 @@ app.get('/me', async (c) => {
     });
 
     // Capabilities derivate dal tipo organizzazione e ruolo utente
-    const capabilities = {
-      can_buy: orgType === 'buyer',
-      can_sell: orgType === 'vendor',
-      can_operate: userRole === 'operator' || userRole === 'dispatcher',
-      can_dispatch: userRole === 'dispatcher'
-    };
+    const capabilities = deriveCapabilities(orgType, userRole);
 
     return c.json({
       user: {
@@ -887,5 +891,145 @@ app.get('/health', async (c) => {
 
 // Endpoint debug rimosso per sicurezza - non esporre in produzione
 
-// Endpoint debug completamente rimosso per sicurezza
+// ============================================================================
+// INVITATION ACCEPTANCE
+// ============================================================================
+
+// POST /api/auth/accept-invite - Accept organization invitation
+app.post('/accept-invite', async (c) => {
+  try {
+    console.log('🎫 [ACCEPT INVITE] ===========================================');
+    console.log('🎫 [ACCEPT INVITE] Inizio accettazione invito');
+
+    const { token, password, firstName, lastName } = await c.req.json();
+
+    console.log('🎫 [ACCEPT INVITE] Token presente:', !!token);
+    console.log('🎫 [ACCEPT INVITE] Password presente:', !!password);
+    console.log('🎫 [ACCEPT INVITE] Nomi:', { firstName, lastName });
+
+    if (!token) {
+      console.log('❌ [ACCEPT INVITE] Token mancante');
+      return c.json({ error: 'Invitation token is required' }, 400);
+    }
+
+    if (!password || !firstName || !lastName) {
+      console.log('❌ [ACCEPT INVITE] Dati utente mancanti');
+      return c.json({ error: 'Password, first name, and last name are required' }, 400);
+    }
+
+    // 1. Trova l'invito valido
+    console.log('🔍 [ACCEPT INVITE] Ricerca invito per token...');
+    const inviteResult = await query(`
+      SELECT oi.*, o.legal_name as org_name, o.type as org_type
+      FROM organization_invitations oi
+      JOIN organizations o ON oi.organization_id = o.id
+      WHERE oi.token = $1 AND oi.status = 'PENDING' AND oi.expires_at > NOW()
+    `, [token]);
+
+    console.log('📋 [ACCEPT INVITE] Inviti trovati:', inviteResult.rows.length);
+
+    if (inviteResult.rows.length === 0) {
+      console.log('❌ [ACCEPT INVITE] Invito non trovato o non valido');
+      return c.json({ error: 'Invalid or expired invitation token' }, 400);
+    }
+
+    const invite = inviteResult.rows[0];
+    console.log('📋 [ACCEPT INVITE] Invito valido trovato:', {
+      id: invite.id,
+      email: invite.email,
+      role: invite.role,
+      orgId: invite.organization_id,
+      orgName: invite.org_name,
+      expiresAt: invite.expires_at
+    });
+
+    // 2. Verifica se l'utente esiste già
+    console.log('👤 [ACCEPT INVITE] Controllo esistenza utente...');
+    const existingUser = await query('SELECT id, status FROM users WHERE email = $1', [invite.email]);
+
+    let userId;
+    if (existingUser.rows.length > 0) {
+      userId = existingUser.rows[0].id;
+      console.log('✅ [ACCEPT INVITE] Utente esistente trovato:', userId);
+
+      // Verifica se è già membro dell'organizzazione
+      const existingMembership = await query(
+        'SELECT id FROM org_memberships WHERE user_id = $1 AND org_id = $2 AND is_active = true',
+        [userId, invite.organization_id]
+      );
+
+      if (existingMembership.rows.length > 0) {
+        console.log('⚠️ [ACCEPT INVITE] Utente già membro dell\'organizzazione');
+        return c.json({ error: 'You are already a member of this organization' }, 400);
+      }
+    } else {
+      // 3. Crea nuovo utente
+      console.log('👤 [ACCEPT INVITE] Creazione nuovo utente...');
+
+      // Hash password
+      const bcrypt = await import('bcryptjs');
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // Genera salt per compatibilità con il sistema esistente
+      const crypto = await import('crypto');
+      const passwordSalt = crypto.randomBytes(32).toString('hex');
+
+      const newUserResult = await query(`
+        INSERT INTO users (id, email, first_name, last_name, password_hash, password_salt, status, email_verified, created_at, updated_at)
+        VALUES (cuid(), $1, $2, $3, $4, $5, 'ACTIVE', true, NOW(), NOW())
+        RETURNING id
+      `, [invite.email, firstName, lastName, hashedPassword, passwordSalt]);
+
+      userId = newUserResult.rows[0].id;
+      console.log('✅ [ACCEPT INVITE] Nuovo utente creato:', userId);
+    }
+
+    // 4. Aggiungi membership all'organizzazione
+    console.log('🏢 [ACCEPT INVITE] Aggiunta membership organizzazione...');
+    const membershipResult = await query(`
+      INSERT INTO org_memberships (id, user_id, org_id, role, is_active, created_at, updated_at)
+      VALUES (cuid(), $1, $2, $3, true, NOW(), NOW())
+      RETURNING id
+    `, [userId, invite.organization_id, invite.role]);
+
+    console.log('✅ [ACCEPT INVITE] Membership creata:', membershipResult.rows[0].id);
+
+    // 5. Aggiorna status invito
+    console.log('✅ [ACCEPT INVITE] Aggiornamento status invito...');
+    await query(
+      'UPDATE organization_invitations SET status = $1, accepted_at = NOW() WHERE id = $2',
+      ['ACCEPTED', invite.id]
+    );
+
+    console.log('🎉 [ACCEPT INVITE] Invito accettato con successo!');
+    console.log('🎫 [ACCEPT INVITE] ===========================================');
+
+    return c.json({
+      success: true,
+      message: 'Invitation accepted successfully',
+      user: {
+        id: userId,
+        email: invite.email,
+        firstName,
+        lastName
+      },
+      organization: {
+        id: invite.organization_id,
+        name: invite.org_name,
+        type: invite.org_type
+      },
+      membership: {
+        role: invite.role
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ [ACCEPT INVITE] Errore accettazione invito:', error.message);
+    console.error('❌ [ACCEPT INVITE] Stack trace:', error.stack);
+    console.log('🎫 [ACCEPT INVITE] ===========================================');
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
 export default app;
