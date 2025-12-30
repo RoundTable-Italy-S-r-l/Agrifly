@@ -127,10 +127,17 @@ app.get('/organization/general', authMiddleware, async (c) => {
 
     const organization = orgResult.rows[0];
 
+    console.log('🔍 Raw organization data from database:', {
+      id: organization.id,
+      type: organization.type,
+      org_type: organization.org_type,
+      all_keys: Object.keys(organization)
+    });
+
     // NUOVA LOGICA: usa direttamente il tipo organizzazione memorizzato
     const orgType = organization.type || organization.org_type || 'buyer';
 
-    console.log('🔍 Organization type from database:', {
+    console.log('🔍 Organization type determination:', {
       stored_type: organization.type,
       stored_org_type: organization.org_type,
       used_org_type: orgType
@@ -154,6 +161,11 @@ app.get('/organization/general', authMiddleware, async (c) => {
       kind: organization.kind, // Mostra anche il valore originale
       address_line: mappedOrganization.address_line,
       all_fields: Object.keys(organization)
+    });
+
+    console.log('📤 SERVER RESPONSE to frontend:', {
+      type: mappedOrganization.type,
+      org_type: mappedOrganization.org_type
     });
 
     return c.json({
