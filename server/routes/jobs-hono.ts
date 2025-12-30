@@ -4,12 +4,14 @@ import { query } from '../utils/database';
 // file-db.ts non è compatibile con Netlify Functions (usa import.meta)
 // Usiamo solo il database SQLite/PostgreSQL, non file-db
 
+
 const app = new Hono();
 
 // GET /api/jobs - Get buyer's jobs
 app.get('/', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -106,7 +108,8 @@ app.get('/', authMiddleware, async (c) => {
 // GET /api/operator/jobs - Get all available jobs for operators/vendors
 app.get('/operator/jobs', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -285,7 +288,8 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
 // IMPORTANTE: questa route deve essere DOPO /operator/jobs e /offers/:orgId per evitare conflitti di routing
 app.get('/:jobId', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -376,7 +380,8 @@ app.get('/:jobId', authMiddleware, async (c) => {
 // POST /api/jobs - Create a new job
 app.post('/', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -573,7 +578,8 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
   try {
     console.log('🚀 [CREATE OFFER] Inizio richiesta');
     
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     console.log('👤 [CREATE OFFER] User:', { hasUser: !!user, orgId: user?.organizationId });
     
     if (!user || !user.organizationId) {
@@ -714,9 +720,6 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
-    // For SQLite, we need to add the offerId back to the values array
-    const finalInsertValues = isPostgreSQL ? insertValues : [offerId, ...insertValues];
-
     // Convert empty strings to null for dates
     const proposedStart = proposed_start && proposed_start.trim() !== '' ? proposed_start : null;
     const proposedEnd = proposed_end && proposed_end.trim() !== '' ? proposed_end : null;
@@ -734,6 +737,9 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
       now,
       now
     ];
+
+    // For SQLite, we need to add the offerId back to the values array
+    const finalInsertValues = isPostgreSQL ? insertValues : [offerId, ...insertValues];
 
     console.log('📤 [CREATE OFFER] Esecuzione INSERT query...');
     console.log('📤 [CREATE OFFER] Query:', insertQuery.substring(0, 200));
@@ -817,7 +823,8 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
 // GET /api/jobs/:jobId/offers - Get offers for a specific job
 app.get('/:jobId/offers', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -880,7 +887,8 @@ app.get('/:jobId/offers', authMiddleware, async (c) => {
 // POST /api/jobs/:jobId/accept-offer/:offerId - Accept job offer (buyer)
 app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -999,7 +1007,8 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
 // IMPORTANTE: questa route deve essere PRIMA di /:orgId per evitare conflitti di routing
 app.put('/:jobId/offers/:offerId', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1091,7 +1100,8 @@ app.put('/:jobId/offers/:offerId', authMiddleware, async (c) => {
 // IMPORTANTE: questa route deve essere PRIMA di /:orgId per evitare conflitti di routing
 app.post('/:jobId/withdraw-offer/:offerId', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1156,7 +1166,8 @@ app.post('/:jobId/withdraw-offer/:offerId', authMiddleware, async (c) => {
 app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
   try {
     const offerId = c.req.param('offerId');
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
 
     if (!offerId) {
       return c.json({ error: 'Offer ID required' }, 400);
@@ -1234,7 +1245,8 @@ app.post('/offers/:offerId/messages', authMiddleware, async (c) => {
   try {
     const offerId = c.req.param('offerId');
     const { sender_org_id, sender_user_id, message_text } = await c.req.json();
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
 
     if (!offerId || !sender_org_id || !message_text) {
       return c.json({ error: 'Offer ID, sender org ID, and message text required' }, 400);
@@ -1325,7 +1337,8 @@ app.put('/offers/:offerId/messages/read', authMiddleware, async (c) => {
   try {
     const offerId = c.req.param('offerId');
     const { reader_org_id } = await c.req.json();
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
 
     if (!offerId || !reader_org_id) {
       return c.json({ error: 'Offer ID and reader org ID required' }, 400);
@@ -1387,7 +1400,8 @@ app.put('/offers/:offerId/messages/read', authMiddleware, async (c) => {
 // IMPORTANTE: questa route deve essere PRIMA di /offers/:orgId per evitare conflitti
 app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1564,7 +1578,8 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
 // IMPORTANTE: questa route deve essere DOPO le route dei messaggi per evitare conflitti
 app.get('/offers/:orgId', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
     const orgId = c.req.param('orgId');
 
     console.log('🎁 Richiesta job offers per org:', orgId, 'user org:', user?.organizationId);
