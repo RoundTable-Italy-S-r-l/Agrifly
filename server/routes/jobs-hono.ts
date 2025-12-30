@@ -1234,7 +1234,7 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    console.log('💬 Richiesta messaggi per offerta:', offerId);
+    console.log('💬 Richiesta messaggi per offerta:', offerId, 'user org:', user.organizationId);
 
     // Verifica che l'offerta esista e che l'utente sia buyer o operator
     const offerCheck = await query(`
@@ -1244,21 +1244,45 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
       WHERE jo.id = $1
     `, [offerId]);
 
+    console.log('💬 Query result:', offerCheck.rows.length, 'rows');
+
     if (offerCheck.rows.length === 0) {
       return c.json({ error: 'Offer not found' }, 404);
     }
 
     const offer = offerCheck.rows[0];
 
+    console.log('💬 Offer details:', {
+      offerId: offer.id,
+      status: offer.status,
+      buyer_org_id: offer.buyer_org_id,
+      operator_org_id: offer.operator_org_id,
+      user_org: user.organizationId
+    });
+
     // Verifica che l'utente sia buyer o operator dell'offerta
-    if (offer.buyer_org_id !== user.organizationId && offer.operator_org_id !== user.organizationId) {
+    const isBuyer = offer.buyer_org_id === user.organizationId;
+    const isOperator = offer.operator_org_id === user.organizationId;
+
+    console.log('💬 Authorization check:', { isBuyer, isOperator });
+
+    if (!isBuyer && !isOperator) {
+      console.log('💬 ❌ Authorization failed: user is neither buyer nor operator');
       return c.json({ error: 'Unauthorized: You can only view messages for your own offers' }, 403);
     }
 
     // La chat è disponibile solo dopo che l'offerta è stata accettata o assegnata
-    if (offer.status !== 'ACCEPTED' && offer.status !== 'AWARDED') {
+    const isAccepted = offer.status === 'ACCEPTED';
+    const isAwarded = offer.status === 'AWARDED';
+
+    console.log('💬 Status check:', { status: offer.status, isAccepted, isAwarded });
+
+    if (!isAccepted && !isAwarded) {
+      console.log('💬 ❌ Status check failed: offer not accepted or awarded');
       return c.json({ error: 'Chat is available only after the offer is accepted or awarded' }, 403);
     }
+
+    console.log('💬 ✅ Authorization and status checks passed');
 
     const messagesQuery = `
       SELECT
