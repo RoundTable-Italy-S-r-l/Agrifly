@@ -100,7 +100,8 @@ export default function VerifyEmail() {
         if ((postLoginRedirect === 'carrello' || postLoginRedirect === '/buyer/carrello' || postLoginRedirect?.includes('carrello')) && orgData) {
           try {
             const org = JSON.parse(orgData);
-            if (org.can_buy) {
+            // NUOVA LOGICA: controlla tipo organizzazione invece di capabilities
+            if ((org.type || org.org_type) === 'buyer') {
               localStorage.removeItem('post_login_redirect');
               console.log(`🛒 Redirect a /buyer/carrello dopo verifica email`);
               navigate('/buyer/carrello', { replace: true });
@@ -115,7 +116,8 @@ export default function VerifyEmail() {
         if (postLoginRedirect === 'nuovo-preventivo' && orgData) {
           try {
             const org = JSON.parse(orgData);
-            if (org.can_buy) {
+            // NUOVA LOGICA: controlla tipo organizzazione invece di capabilities
+            if ((org.type || org.org_type) === 'buyer') {
               localStorage.removeItem('post_login_redirect');
               console.log(`🚀 Redirect a /buyer/nuovo-preventivo dopo verifica email`);
               navigate('/buyer/nuovo-preventivo', { replace: true });

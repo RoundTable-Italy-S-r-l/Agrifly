@@ -35,42 +35,53 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     const loadUserAndOrgData = () => {
-      // Carica dati organizzazione
+      // Carica dati organizzazione e utente
       const orgData = localStorage.getItem('organization');
-      if (orgData) {
+      const userData = localStorage.getItem('user');
+
+      if (orgData && userData) {
         try {
           const org = JSON.parse(orgData);
-          setOrgCapabilities({
-            can_buy: org.can_buy,
-            can_sell: org.can_sell,
-            can_operate: org.can_operate,
-            can_dispatch: org.can_dispatch
-          });
-          setOrgName(org.name || '');
-          setUserRole(org.role || '');
-        } catch (error) {
-          console.error('Errore nel parsing dei dati organizzazione:', error);
-        }
-      } else {
-        // Se non ci sono dati, riprova dopo un breve delay
-        setTimeout(loadUserAndOrgData, 500);
-        return;
-      }
-
-      // Carica dati utente
-      const userData = localStorage.getItem('user');
-      const token = localStorage.getItem('auth_token');
-      
-      if (userData) {
-        try {
           const user = JSON.parse(userData);
-          console.log('👤 User data from localStorage:', user);
+
+          // NUOVA LOGICA: calcola permessi dinamicamente dal ruolo utente
+          const role = user.role || org.role || 'admin'; // Default admin se non specificato
+          const orgType = org.type || org.org_type || 'buyer';
+
+          // Calcola permessi basati sul ruolo (stessa logica del backend)
+          const permissions = {
+            can_access_catalog: false,
+            can_access_orders: false,
+            can_access_services: false,
+            can_access_bookings: false,
+            can_complete_missions: false
+          };
+
+          if (role === 'admin' || role === 'dispatcher') {
+            permissions.can_access_catalog = true;
+            permissions.can_access_orders = true;
+            permissions.can_access_services = true;
+            permissions.can_access_bookings = true;
+            permissions.can_complete_missions = true;
+          } else if (role === 'vendor') {
+            permissions.can_access_catalog = true;
+            permissions.can_access_orders = true;
+          } else if (role === 'operator') {
+            permissions.can_access_services = true;
+            permissions.can_access_bookings = true;
+            permissions.can_complete_missions = true;
+          }
+
+          setUserPermissions(permissions);
+          setOrgName(org.name || org.legal_name || '');
+          setUserRole(role);
+
+          // Gestisci nome utente
           const firstName = user.first_name || user.firstName || '';
           const lastName = user.last_name || user.lastName || '';
           const fullName = `${firstName} ${lastName}`.trim() || user.email || 'Utente';
-          console.log('👤 Full name:', fullName);
           setUserName(fullName);
-          
+
           // Genera iniziali
           if (firstName && lastName) {
             setUserInitials(`${firstName[0]}${lastName[0]}`.toUpperCase());
@@ -84,9 +95,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           } else {
             setUserInitials('U');
           }
+
         } catch (error) {
-          console.error('Errore nel parsing dei dati utente:', error);
+          console.error('Errore nel parsing dei dati:', error);
         }
+      } else {
+        // Se non ci sono dati, riprova dopo un breve delay
+        setTimeout(loadUserAndOrgData, 500);
+        return;
       } else if (token) {
         // Prova a decodificare il token JWT
         try {
