@@ -5,6 +5,13 @@ import { authMiddleware } from '../middleware/auth';
 
 const app = new Hono();
 
+// Middleware globale per tracciare tutte le richieste a questa sub-app
+app.use('*', async (c, next) => {
+  console.log('🔵 [SERVICES SUB-APP] Request received:', c.req.method, c.req.path);
+  console.log('🔵 [SERVICES SUB-APP] Full URL:', c.req.url);
+  await next();
+});
+
 // ============================================================================
 // GET AVAILABLE GEO AREAS
 // ============================================================================
@@ -98,21 +105,43 @@ app.get('/crop-types', async (c) => {
 // GET RATE CARDS LIST
 // ============================================================================
 
+// IMPORTANTE: Questo endpoint DEVE essere dopo /geo-areas e /crop-types
+// perché Hono matcha le route in ordine e /:orgId matcha qualsiasi stringa
 app.get('/:orgId', authMiddleware, async (c: any) => {
   try {
+    console.log('💰💰💰 [GET RATE CARDS] ENDPOINT RAGGIUNTO - INIZIO 💰💰💰');
     console.log('💰 [GET RATE CARDS] ===========================================');
     console.log('💰 [GET RATE CARDS] Endpoint chiamato');
     console.log('💰 [GET RATE CARDS] Path:', c.req.path);
     console.log('💰 [GET RATE CARDS] Method:', c.req.method);
+    console.log('💰 [GET RATE CARDS] Raw path:', c.req.raw.url);
+    console.log('💰 [GET RATE CARDS] Headers:', Object.keys(c.req.raw.headers));
     
-    const user = c.get('user') as { organizationId: string } | undefined;
+    const user = c.get('user') as { organizationId: string; orgId?: string } | undefined;
     const orgId = c.req.param('orgId');
     
-    console.log('💰 [GET RATE CARDS] Params:', { orgId, userOrgId: user?.organizationId, hasUser: !!user });
+    console.log('💰 [GET RATE CARDS] User object completo:', JSON.stringify(user, null, 2));
+    console.log('💰 [GET RATE CARDS] User organizationId:', user?.organizationId);
+    console.log('💰 [GET RATE CARDS] User orgId:', user?.orgId);
+    console.log('💰 [GET RATE CARDS] Requested orgId:', orgId);
+    console.log('💰 [GET RATE CARDS] Comparison:', {
+      userOrgId: user?.organizationId,
+      userOrgIdAlt: user?.orgId,
+      requestedOrgId: orgId,
+      match1: user?.organizationId === orgId,
+      match2: user?.orgId === orgId,
+      hasUser: !!user
+    });
     
     // Verifica che l'utente appartenga all'organizzazione
+    // Usa la stessa logica di jobs-hono.ts per consistenza
     if (!user || user.organizationId !== orgId) {
-      console.log('❌ [GET RATE CARDS] Unauthorized:', { userOrgId: user?.organizationId, requestedOrgId: orgId, hasUser: !!user });
+      console.log('❌❌❌ [GET RATE CARDS] UNAUTHORIZED - RESTITUISCO 403 ❌❌❌');
+      console.log('❌ [GET RATE CARDS] Unauthorized:', { 
+        userOrgId: user?.organizationId,
+        requestedOrgId: orgId, 
+        hasUser: !!user
+      });
       return c.json({ error: 'Unauthorized' }, 403);
     }
 

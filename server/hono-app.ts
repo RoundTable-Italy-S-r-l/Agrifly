@@ -42,6 +42,8 @@ app.use('*', logger());
 app.use('*', async (c, next) => {
   if (c.req.path.startsWith('/api/')) {
     console.log(`📡 ${c.req.method} ${c.req.path}`);
+    console.log(`🔍 [GLOBAL MIDDLEWARE] Path: ${c.req.path}, URL: ${c.req.url}`);
+    console.log(`🔍 [GLOBAL MIDDLEWARE] Has Auth Header: ${!!c.req.header('Authorization')}`);
   }
   await next();
 });

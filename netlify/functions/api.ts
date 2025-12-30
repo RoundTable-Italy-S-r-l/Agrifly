@@ -69,9 +69,15 @@ export async function handler(event: any, context: any) {
       }
     }
 
+    // Log dettagliato per debug routing
+    const fullUrl = `${protocol}://${host}${event.path}${event.queryStringParameters ? '?' + new URLSearchParams(event.queryStringParameters).toString() : ''}`;
+    console.log('🔍 [NETLIFY HANDLER] Full URL:', fullUrl);
+    console.log('🔍 [NETLIFY HANDLER] Event path:', event.path);
+    console.log('🔍 [NETLIFY HANDLER] Has Authorization header:', !!event.headers.authorization);
+    
     // Gestisci la richiesta con Hono
     const response = await honoApp.fetch(
-      new Request(`${protocol}://${host}${event.path}${event.queryStringParameters ? '?' + new URLSearchParams(event.queryStringParameters).toString() : ''}`, {
+      new Request(fullUrl, {
         method: event.httpMethod,
         headers: event.headers,
         body: requestBody
@@ -81,6 +87,9 @@ export async function handler(event: any, context: any) {
         event
       }
     );
+    
+    console.log('🔍 [NETLIFY HANDLER] Response status:', response.status);
+    console.log('🔍 [NETLIFY HANDLER] Response headers:', Object.fromEntries(response.headers.entries()));
 
     console.log('📤 Response:', response.status);
 
