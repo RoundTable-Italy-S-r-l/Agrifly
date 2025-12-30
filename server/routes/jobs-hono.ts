@@ -224,7 +224,7 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
     // TEMPORANEO: Per testing, mostriamo tutti i job OPEN indipendentemente dall'organizzazione
     const result = await query(`
       SELECT
-        j.id, j.buyer_org_id, j.broker_org_id, j.service_type, j.terrain_conditions,
+        j.id, j.buyer_org_id, j.broker_org_id, j.service_type, j.crop_type, j.treatment_type, j.terrain_conditions,
         j.status, j.field_name, j.field_polygon, j.area_ha, j.location_json, j.requested_window_start, j.requested_window_end,
         j.constraints_json, j.visibility_mode, j.accepted_offer_id, j.target_date_start, j.target_date_end, j.notes,
         j.created_at, j.updated_at, o.legal_name as buyer_org_legal_name
@@ -395,7 +395,10 @@ app.post('/', authMiddleware, async (c) => {
       field_polygon,
       target_date_start,
       target_date_end,
-      notes
+      notes,
+      crop_type,
+      treatment_type,
+      terrain_conditions
     } = body;
     
     // Se field_polygon è presente ma non è in location_json, aggiungilo
@@ -470,19 +473,21 @@ app.post('/', authMiddleware, async (c) => {
       // PostgreSQL: use RETURNING
     const result = await query(`
         INSERT INTO jobs (
-          id, buyer_org_id, broker_org_id, service_type, terrain_conditions,
+          id, buyer_org_id, broker_org_id, service_type, crop_type, treatment_type, terrain_conditions,
           status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end,
           constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes,
           created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-      RETURNING id, buyer_org_id, broker_org_id, service_type, terrain_conditions, status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end, constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes, created_at, updated_at
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+      RETURNING id, buyer_org_id, broker_org_id, service_type, crop_type, treatment_type, terrain_conditions, status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end, constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes, created_at, updated_at
     `, [
         jobId,
         user.organizationId, // buyer_org_id
         null, // broker_org_id
         service_type,
-        null, // terrain_conditions
+        body.crop_type || null, // crop_type
+        body.treatment_type || null, // treatment_type
+        body.terrain_conditions || null, // terrain_conditions
         'OPEN', // status
         field_name,
         field_polygon || null, // field_polygon
@@ -515,18 +520,20 @@ app.post('/', authMiddleware, async (c) => {
       // SQLite: insert then fetch
       await query(`
         INSERT INTO jobs (
-          id, buyer_org_id, broker_org_id, service_type, terrain_conditions,
+          id, buyer_org_id, broker_org_id, service_type, crop_type, treatment_type, terrain_conditions,
           status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end,
           constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes,
           created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       `, [
         jobId,
         user.organizationId, // buyer_org_id
         null, // broker_org_id
         service_type,
-        null, // terrain_conditions
+        body.crop_type || null, // crop_type
+        body.treatment_type || null, // treatment_type
+        body.terrain_conditions || null, // terrain_conditions
         'OPEN', // status
         field_name,
         field_polygon || null, // field_polygon
