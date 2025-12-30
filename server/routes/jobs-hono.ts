@@ -1196,7 +1196,7 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
 
     // Verifica che l'offerta esista e che l'utente sia buyer o operator
     const offerCheck = await query(`
-      SELECT jo.id, jo.job_id, jo.operator_org_id, j.buyer_org_id
+      SELECT jo.id, jo.job_id, jo.operator_org_id, jo.status, j.buyer_org_id
       FROM job_offers jo
       JOIN jobs j ON jo.job_id = j.id
       WHERE jo.id = $1
@@ -1207,10 +1207,15 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
     }
 
     const offer = offerCheck.rows[0];
-    
+
     // Verifica che l'utente sia buyer o operator dell'offerta
     if (offer.buyer_org_id !== user.organizationId && offer.operator_org_id !== user.organizationId) {
       return c.json({ error: 'Unauthorized: You can only view messages for your own offers' }, 403);
+    }
+
+    // La chat è disponibile solo dopo che l'offerta è stata accettata
+    if (offer.status !== 'ACCEPTED') {
+      return c.json({ error: 'Chat is available only after the offer is accepted' }, 403);
     }
 
     const messagesQuery = `
@@ -1276,7 +1281,7 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
 
     // Verifica che l'offerta esista
     const offerCheck = await query(`
-      SELECT jo.id, jo.job_id, jo.operator_org_id, j.buyer_org_id
+      SELECT jo.id, jo.job_id, jo.operator_org_id, jo.status, j.buyer_org_id
       FROM job_offers jo
       JOIN jobs j ON jo.job_id = j.id
       WHERE jo.id = $1
@@ -1287,10 +1292,15 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
     }
 
     const offer = offerCheck.rows[0];
-    
+
     // Verifica che il sender sia buyer o operator dell'offerta
     if (offer.buyer_org_id !== sender_org_id && offer.operator_org_id !== sender_org_id) {
       return c.json({ error: 'Unauthorized: You can only send messages for your own offers' }, 403);
+    }
+
+    // I messaggi possono essere inviati solo dopo che l'offerta è stata accettata
+    if (offer.status !== 'ACCEPTED') {
+      return c.json({ error: 'Messages can only be sent after the offer is accepted' }, 403);
     }
 
     // Crea messaggio
