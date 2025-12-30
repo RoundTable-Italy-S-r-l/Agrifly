@@ -127,13 +127,22 @@ app.get('/organization/general', authMiddleware, async (c) => {
 
     const organization = orgResult.rows[0];
 
-    // Determina il tipo organizzazione basato sulle capabilities (più affidabile di kind)
+    // Determina il tipo organizzazione basato sulle capabilities
     let orgType = 'BUYER'; // Default
     if (organization.can_sell || organization.can_operate) {
       orgType = 'VENDOR_OPERATOR';
     } else if (organization.can_buy) {
       orgType = 'BUYER';
     }
+
+    console.log('🔍 Organization type determination:', {
+      can_buy: organization.can_buy,
+      can_sell: organization.can_sell,
+      can_operate: organization.can_operate,
+      kind: organization.kind,
+      type: organization.type,
+      determined_org_type: orgType
+    });
 
     // Mappa i campi del database ai nomi del frontend
     const mappedOrganization = {
