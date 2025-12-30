@@ -274,15 +274,7 @@ export function GeneralSection() {
               <Label htmlFor="org_type">Tipo Organizzazione</Label>
               <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
                 {(() => {
-                  console.log('🔍 [ORG TYPE] Organization data:', organization);
                   const org = organization;
-                  console.log('🔍 [ORG TYPE] Capabilities:', {
-                    can_buy: org?.can_buy,
-                    can_sell: org?.can_sell,
-                    can_operate: org?.can_operate,
-                    can_dispatch: org?.can_dispatch
-                  });
-
                   if (org?.can_sell || org?.can_operate) {
                     return 'Fornitore/Operatore (Vendor/Operator)';
                   } else if (org?.can_buy) {

@@ -213,8 +213,7 @@ app.patch('/organization/general', authMiddleware, async (c) => {
 
     // Usa il database SQLite/PostgreSQL
     // Mappa dei campi consentiti (frontend -> database)
-    // NOTA: org_type/kind e capabilities non sono normalmente modificabili - vengono assegnati alla registrazione
-    // TEMPORANEAMENTE abilitati per correggere dati inconsistenti
+    // NOTA: org_type/kind e capabilities non sono modificabili - vengono assegnati alla registrazione
     const fieldMapping: Record<string, string> = {
       'legal_name': 'legal_name',
       'logo_url': 'logo_url',
@@ -222,18 +221,14 @@ app.patch('/organization/general', authMiddleware, async (c) => {
       'support_email': 'support_email',
       'vat_number': 'vat_number',
       'tax_code': 'tax_code',
-      // 'org_type': 'kind', // Rimosso - non modificabile
+      // 'org_type': 'kind', // Non modificabile - determinato da capabilities
       'address_line': 'address_line',
       'city': 'city',
       'province': 'province',
       'region': 'region',
       'postal_code': 'postal_code',
-      'country': 'country',
-      // TEMP: abilitare capabilities per correggere Lenzi
-      'can_buy': 'can_buy',
-      'can_sell': 'can_sell',
-      'can_operate': 'can_operate',
-      'can_dispatch': 'can_dispatch'
+      'country': 'country'
+      // capabilities non modificabili - can_buy, can_sell, can_operate, can_dispatch
     };
 
     // Filtra solo i campi consentiti e mappa i nomi
