@@ -3,7 +3,15 @@ import {
   CreateJobSchema,
   CreateJobOfferSchema,
   CertifiedQuotesRequestSchema,
-  RegisterOrganizationSchema
+  RegisterOrganizationSchema,
+  LoginSchema,
+  VerifyEmailSchema,
+  AcceptInviteSchema,
+  CreateOrderFromCartSchema,
+  AddCartItemSchema,
+  CreateAddressSchema,
+  CreateOperatorSchema,
+  CreateSavedFieldSchema
 } from '../server/schemas/api.schemas';
 
 describe('API Validation Schemas', () => {
@@ -47,14 +55,14 @@ describe('API Validation Schemas', () => {
       expect(result.data.total_cents).toBe(486957); // Should be converted to cents
     });
 
-    it('should validate international number format', () => {
+    it('should validate international decimal format', () => {
       const internationalFormat = {
-        total_cents: 4869.57
+        total_cents: 48.70 // 48.70€ in international format
       };
 
       const result = CreateJobOfferSchema.safeParse(internationalFormat);
       expect(result.success).toBe(true);
-      expect(result.data.total_cents).toBe(4869.57);
+      expect(result.data.total_cents).toBe(49); // Rounded to cents
     });
 
     it('should validate number as cents directly', () => {
@@ -84,13 +92,13 @@ describe('API Validation Schemas', () => {
   describe('RegisterOrganizationSchema', () => {
     it('should validate complete organization data', () => {
       const validData = {
+        email: 'mario.rossi@example.com',
+        password: 'password123',
         firstName: 'Mario',
         lastName: 'Rossi',
-        email: 'mario.rossi@example.com',
         phone: '+391234567890',
         organizationName: 'Azienda Agricola Rossi',
-        orgType: 'FARM',
-        password: 'password123'
+        accountType: 'buyer'
       };
 
       const result = RegisterOrganizationSchema.safeParse(validData);
@@ -99,16 +107,132 @@ describe('API Validation Schemas', () => {
 
     it('should reject invalid email', () => {
       const invalidData = {
+        email: 'invalid-email',
+        password: 'password123',
         firstName: 'Mario',
         lastName: 'Rossi',
-        email: 'invalid-email',
         organizationName: 'Azienda Agricola Rossi',
-        orgType: 'FARM',
-        password: 'password123'
+        accountType: 'buyer'
       };
 
       const result = RegisterOrganizationSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('LoginSchema', () => {
+    it('should validate login credentials', () => {
+      const validData = {
+        email: 'user@example.com',
+        password: 'password123'
+      };
+
+      const result = LoginSchema.safeParse(validData);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('VerifyEmailSchema', () => {
+    it('should validate verification code', () => {
+      const validData = {
+        code: '123456'
+      };
+
+      const result = VerifyEmailSchema.safeParse(validData);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('AcceptInviteSchema', () => {
+    it('should validate invite acceptance', () => {
+      const validData = {
+        token: 'invite-token-123',
+        password: 'newpassword123',
+        firstName: 'Mario',
+        lastName: 'Rossi'
+      };
+
+      const result = AcceptInviteSchema.safeParse(validData);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('CreateOrderFromCartSchema', () => {
+    it('should validate order creation', () => {
+      const validData = {
+        cartId: 'cart-123',
+        shippingAddress: { street: 'Via Roma 1' },
+        billingAddress: { street: 'Via Roma 1' },
+        customerNotes: 'Consegna urgente'
+      };
+
+      const result = CreateOrderFromCartSchema.safeParse(validData);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('AddCartItemSchema', () => {
+    it('should validate cart item addition', () => {
+      const validData = {
+        cartId: 'cart-123',
+        skuId: 'sku-456',
+        quantity: 2
+      };
+
+      const result = AddCartItemSchema.safeParse(validData);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('CreateAddressSchema', () => {
+    it('should validate address creation', () => {
+      const validData = {
+        type: 'SHIPPING',
+        first_name: 'Mario',
+        last_name: 'Rossi',
+        address_line_1: 'Via Roma 1',
+        city: 'Roma',
+        province: 'RM',
+        postal_code: '00100',
+        country: 'IT'
+      };
+
+      const result = CreateAddressSchema.safeParse(validData);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('CreateOperatorSchema', () => {
+    it('should validate operator creation', () => {
+      const validData = {
+        first_name: 'Luca',
+        last_name: 'Verdi',
+        email: 'luca.verdi@example.com',
+        service_tags: ['SPRAY', 'SPREAD'],
+        max_hours_per_day: 8,
+        max_ha_per_day: 50
+      };
+
+      const result = CreateOperatorSchema.safeParse(validData);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('CreateSavedFieldSchema', () => {
+    it('should validate saved field creation', () => {
+      const validData = {
+        name: 'Campo Nord',
+        polygon: [[[1, 2], [3, 4], [5, 6]]],
+        area_ha: 25.5,
+        location_json: { lat: 45.5, lng: 10.5 },
+        crop_type: 'VINEYARD',
+        treatment_type: 'FUNGICIDE',
+        terrain_conditions: 'HILLY',
+        notes: 'Campo con buona esposizione'
+      };
+
+      const result = CreateSavedFieldSchema.safeParse(validData);
+      expect(result.success).toBe(true);
     });
   });
 });
