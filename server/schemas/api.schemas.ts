@@ -277,6 +277,16 @@ export const DirectionsRequestSchema = z.object({
   })).optional()
 });
 
+// URL Parameter schemas
+export const AcceptOfferParamsSchema = z.object({
+  jobId: z.string().min(1, 'Job ID obbligatorio'),
+  offerId: z.string().min(1, 'Offer ID obbligatorio')
+});
+
+export const CompleteMissionParamsSchema = z.object({
+  offerId: z.string().min(1, 'Offer ID obbligatorio')
+});
+
 // Type exports
 export type CreateJobInput = z.infer<typeof CreateJobSchema>;
 export type CreateJobOfferInput = z.infer<typeof CreateJobOfferSchema>;
@@ -292,3 +302,5 @@ export type CreateServiceInput = z.infer<typeof CreateServiceSchema>;
 export type CreateSavedFieldInput = z.infer<typeof CreateSavedFieldSchema>;
 export type CreateMessageInput = z.infer<typeof CreateMessageSchema>;
 export type DirectionsRequest = z.infer<typeof DirectionsRequestSchema>;
+export type AcceptOfferParams = z.infer<typeof AcceptOfferParamsSchema>;
+export type CompleteMissionParams = z.infer<typeof CompleteMissionParamsSchema>;

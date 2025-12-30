@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
 import { query } from '../utils/database';
-import { CreateJobSchema, CreateJobOfferSchema, CreateMessageSchema, MarkMessagesReadSchema } from '../schemas/api.schemas';
+import { CreateJobSchema, CreateJobOfferSchema, CreateMessageSchema, MarkMessagesReadSchema, AcceptOfferParamsSchema, CompleteMissionParamsSchema } from '../schemas/api.schemas';
 // file-db.ts non è compatibile con Netlify Functions (usa import.meta)
 // Usiamo solo il database SQLite/PostgreSQL, non file-db
 
@@ -891,8 +891,25 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const jobId = c.req.param('jobId');
-    const offerId = c.req.param('offerId');
+    // Validate URL parameters
+    const paramsResult = AcceptOfferParamsSchema.safeParse({
+      jobId: c.req.param('jobId'),
+      offerId: c.req.param('offerId')
+    });
+
+    if (!paramsResult.success) {
+      return c.json({
+        error: 'Validation failed',
+        message: 'Parametri URL non validi',
+        details: paramsResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          code: err.code
+        }))
+      }, 400);
+    }
+
+    const { jobId, offerId } = paramsResult.data;
 
     console.log('✅ [ACCEPT OFFER] Accettazione offerta:', { jobId, offerId, buyerOrgId: user.organizationId });
 
@@ -1204,11 +1221,9 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
         jom.body,
         jom.created_at,
         u.first_name,
-        u.last_name,
-        o.legal_name as sender_org_name
+        u.last_name
       FROM job_offer_messages jom
       LEFT JOIN users u ON jom.sender_user_id = u.id
-      LEFT JOIN organizations o ON u.organization_id = o.id
       WHERE jom.job_offer_id = $1
       ORDER BY jom.created_at ASC
     `;
@@ -1218,13 +1233,12 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
     const messages = result.rows.map(msg => ({
       id: msg.id,
       offer_id: msg.job_offer_id,
-      sender_org_id: user.organizationId, // Non abbiamo questo campo, usiamo l'utente corrente
+      sender_org_id: user.organizationId, // Tutti i messaggi sono dell'organizzazione corrente
       sender_user_id: msg.sender_user_id,
       message_text: msg.body,
       is_read: false, // La tabella non ha questo campo
       created_at: msg.created_at,
-      sender_org_name: msg.sender_org_name,
-      sender_name: `${msg.first_name} ${msg.last_name}`.trim()
+      sender_name: `${msg.first_name || 'Utente'} ${msg.last_name || ''}`.trim()
     }));
 
     console.log('✅ Recuperati', messages.length, 'messaggi per offerta');
@@ -1255,7 +1269,7 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
 
     // Usa l'organizzazione dell'utente autenticato come sender
     const sender_org_id = user.organizationId;
-    const sender_user_id = user.id;
+    const sender_user_id = user.userId;
 
     console.log('💬 Creazione messaggio per offerta:', offerId);
 
@@ -1296,10 +1310,9 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
     // Recupera il messaggio appena creato
     const messageResult = await query(`
       SELECT jom.id, jom.job_offer_id, jom.sender_user_id, jom.body, jom.created_at,
-             u.first_name, u.last_name, o.legal_name as sender_org_name
+             u.first_name, u.last_name
       FROM job_offer_messages jom
       LEFT JOIN users u ON jom.sender_user_id = u.id
-      LEFT JOIN organizations o ON u.organization_id = o.id
       WHERE jom.id = $1
     `, [messageId]);
 
@@ -1395,7 +1408,24 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const offerId = c.req.param('offerId');
+    // Validate URL parameters
+    const paramsResult = CompleteMissionParamsSchema.safeParse({
+      offerId: c.req.param('offerId')
+    });
+
+    if (!paramsResult.success) {
+      return c.json({
+        error: 'Validation failed',
+        message: 'Parametri URL non validi',
+        details: paramsResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          code: err.code
+        }))
+      }, 400);
+    }
+
+    const { offerId } = paramsResult.data;
 
     console.log('✅ [COMPLETE MISSION] Completamento missione per offerta:', { offerId, operatorOrgId: user.organizationId });
 
