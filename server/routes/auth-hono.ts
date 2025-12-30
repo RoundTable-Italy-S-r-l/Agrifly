@@ -13,22 +13,28 @@ import {
   AcceptInviteSchema
 } from '../schemas/api.schemas';
 
+// ============================================================================
+// NUOVA LOGICA COMPLETAMENTE BASATA SU RUOLI UTENTE
+// ============================================================================
+//
 // ORGANIZZAZIONI (type scelto alla registrazione):
 // - buyer: compra prodotti/servizi → tutti membri vanno a /buyer
-// - vendor/operator: vende e "opera" prodotti → membri a admin/
+// - vendor/operator: vende e "opera" prodotti → membri a /admin
 //
-// RUOLI UTENTE (gerarchia):
-// - admin: grado gerarchico (tutti iniziano così) - può accedere a tutte le sezioni dell'admin
-// - vendor: ruolo funzionale (solo per org vendor) - può accedere alla sezione catalogo e ordini (oltre a dashboard e impostazioni)
-// - operator: ruolo funzionale (solo per org vendor/operator) - può accedere alla sezione prenotazioni e servizi (oltre a dashboard e impostazioni)
-// - dispatcher: ruolo funzionale (solo per org vendor/operator)   - può accedere a tutte sezionoi /admin. 
+// RUOLI UTENTE (gerarchia - PERMESSI TOTALMENTE SUGLI UTENTI):
+// - admin: grado gerarchico - ACCESSO COMPLETO A TUTTO
+// - dispatcher: grado gerarchico - ACCESSO COMPLETO A TUTTO
+// - vendor: ruolo funzionale - CATALOGO + ORDINI (sempre, indipendentemente dall'org)
+// - operator: ruolo funzionale - SERVIZI + PRENOTAZIONI + MISSIONI (sempre, indipendentemente dall'org)
 //
 // LOGICA INVITI:
-// - Buyer org: possono invitare solo admin
+// - Buyer org: possono invitare solo admin (per sicurezza)
 // - Vendor/Operator org: possono invitare admin/vendor/operator/dispatcher
 //
-// LOGICA POTERI (sono consefuenze rispetto alle "categorie" di prima):
-// can sell, can operate ecc sono consefuenze del fatto che uno possa accedere solo ad alcune sezioni oppure no: 
+// LOGICA PERMESSI (COMPLETAMENTE SUGLI UTENTI):
+// ✅ can_buy, can_sell, can_operate derivano dal RUOLO UTENTE, non dall'organizzazione!
+// ✅ Un "vendor" può sempre gestire il catalogo, anche in org "buyer"
+// ✅ Un "operator" può sempre gestire prenotazioni, anche in org "buyer" 
 // ============================================================================
 
 import { Hono } from 'hono';

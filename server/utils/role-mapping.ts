@@ -1,21 +1,22 @@
 /**
  * Mappa ruoli legacy dal database ai nuovi ruoli standardizzati
- * 
- * MODELLO AUTENTICAZIONE E AUTORIZZAZIONE
- * 
- * ORGANIZZAZIONI (type scelto alla registrazione):
+ *
+ * 🚀 NUOVA LOGICA COMPLETAMENTE BASATA SU RUOLI UTENTE
+ *
+ * ORGANIZZAZIONI (type scelto alla registrazione - SOLO per routing):
  * - buyer: compra prodotti/servizi → tutti membri vanno a /buyer
- * - vendor: vende prodotti → membri admin/vendor vanno a /admin/catalogo
- * - operator: fornisce servizi operativi → membri admin/operator vanno a /admin/prenotazioni
- * 
- * RUOLI UTENTE (gerarchia):
- * - admin: grado gerarchico (tutti iniziano così)
- * - vendor: ruolo funzionale (solo per org vendor)
- * - operator: ruolo funzionale (solo per org vendor/operator)
- * - dispatcher: ruolo funzionale (solo per org vendor/operator)
- * 
+ * - vendor/operator: vende e "opera" prodotti → membri vanno a /admin
+ *
+ * RUOLI UTENTE (gerarchia - PERMESSI TOTALMENTE SUGLI UTENTI):
+ * - admin: grado gerarchico - ACCESSO COMPLETO A TUTTO
+ * - dispatcher: grado gerarchico - ACCESSO COMPLETO A TUTTO
+ * - vendor: ruolo funzionale - CATALOGO + ORDINI (sempre!)
+ * - operator: ruolo funzionale - SERVIZI + PRENOTAZIONI + MISSIONI (sempre!)
+ *
+ * ✅ I permessi derivano SOLO dal ruolo utente, NON dal tipo organizzazione!
+ *
  * LOGICA INVITI:
- * - Buyer org: possono invitare solo admin
+ * - Buyer org: possono invitare solo admin (per sicurezza)
  * - Vendor/Operator org: possono invitare admin/vendor/operator/dispatcher
  */
 
@@ -82,19 +83,18 @@ export function isAdminRole(role: string): boolean {
 }
 
 /**
- * Determina capabilities da orgType e userRole
- * NUOVA LOGICA: capabilities derivano dal ruolo utente, non dall'organizzazione
- * @param orgType Tipo organizzazione
+ * Determina capabilities dal RUOLO UTENTE (NON più dal tipo organizzazione)
+ * LOGICA COMPLETAMENTE BASATA SU RUOLI: permessi derivano SOLO dal ruolo utente
+ * @param orgType Tipo organizzazione (solo per backward compatibility legacy)
  * @param userRole Ruolo utente standardizzato
  * @returns Capabilities object con permessi di accesso
  */
 export function deriveCapabilities(orgType: string, userRole: string) {
   const role = userRole.toLowerCase();
-  const org = orgType.toLowerCase();
 
   // Base permissions per tutti
   const capabilities = {
-    // Legacy permissions (per backward compatibility)
+    // Legacy permissions (ora completamente basate sul ruolo utente)
     can_buy: false,
     can_sell: false,
     can_operate: false,
@@ -111,7 +111,9 @@ export function deriveCapabilities(orgType: string, userRole: string) {
     can_complete_missions: false
   };
 
-  // Admin: accesso completo a tutto
+  // 🚀 NUOVA LOGICA: PERMESSI BASATI SOLO SUL RUOLO UTENTE
+
+  // Admin: accesso completo a tutto (grado gerarchico)
   if (role === 'admin') {
     capabilities.can_buy = true;
     capabilities.can_sell = true;
@@ -128,10 +130,10 @@ export function deriveCapabilities(orgType: string, userRole: string) {
     return capabilities;
   }
 
-  // Dispatcher: accesso completo a tutto (come admin ma forse senza gestione utenti)
+  // Dispatcher: accesso completo a tutto (grado gerarchico)
   if (role === 'dispatcher') {
-    capabilities.can_buy = org === 'buyer';
-    capabilities.can_sell = org === 'vendor';
+    capabilities.can_buy = true;
+    capabilities.can_sell = true;
     capabilities.can_operate = true;
     capabilities.can_dispatch = true;
     capabilities.can_access_admin = true;
@@ -144,36 +146,32 @@ export function deriveCapabilities(orgType: string, userRole: string) {
     return capabilities;
   }
 
-  // Vendor: accesso a catalogo e ordini (per gestire prodotti)
-  if (role === 'vendor' && org === 'vendor') {
-    capabilities.can_buy = org === 'buyer';
-    capabilities.can_sell = true;
+  // Vendor: ruolo funzionale per gestire prodotti/catalogo
+  if (role === 'vendor') {
+    capabilities.can_buy = true;     // Può comprare per l'organizzazione
+    capabilities.can_sell = true;    // Può vendere prodotti
     capabilities.can_access_admin = true;
-    capabilities.can_access_catalog = true;
-    capabilities.can_access_orders = true;
+    capabilities.can_access_catalog = true;  // Gestione catalogo prodotti
+    capabilities.can_access_orders = true;   // Gestione ordini
     capabilities.can_send_messages = true;
     return capabilities;
   }
 
-  // Operator: accesso a prenotazioni e servizi (per gestire operazioni)
-  if (role === 'operator' && (org === 'operator' || org === 'vendor')) {
-    capabilities.can_buy = org === 'buyer';
-    capabilities.can_sell = org === 'vendor';
-    capabilities.can_operate = true;
+  // Operator: ruolo funzionale per gestire operazioni/prenotazioni
+  if (role === 'operator') {
+    capabilities.can_buy = true;     // Può comprare per l'organizzazione
+    capabilities.can_operate = true; // Può eseguire operazioni
     capabilities.can_access_admin = true;
-    capabilities.can_access_services = true;
-    capabilities.can_access_bookings = true;
+    capabilities.can_access_services = true;   // Gestione servizi
+    capabilities.can_access_bookings = true;   // Gestione prenotazioni
     capabilities.can_send_messages = true;
-    capabilities.can_complete_missions = true;
+    capabilities.can_complete_missions = true; // Può completare missioni
     return capabilities;
   }
 
-  // Buyer: solo acquisto
-  if (org === 'buyer') {
-    capabilities.can_buy = true;
-    return capabilities;
-  }
-
+  // Buyer: ruolo di default per chi compra
+  // (Questo potrebbe non servire più, ma mantenuto per backward compatibility)
+  capabilities.can_buy = true;
   return capabilities;
 }
 
