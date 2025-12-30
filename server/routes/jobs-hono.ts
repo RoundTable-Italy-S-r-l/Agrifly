@@ -17,20 +17,30 @@ app.get('/', authMiddleware, async (c) => {
     // Ensure table exists (compatible with both SQLite and PostgreSQL)
     const dbUrl = process.env.DATABASE_URL || '';
     const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
-    
+
     const createTableQuery = isPostgreSQL
       ? `
       CREATE TABLE IF NOT EXISTS jobs (
-          id VARCHAR(255) PRIMARY KEY,
-          buyer_org_id VARCHAR(255) NOT NULL,
-          field_name VARCHAR(255) NOT NULL,
-          service_type VARCHAR(255) NOT NULL,
-        area_ha DECIMAL(10,4),
-        location_json TEXT,
-        target_date_start TIMESTAMP,
-        target_date_end TIMESTAMP,
+          id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+          buyer_org_id TEXT NOT NULL,
+          broker_org_id VARCHAR(255),
+          service_type TEXT NOT NULL DEFAULT 'SPRAY',
+          crop_type TEXT,
+          treatment_type TEXT,
+          terrain_conditions VARCHAR(255),
+          status TEXT NOT NULL DEFAULT 'OPEN',
+          field_name TEXT NOT NULL,
+          field_polygon TEXT,
+          area_ha DECIMAL(10,4),
+          location_json TEXT,
+          requested_window_start TIMESTAMP,
+          requested_window_end TIMESTAMP,
+          constraints_json TEXT,
+          visibility_mode VARCHAR(255) DEFAULT 'WHITELIST_ONLY',
+          accepted_offer_id VARCHAR(255),
+          target_date_start TIMESTAMP,
+          target_date_end TIMESTAMP,
           notes TEXT,
-          status VARCHAR(50) DEFAULT 'OPEN',
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
         )
@@ -39,19 +49,29 @@ app.get('/', authMiddleware, async (c) => {
         CREATE TABLE IF NOT EXISTS jobs (
           id TEXT PRIMARY KEY,
           buyer_org_id TEXT NOT NULL,
-          field_name TEXT NOT NULL,
-          service_type TEXT NOT NULL,
+          broker_org_id TEXT,
+          service_type TEXT NOT NULL DEFAULT 'SPRAY',
+          crop_type TEXT,
+          treatment_type TEXT,
+          terrain_conditions TEXT,
+          status TEXT DEFAULT 'OPEN',
+          field_name TEXT,
+          field_polygon TEXT,
           area_ha REAL,
           location_json TEXT,
+          requested_window_start TEXT,
+          requested_window_end TEXT,
+          constraints_json TEXT,
+          visibility_mode TEXT DEFAULT 'WHITELIST_ONLY',
+          accepted_offer_id TEXT,
           target_date_start TEXT,
           target_date_end TEXT,
-        notes TEXT,
-        status TEXT DEFAULT 'OPEN',
+          notes TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `;
-    
+
     try {
       await query(createTableQuery);
     } catch (error: any) {
@@ -60,7 +80,7 @@ app.get('/', authMiddleware, async (c) => {
     }
 
     const result = await query(`
-      SELECT id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at
+      SELECT id, buyer_org_id, broker_org_id, service_type, crop_type, treatment_type, terrain_conditions, status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end, constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes, created_at, updated_at
       FROM jobs
       WHERE buyer_org_id = $1
       ORDER BY created_at DESC
@@ -135,9 +155,10 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
       console.error('Error creating jobs table:', error.message);
     }
 
-    await query(`
+    const jobOffersTableQuery = isPostgreSQL
+      ? `
       CREATE TABLE IF NOT EXISTS job_offers (
-        id TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
         job_id TEXT NOT NULL,
         operator_org_id TEXT NOT NULL,
         status TEXT DEFAULT 'OFFERED',
@@ -147,18 +168,43 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
         proposed_start TIMESTAMP,
         proposed_end TIMESTAMP,
         provider_note TEXT,
-        created_at TEXT,
-        updated_at TEXT
+        created_at TEXT DEFAULT NOW(),
+        updated_at TEXT DEFAULT NOW(),
+        reliability_snapshot_json TEXT,
+        offer_lines_json TEXT,
+        price_cents INTEGER
       )
-    `);
+      `
+      : `
+      CREATE TABLE IF NOT EXISTS job_offers (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        operator_org_id TEXT NOT NULL,
+        status TEXT DEFAULT 'OFFERED',
+        pricing_snapshot_json TEXT,
+        total_cents INTEGER NOT NULL,
+        currency TEXT DEFAULT 'EUR',
+        proposed_start TEXT,
+        proposed_end TEXT,
+        provider_note TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        reliability_snapshot_json TEXT,
+        offer_lines_json TEXT,
+        price_cents INTEGER
+      )
+      `;
+
+    await query(jobOffersTableQuery);
 
     // Get all open jobs (not from the user's own organization) with buyer organization details
     // TEMPORANEO: Per testing, mostriamo tutti i job OPEN indipendentemente dall'organizzazione
     const result = await query(`
       SELECT
-        j.id, j.buyer_org_id, j.field_name, j.service_type, j.area_ha, j.location_json,
-        j.target_date_start, j.target_date_end, j.notes, j.status, j.created_at, j.updated_at,
-        o.legal_name as buyer_org_legal_name
+        j.id, j.buyer_org_id, j.broker_org_id, j.service_type, j.crop_type, j.treatment_type, j.terrain_conditions,
+        j.status, j.field_name, j.field_polygon, j.area_ha, j.location_json, j.requested_window_start, j.requested_window_end,
+        j.constraints_json, j.visibility_mode, j.accepted_offer_id, j.target_date_start, j.target_date_end, j.notes,
+        j.created_at, j.updated_at, o.legal_name as buyer_org_legal_name
       FROM jobs j
       LEFT JOIN organizations o ON j.buyer_org_id = o.id
       WHERE j.status = 'OPEN'
@@ -398,20 +444,35 @@ app.post('/', authMiddleware, async (c) => {
     if (isPostgreSQL) {
       // PostgreSQL: use RETURNING
     const result = await query(`
-        INSERT INTO jobs (id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at
+        INSERT INTO jobs (
+          id, buyer_org_id, broker_org_id, service_type, crop_type, treatment_type, terrain_conditions,
+          status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end,
+          constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes,
+          created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+      RETURNING id, buyer_org_id, broker_org_id, service_type, crop_type, treatment_type, terrain_conditions, status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end, constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes, created_at, updated_at
     `, [
         jobId,
-      user.organizationId,
-      field_name,
-      service_type,
-      parseFloat(area_ha),
+        user.organizationId, // buyer_org_id
+        null, // broker_org_id
+        service_type,
+        null, // crop_type
+        null, // treatment_type
+        null, // terrain_conditions
+        'OPEN', // status
+        field_name,
+        field_polygon || null, // field_polygon
+        parseFloat(area_ha),
         finalLocationJson ? JSON.stringify(finalLocationJson) : null,
+        null, // requested_window_start
+        null, // requested_window_end
+        null, // constraints_json
+        'WHITELIST_ONLY', // visibility_mode
+        null, // accepted_offer_id
         target_date_start || null,
         target_date_end || null,
         notes || null,
-        'OPEN',
         now,
         now
     ]);
@@ -430,26 +491,41 @@ app.post('/', authMiddleware, async (c) => {
     } else {
       // SQLite: insert then fetch
       await query(`
-        INSERT INTO jobs (id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO jobs (
+          id, buyer_org_id, broker_org_id, service_type, crop_type, treatment_type, terrain_conditions,
+          status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end,
+          constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes,
+          created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       `, [
         jobId,
-        user.organizationId,
-        field_name,
+        user.organizationId, // buyer_org_id
+        null, // broker_org_id
         service_type,
+        null, // crop_type
+        null, // treatment_type
+        null, // terrain_conditions
+        'OPEN', // status
+        field_name,
+        field_polygon || null, // field_polygon
         parseFloat(area_ha),
         finalLocationJson ? JSON.stringify(finalLocationJson) : null,
+        null, // requested_window_start
+        null, // requested_window_end
+        null, // constraints_json
+        'WHITELIST_ONLY', // visibility_mode
+        null, // accepted_offer_id
         target_date_start || null,
         target_date_end || null,
         notes || null,
-        'OPEN',
         now,
         now
       ]);
 
       // Fetch the inserted job
       const result = await query(`
-        SELECT id, buyer_org_id, field_name, service_type, area_ha, location_json, target_date_start, target_date_end, notes, status, created_at, updated_at
+        SELECT id, buyer_org_id, broker_org_id, service_type, crop_type, treatment_type, terrain_conditions, status, field_name, field_polygon, area_ha, location_json, requested_window_start, requested_window_end, constraints_json, visibility_mode, accepted_offer_id, target_date_start, target_date_end, notes, created_at, updated_at
         FROM jobs
         WHERE id = $1
       `, [jobId]);

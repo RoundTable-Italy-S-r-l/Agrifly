@@ -573,10 +573,10 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
 
     // Crea invito
     const result = await query(`
-      INSERT INTO organization_invitations (id, organization_id, email, role, token, status, expires_at, invited_by_user_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO organization_invitations (id, org_id, organization_id, email, role, token, status, expires_at, invited_by_user_id, created_at, accepted_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING id
-        `, [inviteId, orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id]);
+        `, [inviteId, orgId, orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id, new Date().toISOString(), null]);
 
     // Invia email di invito
     const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:8082'}/accept-invite?token=${token}`;

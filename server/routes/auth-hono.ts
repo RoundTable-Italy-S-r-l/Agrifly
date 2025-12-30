@@ -72,11 +72,52 @@ app.post('/register', async (c) => {
     // Secondo il nuovo modello: admin è il grado gerarchico, tutti iniziano così
     const initialRole = 'admin';
 
-    // Crea organizzazione (nuovo schema: type invece di can_*)
-    await query(
-      'INSERT INTO organizations (id, legal_name, type, address_line, city, province, region, country, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-      [orgId, organizationName || `${firstName} ${lastName}`, orgTypeLower, 'Da completare', 'Da completare', 'Da completare', 'Da completare', 'IT', 'ACTIVE']
-    );
+    // Determina capabilities basato sul tipo di organizzazione
+    const orgCapabilities = {
+      buyer: { can_buy: true, can_sell: false, can_operate: false, can_dispatch: false },
+      vendor: { can_buy: true, can_sell: true, can_operate: true, can_dispatch: true },
+      operator: { can_buy: false, can_sell: false, can_operate: true, can_dispatch: true }
+    };
+
+    const caps = orgCapabilities[orgTypeLower] || orgCapabilities.buyer;
+
+    // Crea organizzazione con tutti i campi del database
+    await query(`
+      INSERT INTO organizations (
+        id, legal_name, vat_number, tax_code, org_type, address_line, city, province, region, country,
+        status, logo_url, phone, support_email, postal_code, updated_at, show_individual_operators,
+        is_certified, can_buy, can_sell, can_operate, can_dispatch, kind, type
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15, $16, $17,
+        $18, $19, $20, $21, $22, $23, $24
+      )
+    `, [
+      orgId, // id
+      organizationName || `${firstName} ${lastName}`, // legal_name
+      null, // vat_number (da completare)
+      null, // tax_code (da completare)
+      orgTypeLower, // org_type
+      'Da completare', // address_line
+      'Da completare', // city
+      'Da completare', // province
+      'Da completare', // region
+      'IT', // country
+      'ACTIVE', // status
+      null, // logo_url
+      null, // phone
+      null, // support_email
+      null, // postal_code
+      new Date().toISOString(), // updated_at
+      true, // show_individual_operators
+      false, // is_certified
+      caps.can_buy, // can_buy
+      caps.can_sell, // can_sell
+      caps.can_operate, // can_operate
+      caps.can_dispatch, // can_dispatch
+      'BUSINESS', // kind
+      orgTypeLower // type (duplicato per sicurezza)
+    ]);
 
     // Crea utente (senza role nella tabella users, il ruolo è solo in org_memberships)
     await query(
@@ -85,17 +126,19 @@ app.post('/register', async (c) => {
     );
     
     // Crea membership con nuovo ruolo standardizzato
+    const membershipId = generateId();
     await query(
-      'INSERT INTO org_memberships (org_id, user_id, role, is_active) VALUES ($1, $2, $3, $4)',
-      [orgId, userId, initialRole, true]
+      'INSERT INTO org_memberships (id, org_id, user_id, role, is_active, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
+      [membershipId, orgId, userId, initialRole, true, new Date().toISOString()]
     );
 
     // Genera codice verifica
     const code = generateVerificationCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minuti da ora
+    const verificationId = generateId();
     await query(
-      'INSERT INTO verification_codes (user_id, email, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)',
-      [userId, email, code, 'EMAIL_VERIFICATION', expiresAt.toISOString()]
+      'INSERT INTO verification_codes (id, user_id, email, code, purpose, expires_at, used, used_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [verificationId, userId, email, code, 'EMAIL_VERIFICATION', expiresAt.toISOString(), false, null]
     );
 
     // Invia email verifica
@@ -246,9 +289,10 @@ app.post('/resend-verification', async (c) => {
 
     // Salva nuovo codice (cancella precedenti non usati)
     await query('DELETE FROM verification_codes WHERE user_id = $1 AND purpose = $2 AND used = false', [userId, 'EMAIL_VERIFICATION']);
+    const verificationId2 = randomUUID().replace(/-/g, '').slice(0, 21);
     await query(
-      'INSERT INTO verification_codes (user_id, email, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)',
-      [userId, user.email, code, 'EMAIL_VERIFICATION', expiresAt.toISOString()]
+      'INSERT INTO verification_codes (id, user_id, email, code, purpose, expires_at, used, used_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [verificationId2, userId, user.email, code, 'EMAIL_VERIFICATION', expiresAt.toISOString(), false, null]
     );
 
     // Invia email
