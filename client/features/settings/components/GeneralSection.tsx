@@ -68,6 +68,7 @@ export function GeneralSection() {
   // Carica i dati quando organization è disponibile
   useEffect(() => {
     if (organization) {
+      console.log('🔄 [GENERAL SECTION] Resetting form with organization data:', organization)
       form.reset({
         legal_name: organization.legal_name || '',
         logo_url: organization.logo_url || '',
@@ -158,13 +159,16 @@ export function GeneralSection() {
   }
 
   const onSubmit = async (data: OrganizationForm) => {
+    console.log('💾 [GENERAL SECTION] Submitting form data:', data)
     try {
-      await updateMutation.mutateAsync(data)
+      const result = await updateMutation.mutateAsync(data)
+      console.log('✅ [GENERAL SECTION] Update successful, result:', result)
       toast({
         title: 'Successo',
         description: 'Impostazioni salvate correttamente.',
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [GENERAL SECTION] Update failed:', error)
       toast({
         title: 'Errore',
         description: 'Impossibile salvare le impostazioni.',

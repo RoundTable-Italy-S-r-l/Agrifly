@@ -100,10 +100,12 @@ export function useOrganizationGeneral() {
   return useQuery({
     queryKey: ['organization', 'general'],
     queryFn: async () => {
+      console.log('🔍 [HOOKS] Fetching organization general data')
       if (!orgId) {
         throw new Error('Organization ID not found');
       }
       const response = await api.get<Organization>(`/settings/organization/general?orgId=${orgId}`)
+      console.log('📦 [HOOKS] Fetched organization data:', response)
       return response
     },
     enabled: !!orgId,
@@ -127,10 +129,13 @@ export function useUpdateOrganizationGeneral() {
       if (!orgId) {
         throw new Error('Organization ID not found');
       }
+      console.log('📤 [HOOKS] Sending PATCH request to update organization:', data)
       const response = await api.patch<{ data: Organization }>(`/settings/organization/general?orgId=${orgId}`, data)
+      console.log('📥 [HOOKS] PATCH response:', response)
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('🔄 [HOOKS] Invalidating organization general query, new data:', data)
       queryClient.invalidateQueries({ queryKey: ['organization', 'general'] })
     },
   })
