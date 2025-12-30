@@ -171,6 +171,13 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
 
           // Calculate base service cost (area × base_rate_per_ha)
           const baseRatePerHaCents = parseInt(org.base_rate_per_ha_cents);
+          console.log('💰 [CERTIFIED QUOTES] Price calculation:', {
+            area_ha,
+            baseRatePerHaCents,
+            baseRatePerHaCentsRaw: org.base_rate_per_ha_cents,
+            org_id: org.id,
+            org_name: org.legal_name
+          });
           const baseCents = Math.round(area_ha * baseRatePerHaCents);
 
           // Apply seasonal multiplier
@@ -237,6 +244,18 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
           const subtotalCents = multipliedCents + travelCents + surchargesCents;
           const minChargeCents = parseInt(org.min_charge_cents);
           const totalCents = Math.max(subtotalCents, minChargeCents);
+
+          console.log('💰 [CERTIFIED QUOTES] Final calculation:', {
+            org_name: org.legal_name,
+            baseCents,
+            multipliedCents,
+            travelCents,
+            surchargesCents,
+            subtotalCents,
+            minChargeCents,
+            totalCents,
+            totalCentsInEuros: totalCents / 100
+          });
 
           return {
             org_id: org.id,
