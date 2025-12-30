@@ -320,6 +320,38 @@ app.post('/create-from-cart', validateBody(CreateOrderFromCartSchema), async (c)
       );
     }
 
+    // AGGIORNA INVENTORY: riserva la quantità ordinata per ogni SKU
+    console.log('📦 Aggiornando inventory per ordine:', orderNumber);
+    for (const line of orderLines) {
+      try {
+        // Trova il vendor per questo SKU (potrebbe essere diverso per SKU diversi)
+        const vendorResult = await query(`
+          SELECT vendor_org_id FROM vendor_catalog_items
+          WHERE sku_id = $1 AND is_for_sale = true
+          LIMIT 1
+        `, [line.sku_id]);
+
+        if (vendorResult.rows.length > 0) {
+          const vendorId = vendorResult.rows[0].vendor_org_id;
+
+          // Aggiorna inventory: incrementa qty_reserved per la quantità ordinata
+          const inventoryUpdate = await query(`
+            UPDATE inventories
+            SET qty_reserved = qty_reserved + $1,
+                updated_at = NOW()
+            WHERE sku_id = $2 AND vendor_org_id = $3
+          `, [line.quantity, line.sku_id, vendorId]);
+
+          console.log(`✅ Inventory aggiornato per SKU ${line.sku_id}: riservati +${line.quantity} presso vendor ${vendorId}`);
+        } else {
+          console.warn(`⚠️ Nessun vendor trovato per SKU ${line.sku_id}`);
+        }
+      } catch (inventoryError: any) {
+        console.error(`❌ Errore aggiornamento inventory per SKU ${line.sku_id}:`, inventoryError.message);
+        // Non fallire l'ordine per errori di inventory, ma loggare
+      }
+    }
+
     // Svuota il carrello
     await query('DELETE FROM cart_items WHERE cart_id = $1', [cartId]);
 
@@ -416,6 +448,37 @@ app.put('/:orderId/status', async (c) => {
     `;
 
     await query(updateQuery, updateValues);
+
+    // AGGIORNA INVENTORY quando l'ordine viene spedito o consegnato
+    if (order_status === 'SHIPPED' || order_status === 'DELIVERED' || order_status === 'FULFILLED') {
+      console.log('📦 Aggiornando inventory per spedizione/consegna ordine:', orderId);
+
+      // Recupera le righe dell'ordine
+      const orderLinesResult = await query(`
+        SELECT ol.sku_id, ol.quantity, o.seller_org_id
+        FROM order_lines ol
+        JOIN orders o ON ol.order_id = o.id
+        WHERE ol.order_id = $1
+      `, [orderId]);
+
+      for (const line of orderLinesResult.rows) {
+        try {
+          // Aggiorna inventory: decrementa qty_on_hand e azzera qty_reserved per la quantità spedita
+          const inventoryUpdate = await query(`
+            UPDATE inventories
+            SET qty_on_hand = qty_on_hand - $1,
+                qty_reserved = qty_reserved - $1,
+                updated_at = NOW()
+            WHERE sku_id = $2 AND vendor_org_id = $3
+            AND qty_reserved >= $1  -- Sicurezza: non andare sotto zero
+          `, [line.quantity, line.sku_id, line.seller_org_id]);
+
+          console.log(`✅ Inventory aggiornato per SKU ${line.sku_id}: spediti -${line.quantity} dal vendor ${line.seller_org_id}`);
+        } catch (inventoryError: any) {
+          console.error(`❌ Errore aggiornamento inventory per SKU ${line.sku_id}:`, inventoryError.message);
+        }
+      }
+    }
 
     // Recupera l'ordine aggiornato
     const orderResult = await query(`

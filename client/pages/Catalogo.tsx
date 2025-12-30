@@ -28,7 +28,7 @@ export default function Catalogo() {
       minPrice: minPrice ? parseInt(minPrice) : undefined,
       maxPrice: maxPrice ? parseInt(maxPrice) : undefined
     }),
-    staleTime: 5 * 60 * 1000, // 5 minuti
+    staleTime: 0, // Disabilitato per testing - mostra sempre dati freschi
     gcTime: 10 * 60 * 1000, // 10 minuti
     refetchOnWindowFocus: false,
     refetchOnReconnect: false

@@ -449,15 +449,13 @@ app.get('/public', async (c) => {
           ),
           p.id
         ) as productId,
-        -- Conta quanti vendor vendono questo prodotto con stock > 0
+        -- Conta quanti vendor vendono questo prodotto (indipendentemente dallo stock)
         (
           SELECT COUNT(DISTINCT vci.vendor_org_id)
           FROM vendor_catalog_items vci
           JOIN skus s2 ON vci.sku_id = s2.id
-          LEFT JOIN inventories i2 ON vci.sku_id = i2.sku_id AND i2.vendor_org_id = vci.vendor_org_id
           WHERE s2.product_id = p.id
             AND vci.is_for_sale = true
-            AND (COALESCE(i2.qty_on_hand, 0) - COALESCE(i2.qty_reserved, 0)) > 0
         ) as vendor_count,
         -- Prezzo minimo tra tutti i vendor (anche offerte)
         (
@@ -466,17 +464,15 @@ app.get('/public', async (c) => {
           JOIN price_lists pl ON pli.price_list_id = pl.id
           JOIN skus s_price ON pli.sku_id = s_price.id
           JOIN vendor_catalog_items vci_price ON vci_price.sku_id = s_price.id AND vci_price.vendor_org_id = pl.vendor_org_id
-          LEFT JOIN inventories i_price ON vci_price.sku_id = i_price.sku_id AND i_price.vendor_org_id = vci_price.vendor_org_id
           WHERE s_price.product_id = p.id
             AND pl.status = 'ACTIVE'
             AND pl.valid_from <= NOW()
             AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
             AND vci_price.is_for_sale = true
-            AND (COALESCE(i_price.qty_on_hand, 0) - COALESCE(i_price.qty_reserved, 0)) > 0
         ) as min_price_euros,
-        -- Stock totale disponibile tra tutti i vendor
+        -- Stock totale disponibile tra tutti i vendor (può essere 0 se non c'è stock)
         (
-          SELECT COALESCE(SUM(i_total.qty_on_hand - COALESCE(i_total.qty_reserved, 0)), 0)
+          SELECT COALESCE(SUM(COALESCE(i_total.qty_on_hand, 0) - COALESCE(i_total.qty_reserved, 0)), 0)
           FROM vendor_catalog_items vci_total
           JOIN skus s_total ON vci_total.sku_id = s_total.id
           LEFT JOIN inventories i_total ON vci_total.sku_id = i_total.sku_id AND i_total.vendor_org_id = vci_total.vendor_org_id
