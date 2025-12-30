@@ -127,21 +127,13 @@ app.get('/organization/general', authMiddleware, async (c) => {
 
     const organization = orgResult.rows[0];
 
-    // Determina il tipo organizzazione basato sulle capabilities
-    let orgType = 'BUYER'; // Default
-    if (organization.can_sell || organization.can_operate) {
-      orgType = 'VENDOR_OPERATOR';
-    } else if (organization.can_buy) {
-      orgType = 'BUYER';
-    }
+    // NUOVA LOGICA: usa direttamente il tipo organizzazione memorizzato
+    const orgType = organization.type || organization.org_type || 'buyer';
 
-    console.log('🔍 Organization type determination:', {
-      can_buy: organization.can_buy,
-      can_sell: organization.can_sell,
-      can_operate: organization.can_operate,
-      kind: organization.kind,
-      type: organization.type,
-      determined_org_type: orgType
+    console.log('🔍 Organization type from database:', {
+      stored_type: organization.type,
+      stored_org_type: organization.org_type,
+      used_org_type: orgType
     });
 
     // Mappa i campi del database ai nomi del frontend
@@ -288,17 +280,13 @@ app.patch('/organization/general', authMiddleware, async (c) => {
     }
 
     // Determina il tipo organizzazione per la risposta
-    let responseOrgType = 'BUYER'; // Default
-    if (updatedOrg.can_sell || updatedOrg.can_operate) {
-      responseOrgType = 'VENDOR_OPERATOR';
-    } else if (updatedOrg.can_buy) {
-      responseOrgType = 'BUYER';
-    }
+    // NUOVA LOGICA: usa il tipo organizzazione dal database
+    const responseOrgType = updatedOrg.type || updatedOrg.org_type || 'buyer';
 
     // Mappa i campi per il frontend
     const mappedUpdatedOrg = {
       ...updatedOrg,
-      org_type: responseOrgType, // Determinato dalle capabilities
+      org_type: responseOrgType, // Dal database
     };
 
     console.log('✅ Organizzazione aggiornata:', {
