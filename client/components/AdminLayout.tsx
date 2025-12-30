@@ -12,7 +12,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
   const [isPinned, setIsPinned] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [orgCapabilities, setOrgCapabilities] = useState<{can_buy: boolean, can_sell: boolean, can_operate: boolean, can_dispatch: boolean} | null>(null);
+  // NUOVA LOGICA: usa permessi calcolati dinamicamente dal ruolo utente
+  const [userPermissions, setUserPermissions] = useState<{
+    can_access_catalog: boolean;
+    can_access_orders: boolean;
+    can_access_services: boolean;
+    can_access_bookings: boolean;
+    can_complete_missions: boolean;
+  } | null>(null);
   const [userName, setUserName] = useState<string>('');
   const [userInitials, setUserInitials] = useState<string>('');
   const [orgName, setOrgName] = useState<string>('');
@@ -127,25 +134,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       name: 'Configurazione Servizi',
       href: '/admin/servizi',
       icon: Calendar,
-      allowed: () => orgCapabilities?.can_dispatch || orgCapabilities?.can_operate || orgCapabilities?.can_sell // Accessibile per dispatcher, operatori o vendor
+      allowed: () => userPermissions?.can_access_services || userPermissions?.can_complete_missions // Accessibile per operator/dispatcher
     },
     {
       name: 'Missioni',
       href: '/admin/prenotazioni',
       icon: ClipboardList,
-      allowed: () => orgCapabilities?.can_dispatch || orgCapabilities?.can_operate || orgCapabilities?.can_sell // Accessibile per dispatcher, operatori o vendor
+      allowed: () => userPermissions?.can_access_bookings || userPermissions?.can_complete_missions // Accessibile per operator/dispatcher
     },
     {
       name: 'Catalogo',
       href: '/admin/catalogo',
       icon: Package,
-      allowed: () => orgCapabilities?.can_sell || orgCapabilities?.can_dispatch // Accessibile per vendor o dispatcher
+      allowed: () => userPermissions?.can_access_catalog // Accessibile per vendor/admin/dispatcher
     },
     {
       name: 'Ordini',
       href: '/admin/ordini',
       icon: ShoppingBag,
-      allowed: () => orgCapabilities?.can_sell || orgCapabilities?.can_dispatch // Accessibile per vendor o dispatcher
+      allowed: () => userPermissions?.can_access_orders // Accessibile per vendor/admin/dispatcher
     },
     {
       name: 'Impostazioni',
@@ -207,7 +214,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <nav className={`flex-1 py-6 space-y-2 ${isExpanded ? 'px-4' : 'px-2'}`}>
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
-              const isAllowed = orgCapabilities ? item.allowed() : true; // Mostra tutto se capabilities non ancora caricate
+              const isAllowed = userPermissions ? item.allowed() : true; // Mostra tutto se permissions non ancora calcolate
 
               if (isAllowed) {
                 // Link accessibile

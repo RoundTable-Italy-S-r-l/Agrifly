@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Layout } from '@/components/Layout';
-import { fetchPublicCatalog, CatalogProduct } from '@/lib/api';
+import { fetchPublicCatalog, CatalogProduct, BundleOffer } from '@/lib/api';
 import {
   ShoppingBag,
   Clock,
@@ -14,6 +14,83 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
+
+// Componente per le card bundle sovrapposte
+const BundleCard = ({ bundle }: { bundle: BundleOffer }) => {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  return (
+    <div className="relative group">
+      {/* Contenitore principale con cornice verde */}
+      <div className="relative bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-6 shadow-lg border-2 border-emerald-300 hover:border-emerald-400 transition-all duration-300 hover:shadow-xl">
+        {/* Badge promozione */}
+        <div className="absolute -top-3 left-4">
+          <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+            🔥 BUNDLE
+          </span>
+        </div>
+
+        {/* Header con nome e vendor */}
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-slate-900 mb-1">{bundle.name}</h3>
+          <p className="text-sm text-emerald-700 font-medium">{bundle.vendorName}</p>
+          <p className="text-xs text-slate-600 mt-1">{bundle.description}</p>
+        </div>
+
+        {/* Stack di carte sovrapposte */}
+        <div className="relative mb-6" style={{ height: '200px' }}>
+          {bundle.products.map((product, index) => (
+            <div
+              key={product.product_id}
+              className={`absolute inset-0 bg-white rounded-lg shadow-md border-2 transition-all duration-300 ${
+                hoveredIndex === index
+                  ? 'transform scale-105 z-20 border-blue-400 shadow-xl'
+                  : hoveredIndex !== null && hoveredIndex !== index
+                  ? 'transform scale-95 z-10 opacity-70'
+                  : 'z-10 border-slate-200'
+              }`}
+              style={{
+                transform: `translateX(${index * 8}px) translateY(${index * 4}px) ${hoveredIndex === index ? 'scale(1.05)' : hoveredIndex !== null && hoveredIndex !== index ? 'scale(0.95)' : 'scale(1)'}`,
+                zIndex: hoveredIndex === index ? 20 : 10 - index
+              }}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            >
+              <div className="p-3 h-full flex flex-col justify-center items-center text-center">
+                <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center mb-2">
+                  <Package className="w-6 h-6 text-slate-600" />
+                </div>
+                <p className="text-xs font-medium text-slate-900 leading-tight">{product.name}</p>
+                <p className="text-xs text-slate-500 mt-1">{product.model}</p>
+                {product.quantity > 1 && (
+                  <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full mt-1">
+                    x{product.quantity}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Prezzo e risparmio */}
+        <div className="text-center mb-4">
+          <div className="text-2xl font-bold text-emerald-600 mb-1">
+            €{bundle.bundlePrice.toLocaleString('it-IT')}
+          </div>
+          {bundle.savings && (
+            <p className="text-sm text-emerald-700 font-medium">{bundle.savings}</p>
+          )}
+        </div>
+
+        {/* Pulsante Dettagli */}
+        <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+          <Gift className="w-4 h-4 mr-2" />
+          Dettagli Bundle
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 export default function Catalogo() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -35,12 +112,19 @@ export default function Catalogo() {
   });
 
   const products = catalogData?.products || [];
+  const bundles = catalogData?.bundles || [];
 
   // Filtra prodotti per ricerca
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.brand.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filtra bundle per ricerca
+  const filteredBundles = bundles.filter(bundle =>
+    bundle.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bundle.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -225,6 +309,18 @@ export default function Catalogo() {
                     </Link>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Offerte Bundle */}
+        {filteredBundles.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">🎁 Offerte Bundle</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredBundles.map(bundle => (
+                <BundleCard key={bundle.id} bundle={bundle} />
               ))}
             </div>
           </div>

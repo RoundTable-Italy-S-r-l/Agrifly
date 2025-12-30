@@ -599,8 +599,28 @@ export interface VendorCatalogItem {
   notes: string | null;
 }
 
+export interface BundleOffer {
+  id: string;
+  type: 'bundle';
+  name: string;
+  description: string;
+  bundlePrice: number;
+  products: Array<{
+    product_id: string;
+    name: string;
+    model: string;
+    quantity: number;
+  }>;
+  vendorName: string;
+  vendorLogo?: string;
+  imageUrl?: string;
+  validUntil?: string;
+  savings?: string;
+}
+
 export interface PublicCatalogResponse {
   products: CatalogProduct[];
+  bundles?: BundleOffer[];
 }
 
 export interface CatalogProduct {
@@ -661,11 +681,11 @@ export const fetchPublicCatalog = (filters?: {
   if (filters?.minPrice) params.append('minPrice', filters.minPrice.toString());
   if (filters?.maxPrice) params.append('maxPrice', filters.maxPrice.toString());
 
-  return apiRequest<PublicCatalogResponse>(`/catalog/public?${params}`);
+  return apiRequest<PublicCatalogResponse>(`/api/catalog/public?${params}`);
 };
 
 export const fetchProductVendors = (productId: string): Promise<ProductVendorsResponse> => {
-  return apiRequest<ProductVendorsResponse>(`/catalog/product/${productId}/vendors`);
+  return apiRequest<ProductVendorsResponse>(`/api/catalog/product/${productId}/vendors`);
 };
 
 export const fetchVendorCatalog = (orgId: string): Promise<VendorCatalogResponse> =>

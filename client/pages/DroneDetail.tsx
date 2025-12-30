@@ -350,32 +350,49 @@ const DroneDetail = () => {
                           <p className="text-sm text-slate-600">{vendor.vendorAddress}</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end space-y-2">
+                        {/* Prezzo con offerta */}
                         {vendor.offer ? (
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-slate-500 line-through">
-                                €{vendor.offer.originalPrice.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                              <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
-                                -{vendor.offer.discountPercent}%
+                          <div className="text-center">
+                            {/* Badge sconto */}
+                            <div className="mb-1">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                ⚡ -{vendor.offer.discountPercent}% OFFERTA
                               </span>
                             </div>
-                            <p className="text-xl font-bold text-emerald-600">
-                              €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
+                            {/* Prezzi */}
+                            <div className="space-y-1">
+                              <div className="text-lg font-bold text-emerald-600">
+                                €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                              <div className="text-sm text-slate-500 line-through">
+                                €{vendor.offer.originalPrice.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                            {/* Nome offerta */}
+                            <div className="mt-2 px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-200">
+                              <p className="text-xs font-medium text-emerald-800">
+                                🎯 {vendor.offer.name}
+                              </p>
+                            </div>
                           </div>
                         ) : (
-                          <p className="text-xl font-bold text-emerald-600">
+                          /* Prezzo normale */
+                          <div className="text-xl font-bold text-emerald-600">
                             €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
+                          </div>
                         )}
-                        <p className="text-xs text-slate-500">{vendor.availableStock} disponibili</p>
-                        {vendor.offer && (
-                          <p className="text-xs text-emerald-600 font-medium mt-1">
-                            🎯 {vendor.offer.name}
-                          </p>
-                        )}
+
+                        {/* Disponibilità */}
+                        <div className="flex items-center gap-1">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            vendor.availableStock > 0
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {vendor.availableStock > 0 ? '✅' : '❌'} {vendor.availableStock} disponibili
+                          </span>
+                        </div>
                       </div>
                     </div>
 

@@ -140,12 +140,13 @@ export default function VerifyEmail() {
         if (orgData) {
           try {
             const org = JSON.parse(orgData);
-            // NUOVA LOGICA: controlla il tipo organizzazione invece dei permessi
-            if ((org.type || org.org_type) === 'buyer') {
-              // Solo buyer → dashboard buyer
+            // NUOVA LOGICA: usa solo il tipo organizzazione
+            const orgType = org.type || org.org_type;
+            if (orgType === 'buyer') {
+              // Buyer → dashboard buyer
               navigate('/buyer', { replace: true });
-            } else if (org.can_sell || org.can_operate || org.can_dispatch) {
-              // Vendor/Operator/Dispatcher → dashboard admin
+            } else if (orgType === 'vendor' || orgType === 'operator') {
+              // Vendor/Operator → dashboard admin
               navigate('/admin', { replace: true });
             } else {
               // Fallback alla dashboard generica

@@ -69,7 +69,12 @@ export default function Missioni() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
-  const [orgCapabilities, setOrgCapabilities] = useState<{can_buy: boolean, can_sell: boolean, can_operate: boolean} | null>(null);
+  // NUOVA LOGICA: usa permessi calcolati dinamicamente dal ruolo utente
+  const [userPermissions, setUserPermissions] = useState<{
+    can_access_services: boolean;
+    can_access_bookings: boolean;
+    can_complete_missions: boolean;
+  } | null>(null);
   const [periodFilter, setPeriodFilter] = useState<'today' | 'week' | 'month' | 'all'>('week');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,26 +85,46 @@ export default function Missioni() {
 
   // Determina se l'utente è un operatore/vendor (chi fa offerte, non chi le riceve)
   // Se mostra offerte "made", è un operatore/vendor view
-  const isOperatorView = orgCapabilities?.can_operate || orgCapabilities?.can_sell;
+  // NUOVA LOGICA: determina vista basata sui permessi utente
+  const isOperatorView = userPermissions?.can_access_bookings || userPermissions?.can_complete_missions;
 
   useEffect(() => {
-    const loadCapabilities = () => {
+    const loadPermissions = () => {
       const orgData = localStorage.getItem('organization');
-      if (orgData) {
+      const userData = localStorage.getItem('user');
+
+      if (orgData && userData) {
         try {
           const org = JSON.parse(orgData);
+          const user = JSON.parse(userData);
+
           setCurrentOrgId(org.id);
-          setOrgCapabilities({
-            can_buy: org.can_buy,
-            can_sell: org.can_sell,
-            can_operate: org.can_operate
-          });
+
+          // NUOVA LOGICA: calcola permessi dinamicamente dal ruolo utente
+          const role = user.role || org.role || 'admin';
+          const permissions = {
+            can_access_services: false,
+            can_access_bookings: false,
+            can_complete_missions: false
+          };
+
+          if (role === 'admin' || role === 'dispatcher') {
+            permissions.can_access_services = true;
+            permissions.can_access_bookings = true;
+            permissions.can_complete_missions = true;
+          } else if (role === 'operator') {
+            permissions.can_access_services = true;
+            permissions.can_access_bookings = true;
+            permissions.can_complete_missions = true;
+          }
+
+          setUserPermissions(permissions);
         } catch (error) {
-          console.error('Errore nel parsing dei dati organizzazione:', error);
+          console.error('Errore nel parsing dei dati:', error);
         }
       } else {
         // Se non ci sono dati, riprova dopo un breve delay
-        setTimeout(loadCapabilities, 500);
+        setTimeout(loadPermissions, 500);
       }
     };
 

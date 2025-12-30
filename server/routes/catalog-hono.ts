@@ -616,8 +616,60 @@ app.get('/public', async (c) => {
       console.log('⚠️ Filtri prezzo richiedono query aggiuntiva, applicati lato client');
     }
 
-    console.log(`✅ Catalogo pubblico: ${filteredProducts.length} prodotti`);
-    return c.json({ products: filteredProducts });
+    // Query per offerte bundle attive
+    const bundlesQuery = `
+      SELECT
+        o.id,
+        o.name,
+        o.rules_json,
+        o.valid_from,
+        o.valid_to,
+        org.legal_name as vendor_name,
+        org.logo_url as vendor_logo
+      FROM offers o
+      JOIN organizations org ON o.vendor_org_id = org.id
+      WHERE o.offer_type = 'BUNDLE'
+        AND o.status = 'ACTIVE'
+        AND o.valid_from <= NOW()
+        AND (o.valid_to IS NULL OR o.valid_to >= NOW())
+      ORDER BY o.valid_from DESC
+    `;
+
+    const bundlesResult = await query(bundlesQuery, []);
+    console.log(`🎁 [CATALOG PUBLIC] Offerte bundle trovate: ${bundlesResult.rows.length}`);
+
+    // Mappa le offerte bundle
+    const bundles = bundlesResult.rows.map(row => {
+      const rules = row.rules_json; // È già un oggetto JSONB
+      const products = rules.products || [];
+
+      // Trova l'immagine rappresentativa (primo prodotto del bundle)
+      let bundleImageUrl: string | undefined;
+      if (products.length > 0) {
+        // Per ora usiamo un'immagine placeholder, in futuro potremmo avere un'immagine dedicata per il bundle
+        bundleImageUrl = '/api/storage/public/bundle-placeholder.jpg';
+      }
+
+      return {
+        id: row.id,
+        type: 'bundle',
+        name: row.name,
+        description: rules.description || `Bundle con ${products.length} prodotti`,
+        bundlePrice: rules.bundle_price || 0,
+        products: products,
+        vendorName: row.vendor_name,
+        vendorLogo: row.vendor_logo,
+        imageUrl: bundleImageUrl,
+        validUntil: row.valid_to,
+        savings: products.length > 0 ? 'Risparmia acquistando insieme!' : ''
+      };
+    });
+
+    console.log(`✅ Catalogo pubblico: ${filteredProducts.length} prodotti + ${bundles.length} bundle`);
+    return c.json({
+      products: filteredProducts,
+      bundles: bundles
+    });
 
   } catch (error: any) {
     console.error('❌ [CATALOG PUBLIC] Errore get public catalog:', error);

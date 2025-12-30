@@ -60,7 +60,7 @@ app.route('/api/gis-categories', gisCategoriesRoutes);
 app.route('/api/orders', ordersRoutes);
 app.route('/api/missions', missionsRoutes);
 app.route('/api/catalog', catalogRoutes);
-// app.route('/api/offers', offersRoutes); // Disabled - using jobsRoutes instead
+app.route('/api/offers', offersRoutes); // Enabled for bundle offers
 app.route('/api/services', servicesRoutes);
 app.route('/api/operators', operatorsRoutes);
 app.route('/api/ecommerce', ecommerceRoutes);
