@@ -35,7 +35,7 @@ const organizationSchema = z.object({
     .or(z.literal('')),
   vat_number: z.string().optional(),
   tax_code: z.string().optional(),
-  org_type: z.enum(['FARM', 'VENDOR', 'OPERATOR_PROVIDER']),
+  org_type: z.enum(['BUYER', 'VENDOR_OPERATOR']).optional(),
   address_line: z.string().min(1, 'Indirizzo obbligatorio'),
   // Rimossi campi non usati nel submit: city, province, region, postal_code, country
   // se servono nel backend, aggiungili qui e nel form
@@ -60,7 +60,7 @@ export function GeneralSection() {
       support_email: '',
       vat_number: '',
       tax_code: '',
-      org_type: 'FARM',
+      org_type: 'BUYER', // Default, verrà sovrascritto dai dati caricati
       address_line: '',
     },
   })
@@ -269,24 +269,17 @@ export function GeneralSection() {
               )}
             </div>
 
-            {/* Tipo organizzazione */}
+            {/* Tipo organizzazione (solo lettura) */}
             <div className="space-y-2">
-              <Label htmlFor="org_type">Tipo Organizzazione *</Label>
-              <Select
-                value={form.watch('org_type')}
-                onValueChange={(value) =>
-                  form.setValue('org_type', value as any)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FARM">Azienda Agricola</SelectItem>
-                  <SelectItem value="VENDOR">Fornitore</SelectItem>
-                  <SelectItem value="OPERATOR_PROVIDER">Operatore</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="org_type">Tipo Organizzazione</Label>
+              <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                {form.watch('org_type') === 'BUYER' ? 'Cliente (Buyer)' :
+                 form.watch('org_type') === 'VENDOR_OPERATOR' ? 'Fornitore/Operatore' :
+                 form.watch('org_type') || 'Non specificato'}
+              </div>
+              <p className="text-xs text-gray-500">
+                Il tipo di organizzazione viene assegnato durante la registrazione e non può essere modificato.
+              </p>
             </div>
 
             {/* Partita IVA */}

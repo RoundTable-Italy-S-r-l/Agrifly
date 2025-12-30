@@ -196,6 +196,7 @@ app.patch('/organization/general', authMiddleware, async (c) => {
 
     // Usa il database SQLite/PostgreSQL
     // Mappa dei campi consentiti (frontend -> database)
+    // NOTA: org_type/kind non è modificabile - viene assegnato alla registrazione
     const fieldMapping: Record<string, string> = {
       'legal_name': 'legal_name',
       'logo_url': 'logo_url',
@@ -203,7 +204,7 @@ app.patch('/organization/general', authMiddleware, async (c) => {
       'support_email': 'support_email',
       'vat_number': 'vat_number',
       'tax_code': 'tax_code',
-      'org_type': 'kind', // Mappa org_type -> kind
+      // 'org_type': 'kind', // Rimosso - non modificabile
       'address_line': 'address_line',
       'city': 'city',
       'province': 'province',
