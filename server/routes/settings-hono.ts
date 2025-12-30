@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { authMiddleware } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
-import { CreateInvitationSchema } from '../schemas/api.schemas';
+import { CreateInvitationSchema, UpdateOrganizationSchema } from '../schemas/api.schemas';
 import { createClient } from '@supabase/supabase-js';
 import { publicObjectUrl } from '../utils/storage';
 
@@ -258,7 +258,7 @@ app.patch('/organization/general', authMiddleware, async (c) => {
     console.log('🔧 Values:', values);
 
     const updateResult = await query(`
-      UPDATE organizations
+      UPDATE organizations 
       SET ${setClause}
       WHERE id = $1
     `, values);
@@ -311,7 +311,7 @@ app.patch('/organization/general', authMiddleware, async (c) => {
 });
 
 // PUT /api/service-config/:orgId - Update service configuration
-app.put('/:orgId', async (c) => {
+app.put('/:orgId', validateBody(UpdateOrganizationSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const updates = await c.req.json();

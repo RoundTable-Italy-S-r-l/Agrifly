@@ -82,7 +82,7 @@ app.post('/register', validateBody(RegisterOrganizationSchema, { transform: true
     // Determina tipo organizzazione basato su accountType
     const orgType = accountType; // 'buyer', 'vendor', o 'operator'
     const orgTypeLower = orgType.toLowerCase();
-
+    
     // NUOVA LOGICA COMPLETA: Capabilities calcolate dinamicamente dal ruolo utente
     // Le organizzazioni NON hanno più capabilities hardcoded
     // I permessi vengono calcolati dal ruolo dell'utente che le usa
@@ -350,9 +350,9 @@ app.post('/login', async (c) => {
       }, 400);
     }
 
-    console.log('🔐 [AUTH LOGIN] Login attempt:', {
-      email,
-      hasPassword: !!password,
+    console.log('🔐 [AUTH LOGIN] Login attempt:', { 
+      email, 
+      hasPassword: !!password, 
       passwordLength: password?.length,
       bodyKeys: Object.keys(body)
     });

@@ -1562,13 +1562,13 @@ export default function OfferDetail() {
           });
 
           return shouldShowChat && (
-            <JobOfferChat
-              offerId={offer.id}
-              currentOrgId={currentOrgId}
-              currentUserId={undefined}
-              buyerOrgId={offer.job?.buyer_org?.id || (offer.job as any)?.buyer_org_id || ''}
-              operatorOrgId={offer.operator_org_id || (offer.operator_org as any)?.id || currentOrgId}
-            />
+          <JobOfferChat
+            offerId={offer.id}
+            currentOrgId={currentOrgId}
+            currentUserId={undefined}
+            buyerOrgId={offer.job?.buyer_org?.id || (offer.job as any)?.buyer_org_id || ''}
+            operatorOrgId={offer.operator_org_id || (offer.operator_org as any)?.id || currentOrgId}
+          />
           );
         })()}
 

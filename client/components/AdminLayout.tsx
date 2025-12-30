@@ -38,7 +38,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       // Carica dati organizzazione e utente
       const orgData = localStorage.getItem('organization');
       const userData = localStorage.getItem('user');
-
+      
       if (orgData && userData) {
         try {
           const org = JSON.parse(orgData);
@@ -81,7 +81,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           const lastName = user.last_name || user.lastName || '';
           const fullName = `${firstName} ${lastName}`.trim() || user.email || 'Utente';
           setUserName(fullName);
-
+          
           // Genera iniziali
           if (firstName && lastName) {
             setUserInitials(`${firstName[0]}${lastName[0]}`.toUpperCase());

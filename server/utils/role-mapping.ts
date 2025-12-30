@@ -1,12 +1,12 @@
 /**
  * Mappa ruoli legacy dal database ai nuovi ruoli standardizzati
- *
+ * 
  * 🚀 NUOVA LOGICA COMPLETAMENTE BASATA SU RUOLI UTENTE
- *
+ * 
  * ORGANIZZAZIONI (type scelto alla registrazione - SOLO per routing):
  * - buyer: compra prodotti/servizi → tutti membri vanno a /buyer
  * - vendor/operator: vende e "opera" prodotti → membri vanno a /admin
- *
+ * 
  * RUOLI UTENTE (gerarchia - PERMESSI TOTALMENTE SUGLI UTENTI):
  * - admin: grado gerarchico - ACCESSO COMPLETO A TUTTO
  * - dispatcher: grado gerarchico - ACCESSO COMPLETO A TUTTO
@@ -14,7 +14,7 @@
  * - operator: ruolo funzionale - SERVIZI + PRENOTAZIONI + MISSIONI (sempre!)
  *
  * ✅ I permessi derivano SOLO dal ruolo utente, NON dal tipo organizzazione!
- *
+ * 
  * LOGICA INVITI:
  * - Buyer org: possono invitare solo admin (per sicurezza)
  * - Vendor/Operator org: possono invitare admin/vendor/operator/dispatcher

@@ -397,7 +397,7 @@ app.post('/create-from-cart', validateBody(CreateOrderFromCartSchema), async (c)
 // UPDATE ORDER STATUS
 // ============================================================================
 
-app.put('/:orderId/status', async (c) => {
+app.put('/:orderId/status', validateBody(UpdateOrderStatusSchema), async (c) => {
   try {
     const orderId = c.req.param('orderId');
     const { order_status, tracking_number } = await c.req.json();

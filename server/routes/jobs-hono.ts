@@ -21,7 +21,7 @@ app.get('/', authMiddleware, async (c) => {
     // Ensure table exists (compatible with both SQLite and PostgreSQL)
     const dbUrl = process.env.DATABASE_URL || '';
     const isPostgreSQL = true; // Force PostgreSQL for Supabase
-
+    
     const createTableQuery = isPostgreSQL
       ? `
       CREATE TABLE IF NOT EXISTS jobs (
@@ -35,15 +35,15 @@ app.get('/', authMiddleware, async (c) => {
           status TEXT NOT NULL DEFAULT 'OPEN',
           field_name TEXT NOT NULL,
           field_polygon TEXT,
-          area_ha DECIMAL(10,4),
-          location_json TEXT,
+        area_ha DECIMAL(10,4),
+        location_json TEXT,
           requested_window_start TIMESTAMP,
           requested_window_end TIMESTAMP,
           constraints_json TEXT,
           visibility_mode VARCHAR(255) DEFAULT 'WHITELIST_ONLY',
           accepted_offer_id VARCHAR(255),
-          target_date_start TIMESTAMP,
-          target_date_end TIMESTAMP,
+        target_date_start TIMESTAMP,
+        target_date_end TIMESTAMP,
           notes TEXT,
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
@@ -70,12 +70,12 @@ app.get('/', authMiddleware, async (c) => {
           accepted_offer_id TEXT,
           target_date_start TEXT,
           target_date_end TEXT,
-          notes TEXT,
+        notes TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `;
-
+    
     try {
       await query(createTableQuery);
     } catch (error: any) {
@@ -133,15 +133,15 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
           status TEXT NOT NULL DEFAULT 'OPEN',
           field_name TEXT NOT NULL,
           field_polygon TEXT,
-          area_ha DECIMAL(10,4),
-          location_json TEXT,
+        area_ha DECIMAL(10,4),
+        location_json TEXT,
           requested_window_start TIMESTAMP,
           requested_window_end TIMESTAMP,
           constraints_json TEXT,
           visibility_mode VARCHAR(255) DEFAULT 'WHITELIST_ONLY',
           accepted_offer_id VARCHAR(255),
-          target_date_start TIMESTAMP,
-          target_date_end TIMESTAMP,
+        target_date_start TIMESTAMP,
+        target_date_end TIMESTAMP,
           notes TEXT,
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
@@ -168,7 +168,7 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
           accepted_offer_id TEXT,
           target_date_start TEXT,
           target_date_end TEXT,
-          notes TEXT,
+        notes TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
@@ -487,14 +487,14 @@ app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true })
         jobId,
         user.organizationId, // buyer_org_id
         null, // broker_org_id
-        service_type,
+      service_type,
         validatedBody.crop_type || null, // crop_type
         validatedBody.treatment_type || null, // treatment_type
         validatedBody.terrain_conditions || null, // terrain_conditions
         'OPEN', // status
         field_name,
         field_polygon || null, // field_polygon
-        parseFloat(area_ha),
+      parseFloat(area_ha),
         finalLocationJson ? JSON.stringify(finalLocationJson) : null,
         null, // requested_window_start
         null, // requested_window_end
@@ -583,11 +583,11 @@ app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true })
 app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { transform: true }), async (c) => {
   try {
     console.log('🚀 [CREATE OFFER] Inizio richiesta');
-
+    
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
     console.log('👤 [CREATE OFFER] User:', { hasUser: !!user, orgId: user?.organizationId });
-
+    
     if (!user || !user.organizationId) {
       console.log('❌ [CREATE OFFER] Unauthorized - no user or orgId');
       return c.json({ error: 'Unauthorized' }, 401);
@@ -595,7 +595,7 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
 
     const jobId = c.req.param('jobId');
     console.log('📋 [CREATE OFFER] Job ID:', jobId);
-
+    
     // Get validated and transformed data
     const validatedBody = c.get('validatedBody');
     const {
@@ -687,7 +687,7 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
         : JSON.stringify(pricing_snapshot_json);
     }
     // Leave as null if not provided - database allows null
-
+    
     console.log('📦 [CREATE OFFER] Valori per INSERT:', {
       offerId,
       jobId,
@@ -749,7 +749,7 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
 
     try {
       insertResult = await query(insertQuery, finalInsertValues);
-      console.log('✅ [CREATE OFFER] INSERT completato:', {
+      console.log('✅ [CREATE OFFER] INSERT completato:', { 
         hasResult: !!insertResult,
         changes: insertResult?.changes,
         lastInsertRowid: insertResult?.lastInsertRowid,
@@ -779,9 +779,9 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
     let offerResult;
     try {
       offerResult = await query('SELECT * FROM job_offers WHERE id = $1', [actualOfferId]);
-      console.log('📥 [CREATE OFFER] Query SELECT result:', {
+      console.log('📥 [CREATE OFFER] Query SELECT result:', { 
         hasResult: !!offerResult,
-        rowsCount: offerResult?.rows?.length || 0
+        rowsCount: offerResult?.rows?.length || 0 
       });
     } catch (selectError: any) {
       console.error('❌ [CREATE OFFER] Errore durante SELECT:');
@@ -789,14 +789,14 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
       console.error('❌ [CREATE OFFER] Stack:', selectError.stack);
       throw selectError;
     }
-
+    
     if (!offerResult || !offerResult.rows || offerResult.rows.length === 0) {
       console.error('❌ [CREATE OFFER] Offerta non trovata dopo INSERT!');
       console.error('❌ [CREATE OFFER] ID cercato:', actualOfferId);
       console.error('❌ [CREATE OFFER] Result:', offerResult);
       return c.json({ error: 'Failed to create offer - offer not found after insert' }, 500);
     }
-
+    
     const newOffer = offerResult.rows[0];
     console.log('✅ [CREATE OFFER] Offerta recuperata:', { 
       id: newOffer.id, 
@@ -1266,7 +1266,7 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
       operator_org_id: offer.operator_org_id,
       user_org: user.organizationId
     });
-
+    
     // Verifica che l'utente sia buyer o operator dell'offerta
     const isBuyer = offer.buyer_org_id === user.organizationId;
     const isOperator = offer.operator_org_id === user.organizationId;
@@ -1367,7 +1367,7 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
     }
 
     const offer = offerCheck.rows[0];
-
+    
     // Verifica che il sender sia buyer o operator dell'offerta
     if (offer.buyer_org_id !== sender_org_id && offer.operator_org_id !== sender_org_id) {
       return c.json({ error: 'Unauthorized: You can only send messages for your own offers' }, 403);
@@ -1407,7 +1407,7 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
 
     console.log('✅ Messaggio creato per offerta:', messageId);
 
-      return c.json({
+      return c.json({ 
       id: message.id,
       offer_id: message.job_offer_id,
       sender_org_id: message.sender_org_id,
@@ -1604,9 +1604,9 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
     if (existingBookingResult.rows.length === 0 && offer.status === 'AWARDED') {
       console.log('⚠️ [COMPLETE MISSION] No booking found for offer, trying to find any booking for job:', jobId);
       existingBookingResult = await query(
-        'SELECT id, status FROM bookings WHERE job_id = $1',
-        [jobId]
-      );
+      'SELECT id, status FROM bookings WHERE job_id = $1',
+      [jobId]
+    );
       if (existingBookingResult.rows.length > 0) {
         console.log('⚠️ [COMPLETE MISSION] Found existing booking for job, will update it');
       }

@@ -281,7 +281,7 @@ app.post('/cart/items', validateBody(AddCartItemSchema), async (c) => {
 });
 
 // PUT /api/ecommerce/cart/items/:itemId - Aggiorna quantità item
-app.put('/cart/items/:itemId', async (c) => {
+app.put('/cart/items/:itemId', validateBody(UpdateCartItemSchema), async (c) => {
   try {
     const itemId = c.req.param('itemId');
     const body = await c.req.json();
