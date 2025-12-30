@@ -961,6 +961,8 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
           status VARCHAR(50) DEFAULT 'CONFIRMED',
           payment_status VARCHAR(50) DEFAULT 'PENDING',
           paid_at TIMESTAMP,
+          executed_start_at TIMESTAMP,
+          executed_end_at TIMESTAMP,
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
         )
@@ -977,6 +979,8 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
           status TEXT DEFAULT 'CONFIRMED',
           payment_status TEXT DEFAULT 'PENDING',
           paid_at TEXT,
+          executed_start_at TEXT,
+          executed_end_at TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
@@ -1007,7 +1011,45 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
       ['DECLINED', now, jobId, offerId, 'OFFERED']
     );
 
-    console.log('✅ [ACCEPT OFFER] Offerta accettata con successo:', offerId);
+    // Create booking record for the accepted offer
+    const bookingId = `book_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Get job details for booking
+    const jobDetailsResult = await query(`
+      SELECT service_type, field_name, area_ha, location_json, target_date_start, target_date_end, notes
+      FROM jobs WHERE id = $1
+    `, [jobId]);
+
+    const jobDetails = jobDetailsResult.rows[0];
+
+    // Create booking
+    await query(`
+      INSERT INTO bookings (
+        id, job_id, accepted_offer_id, buyer_org_id, executor_org_id, service_type,
+        site_snapshot_json, status, payment_status, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `, [
+      bookingId,
+      jobId,
+      offerId,
+      job.buyer_org_id,
+      offer.operator_org_id,
+      jobDetails.service_type,
+      JSON.stringify({
+        field_name: jobDetails.field_name,
+        area_ha: jobDetails.area_ha,
+        location_json: jobDetails.location_json,
+        target_date_start: jobDetails.target_date_start,
+        target_date_end: jobDetails.target_date_end,
+        notes: jobDetails.notes
+      }),
+      'CONFIRMED',
+      'PENDING',
+      now,
+      now
+    ]);
+
+    console.log('✅ [ACCEPT OFFER] Offerta accettata e booking creata:', { offerId, bookingId });
 
     return c.json({
       message: 'Offerta accettata con successo. Il lavoro è stato assegnato.'
@@ -1485,6 +1527,8 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
           status VARCHAR(50) DEFAULT 'CONFIRMED',
           payment_status VARCHAR(50) DEFAULT 'PENDING',
           paid_at TIMESTAMP,
+          executed_start_at TIMESTAMP,
+          executed_end_at TIMESTAMP,
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
         )
@@ -1501,6 +1545,8 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
           status TEXT DEFAULT 'CONFIRMED',
           payment_status TEXT DEFAULT 'PENDING',
           paid_at TEXT,
+          executed_start_at TEXT,
+          executed_end_at TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
@@ -1536,8 +1582,8 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
         operatorOrgId: offer.operator_org_id
       });
       await query(
-        'UPDATE bookings SET status = $1, accepted_offer_id = $2, updated_at = $3 WHERE id = $4',
-        ['DONE', offerId, now, booking.id]
+        'UPDATE bookings SET status = $1, accepted_offer_id = $2, executed_end_at = $3, updated_at = $4 WHERE id = $5',
+        ['DONE', offerId, now, now, booking.id]
       );
       console.log('✅ [COMPLETE MISSION] Booking aggiornato:', booking.id);
       
