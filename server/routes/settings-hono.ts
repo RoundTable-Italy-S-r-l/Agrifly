@@ -417,12 +417,13 @@ app.post('/organization/invitations/invite', authMiddleware, validateBody(Create
   try {
     const validatedBody = c.get('validatedBody');
     const { email, role } = validatedBody;
+    const normalizedRole = role.toLowerCase(); // Normalizza il ruolo a lowercase
     const user = c.get('user');
 
     console.log('📧 [INVITE] ===========================================');
     console.log('📧 [INVITE] Richiesta invito ricevuta');
     console.log('📧 [INVITE] email:', email);
-    console.log('📧 [INVITE] role:', role);
+    console.log('📧 [INVITE] role:', normalizedRole);
     console.log('📧 [INVITE] userId:', user.userId || user.id);
     console.log('📧 [INVITE] userRole:', user.role);
     console.log('📧 [INVITE] isAdmin:', user.isAdmin);
@@ -494,21 +495,21 @@ app.post('/organization/invitations/invite', authMiddleware, validateBody(Create
     console.log('✅ [INVITE] Permessi OK, procedo con invito');
 
     // Validazione ruoli basata su tipo organizzazione
-    console.log('🔍 [INVITE] Validazione ruolo per org type:', { orgType, requestedRole: role });
+    console.log('🔍 [INVITE] Validazione ruolo per org type:', { orgType, requestedRole: normalizedRole });
 
     if (orgType === 'buyer') {
       // Buyer organizations possono avere solo membri admin
       console.log('🏢 [INVITE] Org buyer - controllo se ruolo è admin');
-      if (role !== 'admin') {
-        console.log('❌ [INVITE] Ruolo non valido per buyer org:', role);
+      if (normalizedRole !== 'admin') {
+        console.log('❌ [INVITE] Ruolo non valido per buyer org:', normalizedRole);
         return c.json({ error: 'Buyer organizations can only have admin members' }, 400);
       }
     } else if (orgType === 'vendor' || orgType === 'operator') {
       // Vendor/operator organizations possono avere admin, vendor, operator, dispatcher
       const allowedRoles = ['admin', 'vendor', 'operator', 'dispatcher'];
       console.log('🏭 [INVITE] Org vendor/operator - ruoli permessi:', allowedRoles);
-      if (!allowedRoles.includes(role)) {
-        console.log('❌ [INVITE] Ruolo non valido per org:', { role, allowedRoles });
+      if (!allowedRoles.includes(normalizedRole)) {
+        console.log('❌ [INVITE] Ruolo non valido per org:', { role: normalizedRole, allowedRoles });
         return c.json({ error: 'Invalid role for this organization type' }, 400);
       }
     } else {
@@ -570,7 +571,7 @@ app.post('/organization/invitations/invite', authMiddleware, validateBody(Create
       INSERT INTO organization_invitations (id, org_id, organization_id, email, role, token, status, expires_at, invited_by_user_id, created_at, accepted_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING id
-        `, [inviteId, orgId, orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id, new Date().toISOString(), null]);
+        `, [inviteId, orgId, orgId, email, normalizedRole, token, 'PENDING', expiresAt, user.userId || user.id, new Date().toISOString(), null]);
 
     // Invia email di invito
     const inviteUrl = `${process.env.FRONTEND_URL || 'https://your-site.netlify.app'}/accept-invite?token=${token}`;
@@ -605,7 +606,7 @@ app.post('/organization/invitations/invite', authMiddleware, validateBody(Create
   } catch (error: any) {
     console.error('❌ [INVITE] Errore durante invio invito:', error.message);
     console.error('❌ [INVITE] Stack trace:', error.stack);
-    console.error('❌ [INVITE] Params - email:', email, 'role:', role, 'userId:', user.userId || user.id);
+    console.error('❌ [INVITE] Params - email:', email, 'role:', normalizedRole, 'userId:', user.userId || user.id);
     console.log('📧 [INVITE] ===========================================');
     return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
