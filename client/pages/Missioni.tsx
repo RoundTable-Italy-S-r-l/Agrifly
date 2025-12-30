@@ -128,12 +128,12 @@ export default function Missioni() {
       }
     };
 
-    loadCapabilities();
+    loadPermissions();
 
     // Ascolta i cambiamenti al localStorage
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'organization') {
-        loadCapabilities();
+      if (e.key === 'organization' || e.key === 'user') {
+        loadPermissions();
       }
     };
 
@@ -160,7 +160,7 @@ export default function Missioni() {
   const { data: availableJobs = { jobs: [] }, isLoading: loadingJobs } = useQuery({
     queryKey: ['operatorJobs'],
     queryFn: fetchOperatorJobs,
-    enabled: !!(orgCapabilities?.can_operate || orgCapabilities?.can_sell), // Vendor o operatori possono vedere job disponibili
+    enabled: !!(userPermissions?.can_access_bookings || userPermissions?.can_complete_missions), // Operator/dispatcher possono vedere job disponibili
   });
 
   // Fetch bookings for completed missions
@@ -171,9 +171,10 @@ export default function Missioni() {
   });
 
   // Determine which offers to show based on organization capabilities
-  const offersToShow = orgCapabilities?.can_buy && !orgCapabilities?.can_operate
+  // NUOVA LOGICA: determina offerte da mostrare basata sui permessi
+  const offersToShow = !userPermissions?.can_access_services && !userPermissions?.can_complete_missions
     ? (jobOffers.received || [])  // Buyer: show offers received on own jobs
-    : (jobOffers.made || []);     // Operator/Vendor: show offers made by organization
+    : (jobOffers.made || []);     // Operator: show offers made by organization
 
   // Filtra per stato: mostra solo offerte attive per default, rifiutate solo se filtrate
   // IMPORTANTE: escludi sempre le offerte AWARDED da questa lista (appariranno solo in "Offerte Accettate")
@@ -286,7 +287,7 @@ export default function Missioni() {
     booking.status === 'DONE' || booking.status === 'COMPLETED'
   ).length || 0;
 
-  if (!currentOrgId || orgCapabilities === null) {
+  if (!currentOrgId || userPermissions === null) {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center h-64">
@@ -294,7 +295,7 @@ export default function Missioni() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
             <p className="text-slate-600">Caricamento capabilities...</p>
             <p className="text-xs text-slate-500 mt-2">
-              Org ID: {currentOrgId || 'null'}, Capabilities: {orgCapabilities ? 'loaded' : 'null'}
+              Org ID: {currentOrgId || 'null'}, Permissions: {userPermissions ? 'calculated' : 'null'}
             </p>
           </div>
         </div>
@@ -397,7 +398,7 @@ export default function Missioni() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Missioni</h1>
           <p className="text-slate-600 mt-1">
-            {orgCapabilities?.can_buy && !orgCapabilities?.can_operate
+            {!userPermissions?.can_access_services && !userPermissions?.can_complete_missions
               ? 'Offerte ricevute sui tuoi annunci'
               : 'Preventivi inviati in risposta ai job disponibili'
             }
@@ -409,7 +410,7 @@ export default function Missioni() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-slate-600">
-                {orgCapabilities?.can_buy && !orgCapabilities?.can_operate ? 'Offerte ricevute' : 'Preventivi inviati'}
+                {!userPermissions?.can_access_services && !userPermissions?.can_complete_missions ? 'Offerte ricevute' : 'Preventivi inviati'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -445,7 +446,7 @@ export default function Missioni() {
               )}
             </TabsTrigger>
             <TabsTrigger value="offerte" className="flex items-center gap-2">
-              {orgCapabilities?.can_buy && !orgCapabilities?.can_operate ? 'Offerte' : 'Offerte Inviate'}
+              {!userPermissions?.can_access_services && !userPermissions?.can_complete_missions ? 'Offerte' : 'Offerte Inviate'}
               {(() => {
                 // Conta solo le offerte non-AWARDED (quelle che appaiono nella tab)
                 const nonAwardedCount = offersToShow?.filter(o => o.status !== 'AWARDED').length || 0;
@@ -613,7 +614,7 @@ export default function Missioni() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-slate-600">
-                {orgCapabilities?.can_buy && !orgCapabilities?.can_operate
+                {!userPermissions?.can_access_services && !userPermissions?.can_complete_missions
                   ? 'Nessuna offerta ricevuta'
                   : 'Nessun preventivo inviato'}
               </p>
@@ -948,7 +949,7 @@ export default function Missioni() {
                                 </div>
                                 <div className="text-sm text-muted-foreground space-y-1">
                                   <p>
-                                    {orgCapabilities?.can_operate 
+                                    {userPermissions?.can_complete_missions 
                                       ? `Cliente: ${booking.buyer_org?.legal_name || 'N/A'}`
                                       : `Operatore: ${booking.executor_org?.legal_name || 'N/A'}`}
                                   </p>
