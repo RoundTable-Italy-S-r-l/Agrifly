@@ -412,7 +412,7 @@ app.put('/:orgId/:operatorId', async (c) => {
       return c.json({ error: 'Organization ID and Operator ID required' }, 400);
     }
 
-    const body = await c.req.json();
+    const validatedBody = c.get('validatedBody');
     const {
       service_tags,
       max_hours_per_day,
@@ -421,7 +421,7 @@ app.put('/:orgId/:operatorId', async (c) => {
       default_service_area_set_id,
       service_area_mode,
       status
-    } = body;
+    } = validatedBody;
 
     console.log('✏️ Aggiornamento operatore:', operatorId, 'org:', orgId);
 
