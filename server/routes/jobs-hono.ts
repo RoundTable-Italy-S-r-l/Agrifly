@@ -1229,15 +1229,19 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
 
+    console.log('💬 [GET MESSAGES] Starting request for offer:', offerId);
+
     if (!offerId) {
+      console.log('💬 [GET MESSAGES] ❌ Offer ID required');
       return c.json({ error: 'Offer ID required' }, 400);
     }
 
     if (!user || !user.organizationId) {
+      console.log('💬 [GET MESSAGES] ❌ Unauthorized - no user or org');
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    console.log('💬 Richiesta messaggi per offerta:', offerId, 'user org:', user.organizationId);
+    console.log('💬 [GET MESSAGES] User authenticated:', { userId: user.userId, orgId: user.organizationId });
 
     // Verifica che l'offerta esista e che l'utente sia buyer o operator
     const offerCheck = await query(`
@@ -1316,12 +1320,14 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
       sender_name: `${msg.first_name || 'Utente'} ${msg.last_name || ''}`.trim()
     }));
 
-    console.log('✅ Recuperati', messages.length, 'messaggi per offerta');
+    console.log('✅ [GET MESSAGES] Recuperati', messages.length, 'messaggi per offerta');
+    console.log('✅ [GET MESSAGES] Returning messages array:', messages);
 
     return c.json(messages);
 
   } catch (error: any) {
-    console.error('❌ Errore get offer messages:', error);
+    console.error('❌ [GET MESSAGES] Errore get offer messages:', error);
+    console.error('❌ [GET MESSAGES] Stack:', error.stack);
     return c.json({
       error: 'Errore interno',
       message: error.message
