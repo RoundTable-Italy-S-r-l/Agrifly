@@ -314,14 +314,35 @@ app.post('/resend-verification', async (c) => {
 // LOGIN SEMPLIFICATO
 // ============================================================================
 
-app.post('/login', validateBody(LoginSchema), async (c) => {
+app.post('/login', async (c) => {
   try {
-    const validatedBody = c.get('validatedBody') as any;
-    const { email, password } = validatedBody;
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (parseError) {
+      return c.json({
+        error: 'Invalid JSON',
+        message: 'Il corpo della richiesta non è un JSON valido'
+      }, 400);
+    }
 
-    console.log('🔐 [AUTH LOGIN] Login attempt:', { 
-      email, 
-      hasPassword: !!password, 
+    const { email, password } = body;
+
+    // Validazione manuale
+    if (!email || !password) {
+      return c.json({
+        error: 'Validation failed',
+        message: 'Email e password sono obbligatori',
+        details: [
+          { field: 'email', message: 'Email obbligatoria' },
+          { field: 'password', message: 'Password obbligatoria' }
+        ]
+      }, 400);
+    }
+
+    console.log('🔐 [AUTH LOGIN] Login attempt:', {
+      email,
+      hasPassword: !!password,
       passwordLength: password?.length,
       bodyKeys: Object.keys(body)
     });
