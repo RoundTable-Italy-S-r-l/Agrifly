@@ -1552,15 +1552,25 @@ export default function OfferDetail() {
         )}
 
         {/* Chat se offerta accettata - nuova chat per offerte */}
-        {offer && offer.status === 'AWARDED' && currentOrgId && (
-          <JobOfferChat
-            offerId={offer.id}
-            currentOrgId={currentOrgId}
-            currentUserId={undefined}
-            buyerOrgId={offer.job?.buyer_org?.id || (offer.job as any)?.buyer_org_id || ''}
-            operatorOrgId={offer.operator_org_id || (offer.operator_org as any)?.id || currentOrgId}
-          />
-        )}
+        {(() => {
+          const shouldShowChat = offer && offer.status === 'AWARDED' && currentOrgId;
+          console.log('💬 [OFFER DETAIL] Chat visibility check:', {
+            offer: !!offer,
+            offerStatus: offer?.status,
+            currentOrgId,
+            shouldShowChat
+          });
+
+          return shouldShowChat && (
+            <JobOfferChat
+              offerId={offer.id}
+              currentOrgId={currentOrgId}
+              currentUserId={undefined}
+              buyerOrgId={offer.job?.buyer_org?.id || (offer.job as any)?.buyer_org_id || ''}
+              operatorOrgId={offer.operator_org_id || (offer.operator_org as any)?.id || currentOrgId}
+            />
+          );
+        })()}
 
       </div>
 
