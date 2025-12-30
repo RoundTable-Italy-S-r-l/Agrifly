@@ -287,6 +287,26 @@ export const CompleteMissionParamsSchema = z.object({
   offerId: z.string().min(1, 'Offer ID obbligatorio')
 });
 
+// Offer creation/update schemas
+export const CreateOfferSchema = z.object({
+  offer_type: z.enum(['BUNDLE', 'PROMO', 'SEASON_PACKAGE'], {
+    errorMap: () => ({ message: 'Tipo offerta deve essere BUNDLE, PROMO o SEASON_PACKAGE' })
+  }),
+  name: z.string().min(1, 'Nome offerta obbligatorio'),
+  rules_json: z.any(), // JSON object with offer rules
+  valid_from: z.string().transform((val) => new Date(val)),
+  valid_to: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE')
+});
+
+export const UpdateOfferSchema = z.object({
+  name: z.string().min(1).optional(),
+  rules_json: z.any().optional(),
+  valid_from: z.string().transform((val) => new Date(val)).optional(),
+  valid_to: z.string().optional().transform((val) => val ? new Date(val) : undefined).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional()
+});
+
 // Type exports
 export type CreateJobInput = z.infer<typeof CreateJobSchema>;
 export type CreateJobOfferInput = z.infer<typeof CreateJobOfferSchema>;
@@ -304,3 +324,5 @@ export type CreateMessageInput = z.infer<typeof CreateMessageSchema>;
 export type DirectionsRequest = z.infer<typeof DirectionsRequestSchema>;
 export type AcceptOfferParams = z.infer<typeof AcceptOfferParamsSchema>;
 export type CompleteMissionParams = z.infer<typeof CompleteMissionParamsSchema>;
+export type CreateOfferInput = z.infer<typeof CreateOfferSchema>;
+export type UpdateOfferInput = z.infer<typeof UpdateOfferSchema>;

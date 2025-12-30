@@ -1348,7 +1348,7 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    // Usa l'organizzazione dell'utente autenticato come sender
+    // Usa l'organizzazione e utente autenticati come sender
     const sender_org_id = user.organizationId;
     const sender_user_id = user.userId;
 

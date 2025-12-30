@@ -275,9 +275,10 @@ export function GeneralSection() {
               <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
                 {(() => {
                   const org = organization;
-                  if (org?.can_sell || org?.can_operate) {
+                  const orgType = org?.type || org?.org_type;
+                  if (orgType === 'vendor' || orgType === 'operator') {
                     return 'Fornitore/Operatore (Vendor/Operator)';
-                  } else if (org?.can_buy) {
+                  } else if (orgType === 'buyer') {
                     return 'Cliente (Buyer)';
                   } else {
                     return 'Non specificato';

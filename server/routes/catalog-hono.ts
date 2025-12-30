@@ -703,7 +703,7 @@ app.get('/product/:productId/vendors', async (c) => {
 
     const result = await query(querySql, [productId]);
 
-    const vendors = result.rows.map(row => {
+    let vendors = result.rows.map(row => {
       // Costruisci indirizzo completo
       const addressParts = [
         row.address_line,
@@ -724,12 +724,77 @@ app.get('/product/:productId/vendors', async (c) => {
         notes: row.vendor_notes,
         availableStock: parseInt(row.available_stock) || 0,
         price: parseFloat(row.price_euros) || 0,
-        currency: row.currency || 'EUR'
+        currency: row.currency || 'EUR',
+        offer: null // Per ora nessun offerta
       };
     });
 
-    console.log(`✅ Trovati ${vendors.length} vendor per prodotto ${productId}`);
-    return c.json({ vendors });
+    // Query semplificata per offerte attive - per ora cerchiamo tutte le offerte attive
+    const offersQuery = `
+      SELECT
+        o.id as offer_id,
+        o.name as offer_name,
+        o.offer_type,
+        o.rules_json,
+        o.valid_from,
+        o.valid_to,
+        o.vendor_org_id as vendor_id
+      FROM offers o
+      WHERE o.status = 'ACTIVE'
+        AND o.valid_from <= NOW()
+        AND (o.valid_to IS NULL OR o.valid_to >= NOW())
+      ORDER BY o.vendor_org_id
+    `;
+
+    const offersResult = await query(offersQuery, []);
+
+    // Crea una mappa delle offerte per vendor
+    const offersMap = new Map();
+    offersResult.rows.forEach(offer => {
+      offersMap.set(offer.vendor_id, {
+        id: offer.offer_id,
+        name: offer.offer_name,
+        type: offer.offer_type,
+        rules: offer.rules_json // È già un oggetto JSONB
+      });
+    });
+
+    // Applica le offerte ai vendor esistenti
+    const finalVendors = vendors.map(vendor => {
+      const offer = offersMap.get(vendor.vendorId);
+      if (offer) {
+        // Calcola prezzo scontato se è un'offerta di sconto
+        let discountedPrice = vendor.price;
+        let discountPercent = 0;
+
+        if (offer.rules) {
+          if (offer.type === 'PROMO' && (offer.rules.discount_percent || offer.rules.count_percent)) {
+            discountPercent = offer.rules.discount_percent || offer.rules.count_percent;
+            discountedPrice = vendor.price * (1 - discountPercent / 100);
+          } else if (offer.type === 'BUNDLE' && offer.rules.bundle_price) {
+            // Per i bundle, usa il prezzo del bundle se applicabile
+            discountedPrice = offer.rules.bundle_price;
+          }
+        }
+
+        return {
+          ...vendor,
+          price: discountedPrice,
+          offer: {
+            id: offer.id,
+            name: offer.name,
+            type: offer.type,
+            discountPercent: discountPercent,
+            originalPrice: vendor.price,
+            rules: offer.rules
+          }
+        };
+      }
+      return vendor;
+    });
+
+    console.log(`✅ Trovati ${finalVendors.length} vendor per prodotto ${productId} (${offersResult.rows.length} offerte attive)`);
+    return c.json({ vendors: finalVendors });
   } catch (error: any) {
     console.error('❌ Errore get product vendors:', error);
     console.error('❌ Stack:', error.stack);

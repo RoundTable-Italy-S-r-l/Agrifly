@@ -18,7 +18,8 @@ export default function Dashboard() {
               // Determina dashboard basandosi sulle capabilities
               // Se è buyer (can_buy=true e non ha altre capabilities) → dashboard buyer
               // Se ha can_sell, can_operate, o can_dispatch → dashboard admin
-              if (org.can_buy && !org.can_sell && !org.can_operate && !org.can_dispatch) {
+              // NUOVA LOGICA: controlla il tipo organizzazione invece dei permessi
+              if ((org.type || org.org_type) === 'buyer') {
                 navigate('/buyer');
               } else if (org.can_sell || org.can_operate || org.can_dispatch) {
                 // Altrimenti vai alla dashboard admin

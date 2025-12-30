@@ -136,7 +136,7 @@ export default function AdminCatalog() {
 
   // Mutation per offerte
   const createOfferMutation = useMutation({
-    mutationFn: (offer: any) => currentOrgId ? createOffer(currentOrgId, offer) : Promise.reject('No org ID'),
+    mutationFn: (offer: any) => createOffer(offer),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offers', currentOrgId] });
       setBundleSheetOpen(false);
@@ -148,7 +148,7 @@ export default function AdminCatalog() {
 
   const updateOfferMutation = useMutation({
     mutationFn: ({ offerId, updates }: { offerId: string; updates: any }) =>
-      currentOrgId ? updateOffer(currentOrgId, offerId, updates) : Promise.reject('No org ID'),
+      updateOffer(offerId, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offers', currentOrgId] });
       setBundleSheetOpen(false);
@@ -159,7 +159,7 @@ export default function AdminCatalog() {
   });
 
   const deleteOfferMutation = useMutation({
-    mutationFn: (offerId: string) => currentOrgId ? deleteOffer(currentOrgId, offerId) : Promise.reject('No org ID'),
+    mutationFn: (offerId: string) => deleteOffer(offerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offers', currentOrgId] });
     }

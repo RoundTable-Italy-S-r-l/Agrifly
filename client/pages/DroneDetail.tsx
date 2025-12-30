@@ -351,10 +351,31 @@ const DroneDetail = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl font-bold text-emerald-600">
-                          €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                        <p className="text-xs text-slate-500">{vendor.stock} disponibili</p>
+                        {vendor.offer ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-slate-500 line-through">
+                                €{vendor.offer.originalPrice.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                              <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
+                                -{vendor.offer.discountPercent}%
+                              </span>
+                            </div>
+                            <p className="text-xl font-bold text-emerald-600">
+                              €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xl font-bold text-emerald-600">
+                            €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        )}
+                        <p className="text-xs text-slate-500">{vendor.availableStock} disponibili</p>
+                        {vendor.offer && (
+                          <p className="text-xs text-emerald-600 font-medium mt-1">
+                            🎯 {vendor.offer.name}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -362,7 +383,7 @@ const DroneDetail = () => {
                       {currentOrgId ? (
                         <button
                           onClick={() => addToCartFromVendorMutation.mutate(vendor)}
-                          disabled={addToCartFromVendorMutation.isPending || vendor.stock === 0}
+                          disabled={addToCartFromVendorMutation.isPending || vendor.availableStock === 0}
                           className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-lg font-medium text-sm hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {addToCartFromVendorMutation.isPending ? (

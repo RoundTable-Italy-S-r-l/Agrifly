@@ -630,9 +630,17 @@ export interface ProductVendor {
   skuCode: string;
   price: number;
   currency: string;
-  stock: number;
+  availableStock: number;
   leadTimeDays: number | null;
   notes: string | null;
+  offer?: {
+    id: string;
+    name: string;
+    type: 'BUNDLE' | 'PROMO' | 'SEASON_PACKAGE';
+    discountPercent: number;
+    originalPrice: number;
+    rules: any;
+  } | null;
 }
 
 export interface ProductVendorsResponse {
@@ -720,7 +728,7 @@ export const fetchJobOffers = (orgId: string): Promise<{
     made: JobOffer[];
   }>(`/jobs/offers/${orgId}`);
 
-export const createOffer = (orgId: string, offer: {
+export const createOffer = (offer: {
   offer_type: 'BUNDLE' | 'PROMO' | 'SEASON_PACKAGE';
   name: string;
   rules_json: any;
@@ -728,25 +736,25 @@ export const createOffer = (orgId: string, offer: {
   valid_to?: string | null;
   status?: 'ACTIVE' | 'INACTIVE';
 }): Promise<Offer> =>
-  apiRequest<Offer>(`/offers/${orgId}`, {
+  apiRequest<Offer>('/offers', {
     method: 'POST',
     body: JSON.stringify(offer)
   });
 
-export const updateOffer = (orgId: string, offerId: string, updates: {
+export const updateOffer = (offerId: string, updates: {
   name?: string;
   rules_json?: any;
   valid_from?: string;
   valid_to?: string | null;
   status?: 'ACTIVE' | 'INACTIVE';
 }): Promise<Offer> =>
-  apiRequest<Offer>(`/offers/${orgId}/${offerId}`, {
+  apiRequest<Offer>(`/offers/${offerId}`, {
     method: 'PUT',
     body: JSON.stringify(updates)
   });
 
-export const deleteOffer = (orgId: string, offerId: string): Promise<void> =>
-  apiRequest<void>(`/offers/${orgId}/${offerId}`, {
+export const deleteOffer = (offerId: string): Promise<void> =>
+  apiRequest<void>(`/offers/${offerId}`, {
     method: 'DELETE'
   });
 

@@ -83,16 +83,97 @@ export function isAdminRole(role: string): boolean {
 
 /**
  * Determina capabilities da orgType e userRole
+ * NUOVA LOGICA: capabilities derivano dal ruolo utente, non dall'organizzazione
  * @param orgType Tipo organizzazione
  * @param userRole Ruolo utente standardizzato
- * @returns Capabilities object
+ * @returns Capabilities object con permessi di accesso
  */
 export function deriveCapabilities(orgType: string, userRole: string) {
-  return {
-    can_buy: orgType === 'buyer',
-    can_sell: orgType === 'vendor',
-    can_operate: userRole === 'operator' || userRole === 'dispatcher',
-    can_dispatch: userRole === 'dispatcher'
+  const role = userRole.toLowerCase();
+  const org = orgType.toLowerCase();
+
+  // Base permissions per tutti
+  const capabilities = {
+    // Legacy permissions (per backward compatibility)
+    can_buy: false,
+    can_sell: false,
+    can_operate: false,
+    can_dispatch: false,
+
+    // New section access permissions
+    can_access_admin: false,
+    can_access_catalog: false,
+    can_access_orders: false,
+    can_access_services: false,
+    can_access_bookings: false,
+    can_manage_users: false,
+    can_send_messages: false,
+    can_complete_missions: false
   };
+
+  // Admin: accesso completo a tutto
+  if (role === 'admin') {
+    capabilities.can_buy = true;
+    capabilities.can_sell = true;
+    capabilities.can_operate = true;
+    capabilities.can_dispatch = true;
+    capabilities.can_access_admin = true;
+    capabilities.can_access_catalog = true;
+    capabilities.can_access_orders = true;
+    capabilities.can_access_services = true;
+    capabilities.can_access_bookings = true;
+    capabilities.can_manage_users = true;
+    capabilities.can_send_messages = true;
+    capabilities.can_complete_missions = true;
+    return capabilities;
+  }
+
+  // Dispatcher: accesso completo a tutto (come admin ma forse senza gestione utenti)
+  if (role === 'dispatcher') {
+    capabilities.can_buy = org === 'buyer';
+    capabilities.can_sell = org === 'vendor';
+    capabilities.can_operate = true;
+    capabilities.can_dispatch = true;
+    capabilities.can_access_admin = true;
+    capabilities.can_access_catalog = true;
+    capabilities.can_access_orders = true;
+    capabilities.can_access_services = true;
+    capabilities.can_access_bookings = true;
+    capabilities.can_send_messages = true;
+    capabilities.can_complete_missions = true;
+    return capabilities;
+  }
+
+  // Vendor: accesso a catalogo e ordini (per gestire prodotti)
+  if (role === 'vendor' && org === 'vendor') {
+    capabilities.can_buy = org === 'buyer';
+    capabilities.can_sell = true;
+    capabilities.can_access_admin = true;
+    capabilities.can_access_catalog = true;
+    capabilities.can_access_orders = true;
+    capabilities.can_send_messages = true;
+    return capabilities;
+  }
+
+  // Operator: accesso a prenotazioni e servizi (per gestire operazioni)
+  if (role === 'operator' && (org === 'operator' || org === 'vendor')) {
+    capabilities.can_buy = org === 'buyer';
+    capabilities.can_sell = org === 'vendor';
+    capabilities.can_operate = true;
+    capabilities.can_access_admin = true;
+    capabilities.can_access_services = true;
+    capabilities.can_access_bookings = true;
+    capabilities.can_send_messages = true;
+    capabilities.can_complete_missions = true;
+    return capabilities;
+  }
+
+  // Buyer: solo acquisto
+  if (org === 'buyer') {
+    capabilities.can_buy = true;
+    return capabilities;
+  }
+
+  return capabilities;
 }
 

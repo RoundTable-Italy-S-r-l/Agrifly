@@ -15,19 +15,20 @@ import {
 
 // ORGANIZZAZIONI (type scelto alla registrazione):
 // - buyer: compra prodotti/servizi → tutti membri vanno a /buyer
-// - vendor: vende prodotti → membri admin/vendor vanno a /admin/catalogo
-// - operator: fornisce servizi operativi → membri admin/operator vanno a /admin/prenotazioni
+// - vendor/operator: vende e "opera" prodotti → membri a admin/
 //
 // RUOLI UTENTE (gerarchia):
-// - admin: grado gerarchico (tutti iniziano così)
-// - vendor: ruolo funzionale (solo per org vendor)
-// - operator: ruolo funzionale (solo per org vendor/operator)
-// - dispatcher: ruolo funzionale (solo per org vendor/operator)
+// - admin: grado gerarchico (tutti iniziano così) - può accedere a tutte le sezioni dell'admin
+// - vendor: ruolo funzionale (solo per org vendor) - può accedere alla sezione catalogo e ordini (oltre a dashboard e impostazioni)
+// - operator: ruolo funzionale (solo per org vendor/operator) - può accedere alla sezione prenotazioni e servizi (oltre a dashboard e impostazioni)
+// - dispatcher: ruolo funzionale (solo per org vendor/operator)   - può accedere a tutte sezionoi /admin. 
 //
 // LOGICA INVITI:
 // - Buyer org: possono invitare solo admin
 // - Vendor/Operator org: possono invitare admin/vendor/operator/dispatcher
 //
+// LOGICA POTERI (sono consefuenze rispetto alle "categorie" di prima):
+// can sell, can operate ecc sono consefuenze del fatto che uno possa accedere solo ad alcune sezioni oppure no: 
 // ============================================================================
 
 import { Hono } from 'hono';
@@ -38,6 +39,7 @@ import { publicObjectUrl } from '../utils/storage';
 import type { UserStatus, UserRole } from '../types';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
+
 
 const app = new Hono();
 
@@ -83,14 +85,15 @@ app.post('/register', validateBody(RegisterOrganizationSchema, { transform: true
     // Secondo il nuovo modello: admin è il grado gerarchico, tutti iniziano così
     const initialRole = 'admin';
 
-    // Determina capabilities basato sul tipo di organizzazione
-    const orgCapabilities = {
-      buyer: { can_buy: true, can_sell: false, can_operate: false, can_dispatch: false },
-      vendor: { can_buy: true, can_sell: true, can_operate: true, can_dispatch: true },
-      operator: { can_buy: false, can_sell: false, can_operate: true, can_dispatch: true }
+    // NUOVA LOGICA: Capabilities derivano dal ruolo utente, non dal tipo organizzazione
+    // Le organizzazioni hanno solo un tipo per determinare il routing di base
+    // I permessi specifici vengono determinati dal ruolo dell'utente
+    const caps = {
+      can_buy: true,     // Tutti possono comprare (buyer) o vendere (vendor)
+      can_sell: orgTypeLower === 'vendor',     // Solo vendor possono vendere
+      can_operate: orgTypeLower === 'operator' || orgTypeLower === 'vendor', // Operator e vendor possono operare
+      can_dispatch: orgTypeLower === 'operator' || orgTypeLower === 'vendor'  // Operator e vendor possono disporre
     };
-
-    const caps = orgCapabilities[orgTypeLower] || orgCapabilities.buyer;
 
     // Crea organizzazione con tutti i campi del database
     await query(`

@@ -174,14 +174,15 @@ export default function Login() {
         return;
       }
 
-      // Determina dashboard in base alle capabilities (come nel login)
-      if (data.organization.can_buy && !data.organization.can_sell && !data.organization.can_operate && !data.organization.can_dispatch) {
-        // Solo buyer → dashboard buyer
+      // NUOVA LOGICA: Determina dashboard in base al tipo organizzazione
+      const orgType = data.organization.type || data.organization.org_type;
+      if (orgType === 'buyer') {
+        // Buyer → dashboard buyer
         console.log('🛒 Redirect buyer dopo registrazione');
         navigate('/buyer', { replace: true });
-      } else if (data.organization.can_sell || data.organization.can_operate || data.organization.can_dispatch) {
-        // Vendor/Operator/Dispatcher → dashboard admin
-        console.log('🏪 Redirect admin dopo registrazione');
+      } else if (orgType === 'vendor' || orgType === 'operator') {
+        // Vendor/Operator → dashboard admin
+        console.log('🏪 Redirect vendor/operator dopo registrazione');
         navigate('/admin', { replace: true });
       } else {
         // Fallback

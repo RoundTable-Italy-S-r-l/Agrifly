@@ -140,7 +140,8 @@ export default function VerifyEmail() {
         if (orgData) {
           try {
             const org = JSON.parse(orgData);
-            if (org.can_buy && !org.can_sell && !org.can_operate && !org.can_dispatch) {
+            // NUOVA LOGICA: controlla il tipo organizzazione invece dei permessi
+            if ((org.type || org.org_type) === 'buyer') {
               // Solo buyer → dashboard buyer
               navigate('/buyer', { replace: true });
             } else if (org.can_sell || org.can_operate || org.can_dispatch) {
