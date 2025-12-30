@@ -1109,7 +1109,7 @@ export default function OfferDetail() {
                 </div>
                 <Button
                   onClick={handleCreateOffer}
-                  disabled={isCreatingOffer || !offerFormData.total_cents}
+                  disabled={isCreatingOffer || !offerFormData.total_cents || offerFormData.total_cents === '' || parseFloat(offerFormData.total_cents) <= 0}
                   className="w-full bg-emerald-600 hover:bg-emerald-700"
                 >
                   {isCreatingOffer 

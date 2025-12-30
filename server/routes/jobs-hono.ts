@@ -578,11 +578,14 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
     const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
     console.log('💾 [CREATE OFFER] Database type:', isPostgreSQL ? 'PostgreSQL' : 'SQLite');
 
-    // For SQLite, we need to handle the existing schema which may have additional columns
-    // and pricing_snapshot_json might be NOT NULL
-    const pricingSnapshotStr = pricing_snapshot_json 
-      ? (typeof pricing_snapshot_json === 'string' ? pricing_snapshot_json : JSON.stringify(pricing_snapshot_json))
-      : '{}'; // Default to empty JSON object instead of null for SQLite compatibility
+    // Handle pricing_snapshot_json - ensure it's valid JSON or null
+    let pricingSnapshotStr = null;
+    if (pricing_snapshot_json) {
+      pricingSnapshotStr = typeof pricing_snapshot_json === 'string'
+        ? pricing_snapshot_json
+        : JSON.stringify(pricing_snapshot_json);
+    }
+    // Leave as null if not provided - database allows null
     
     console.log('📦 [CREATE OFFER] Valori per INSERT:', {
       offerId,
@@ -601,11 +604,11 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
     const insertQuery = isPostgreSQL
       ? `
         INSERT INTO job_offers (
-          id, job_id, operator_org_id, status, pricing_snapshot_json,
+          job_id, operator_org_id, status, pricing_snapshot_json,
           total_cents, currency, proposed_start, proposed_end, provider_note,
           created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        RETURNING *
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING id
       `
       : `
         INSERT INTO job_offers (
@@ -615,16 +618,22 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
+    // For SQLite, we need to add the offerId back to the values array
+    const finalInsertValues = isPostgreSQL ? insertValues : [offerId, ...insertValues];
+
+    // Convert empty strings to null for dates
+    const proposedStart = proposed_start && proposed_start.trim() !== '' ? proposed_start : null;
+    const proposedEnd = proposed_end && proposed_end.trim() !== '' ? proposed_end : null;
+
     const insertValues = [
-      offerId,
       jobId,
       user.organizationId,
       'OFFERED',
       pricingSnapshotStr,
       parseInt(total_cents),
       currency || 'EUR',
-      proposed_start || null,
-      proposed_end || null,
+      proposedStart,
+      proposedEnd,
       provider_note || null,
       now,
       now
@@ -636,13 +645,26 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
     console.log('📤 [CREATE OFFER] Values types:', insertValues.map(v => typeof v));
     
     let insertResult;
+    let actualOfferId;
+
     try {
-      insertResult = await query(insertQuery, insertValues);
-      console.log('✅ [CREATE OFFER] INSERT completato:', { 
+      insertResult = await query(insertQuery, finalInsertValues);
+      console.log('✅ [CREATE OFFER] INSERT completato:', {
         hasResult: !!insertResult,
         changes: insertResult?.changes,
-        lastInsertRowid: insertResult?.lastInsertRowid
+        lastInsertRowid: insertResult?.lastInsertRowid,
+        rows: insertResult?.rows
       });
+
+      // Get the actual offer ID
+      if (isPostgreSQL && insertResult.rows && insertResult.rows.length > 0) {
+        actualOfferId = insertResult.rows[0].id;
+        console.log('📥 [CREATE OFFER] ID from RETURNING:', actualOfferId);
+      } else {
+        // For SQLite or if RETURNING didn't work
+        actualOfferId = offerId;
+        console.log('📥 [CREATE OFFER] Using generated ID:', actualOfferId);
+      }
     } catch (insertError: any) {
       console.error('❌ [CREATE OFFER] Errore durante INSERT:');
       console.error('❌ [CREATE OFFER] Message:', insertError.message);
@@ -652,14 +674,14 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
       throw insertError;
     }
 
-    // Fetch the created offer using the generated ID (for SQLite, we can't use RETURNING)
-    console.log('📥 [CREATE OFFER] Recupero offerta creata con ID:', offerId);
+    // Fetch the created offer using the actual ID
+    console.log('📥 [CREATE OFFER] Recupero offerta creata con ID:', actualOfferId);
     let offerResult;
     try {
-      offerResult = await query('SELECT * FROM job_offers WHERE id = $1', [offerId]);
-      console.log('📥 [CREATE OFFER] Query SELECT result:', { 
+      offerResult = await query('SELECT * FROM job_offers WHERE id = $1', [actualOfferId]);
+      console.log('📥 [CREATE OFFER] Query SELECT result:', {
         hasResult: !!offerResult,
-        rowsCount: offerResult?.rows?.length || 0 
+        rowsCount: offerResult?.rows?.length || 0
       });
     } catch (selectError: any) {
       console.error('❌ [CREATE OFFER] Errore durante SELECT:');
@@ -667,14 +689,14 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
       console.error('❌ [CREATE OFFER] Stack:', selectError.stack);
       throw selectError;
     }
-    
+
     if (!offerResult || !offerResult.rows || offerResult.rows.length === 0) {
       console.error('❌ [CREATE OFFER] Offerta non trovata dopo INSERT!');
-      console.error('❌ [CREATE OFFER] ID cercato:', offerId);
+      console.error('❌ [CREATE OFFER] ID cercato:', actualOfferId);
       console.error('❌ [CREATE OFFER] Result:', offerResult);
       return c.json({ error: 'Failed to create offer - offer not found after insert' }, 500);
     }
-    
+
     const newOffer = offerResult.rows[0];
     console.log('✅ [CREATE OFFER] Offerta recuperata:', { 
       id: newOffer.id, 
@@ -690,6 +712,71 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
     console.error('❌ [CREATE OFFER] Error stack:', error.stack);
     if (error.code) console.error('❌ [CREATE OFFER] Error code:', error.code);
     if (error.errno) console.error('❌ [CREATE OFFER] Error errno:', error.errno);
+    if (error.detail) console.error('❌ [CREATE OFFER] Error detail:', error.detail);
+    if (error.hint) console.error('❌ [CREATE OFFER] Error hint:', error.hint);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// GET /api/jobs/:jobId/offers - Get offers for a specific job
+app.get('/:jobId/offers', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user || !user.organizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const jobId = c.req.param('jobId');
+
+    console.log('📋 [GET JOB OFFERS] Richiesta offerte per job:', { jobId, userOrgId: user.organizationId });
+
+    // Verify the job exists and user has access (either buyer or operator with offer)
+    const jobResult = await query('SELECT id, buyer_org_id FROM jobs WHERE id = $1', [jobId]);
+    if (jobResult.rows.length === 0) {
+      return c.json({ error: 'Job not found' }, 404);
+    }
+
+    const job = jobResult.rows[0];
+    const isBuyer = job.buyer_org_id === user.organizationId;
+
+    // Get offers for this job
+    const offersResult = await query(`
+      SELECT
+        jo.id, jo.job_id, jo.operator_org_id, jo.status, jo.pricing_snapshot_json,
+        jo.total_cents, jo.currency, jo.proposed_start, jo.proposed_end, jo.provider_note,
+        jo.created_at, jo.updated_at,
+        o.legal_name as operator_org_legal_name
+      FROM job_offers jo
+      LEFT JOIN organizations o ON jo.operator_org_id = o.id
+      WHERE jo.job_id = $1
+      ORDER BY jo.created_at DESC
+    `, [jobId]);
+
+    // Format offers
+    const offers = offersResult.rows.map((row: any) => ({
+      id: row.id,
+      job_id: row.job_id,
+      operator_org_id: row.operator_org_id,
+      status: row.status,
+      pricing_snapshot_json: row.pricing_snapshot_json ? (typeof row.pricing_snapshot_json === 'string' ? JSON.parse(row.pricing_snapshot_json) : row.pricing_snapshot_json) : null,
+      total_cents: parseInt(row.total_cents) || 0,
+      currency: row.currency || 'EUR',
+      proposed_start: row.proposed_start,
+      proposed_end: row.proposed_end,
+      provider_note: row.provider_note,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      operator_org: {
+        id: row.operator_org_id,
+        legal_name: row.operator_org_legal_name || 'N/A'
+      }
+    }));
+
+    console.log('✅ [GET JOB OFFERS] Trovate', offers.length, 'offerte per job:', jobId);
+
+    return c.json({ offers });
+  } catch (error: any) {
+    console.error('❌ [GET JOB OFFERS] Error:', error);
     return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
 });
