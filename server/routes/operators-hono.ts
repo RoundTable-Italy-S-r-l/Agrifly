@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
+import { authMiddleware } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
 import { CreateOperatorSchema, UpdateOperatorSchema } from '../schemas/api.schemas';
 
