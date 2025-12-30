@@ -1199,16 +1199,17 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
     const messagesQuery = `
       SELECT
         jom.id,
-        jom.offer_id,
-        jom.sender_org_id,
+        jom.job_offer_id,
         jom.sender_user_id,
-        jom.message_text,
-        jom.is_read,
+        jom.body,
         jom.created_at,
+        u.first_name,
+        u.last_name,
         o.legal_name as sender_org_name
       FROM job_offer_messages jom
-      LEFT JOIN organizations o ON jom.sender_org_id = o.id
-      WHERE jom.offer_id = $1
+      LEFT JOIN users u ON jom.sender_user_id = u.id
+      LEFT JOIN organizations o ON u.organization_id = o.id
+      WHERE jom.job_offer_id = $1
       ORDER BY jom.created_at ASC
     `;
 
@@ -1216,13 +1217,14 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
 
     const messages = result.rows.map(msg => ({
       id: msg.id,
-      offer_id: msg.offer_id,
-      sender_org_id: msg.sender_org_id,
+      offer_id: msg.job_offer_id,
+      sender_org_id: user.organizationId, // Non abbiamo questo campo, usiamo l'utente corrente
       sender_user_id: msg.sender_user_id,
-      message_text: msg.message_text,
-      is_read: msg.is_read === 1 || msg.is_read === true,
+      message_text: msg.body,
+      is_read: false, // La tabella non ha questo campo
       created_at: msg.created_at,
-      sender_org_name: msg.sender_org_name
+      sender_org_name: msg.sender_org_name,
+      sender_name: `${msg.first_name} ${msg.last_name}`.trim()
     }));
 
     console.log('✅ Recuperati', messages.length, 'messaggi per offerta');
@@ -1279,26 +1281,25 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
     // Crea messaggio
     const messageId = `jom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const insertQuery = `
-      INSERT INTO job_offer_messages (id, offer_id, sender_org_id, sender_user_id, message_text, is_read, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO job_offer_messages (id, job_offer_id, sender_user_id, body, created_at)
+      VALUES ($1, $2, $3, $4, $5)
     `;
 
     await query(insertQuery, [
       messageId,
       offerId,
-      sender_org_id,
       sender_user_id || null,
       message_text,
-      0, // is_read = false
       new Date().toISOString()
     ]);
 
     // Recupera il messaggio appena creato
     const messageResult = await query(`
-      SELECT jom.id, jom.offer_id, jom.sender_org_id, jom.sender_user_id, jom.message_text, jom.is_read, jom.created_at,
-             o.legal_name as sender_org_name
+      SELECT jom.id, jom.job_offer_id, jom.sender_user_id, jom.body, jom.created_at,
+             u.first_name, u.last_name, o.legal_name as sender_org_name
       FROM job_offer_messages jom
-      LEFT JOIN organizations o ON jom.sender_org_id = o.id
+      LEFT JOIN users u ON jom.sender_user_id = u.id
+      LEFT JOIN organizations o ON u.organization_id = o.id
       WHERE jom.id = $1
     `, [messageId]);
 
@@ -1306,15 +1307,16 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
 
     console.log('✅ Messaggio creato per offerta:', messageId);
 
-      return c.json({ 
+      return c.json({
       id: message.id,
-      offer_id: message.offer_id,
-      sender_org_id: message.sender_org_id,
+      offer_id: message.job_offer_id,
+      sender_org_id: sender_org_id,
       sender_user_id: message.sender_user_id,
-      message_text: message.message_text,
-      is_read: message.is_read === 1 || message.is_read === true,
+      message_text: message.body,
+      is_read: false, // La tabella non ha questo campo
       created_at: message.created_at,
-      sender_org_name: message.sender_org_name
+      sender_org_name: message.sender_org_name,
+      sender_name: `${message.first_name} ${message.last_name}`.trim()
     });
 
   } catch (error: any) {
