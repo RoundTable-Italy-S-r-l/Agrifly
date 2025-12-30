@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { authMiddleware } from '../middleware/auth';
+import { createClient } from '@supabase/supabase-js';
+import { publicObjectUrl } from '../utils/storage';
 
 const app = new Hono();
 
@@ -735,6 +737,355 @@ app.post('/organization/invitations/revoke/:invitationId', authMiddleware, async
     console.error('❌ [REVOKE] Stack trace:', error.stack);
     console.error('❌ [REVOKE] Params - invitationId:', invitationId, 'userId:', currentUserId);
     console.log('🔄 [REVOKE] ===========================================');
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// ============================================================================
+// ORGANIZATION LOGO UPLOAD
+// ============================================================================
+
+// POST /api/settings/organization/upload-logo - Upload organization logo
+app.post('/organization/upload-logo', authMiddleware, async (c) => {
+  try {
+    console.log('🖼️ [LOGO UPLOAD] ===========================================');
+    console.log('🖼️ [LOGO UPLOAD] Inizio upload logo organizzazione');
+
+    const user = c.get('user');
+    const currentUserId = user.userId || user.id;
+    const queryParams = c.req.query();
+    const orgId = queryParams.orgId;
+
+    console.log('🖼️ [LOGO UPLOAD] userId:', currentUserId);
+    console.log('🖼️ [LOGO UPLOAD] orgId:', orgId);
+
+    if (!orgId) {
+      console.log('❌ [LOGO UPLOAD] orgId mancante');
+      return c.json({ error: 'Organization ID required' }, 400);
+    }
+
+    // Verifica che l'utente sia membro dell'organizzazione
+    console.log('🔐 [LOGO UPLOAD] Verifico autorizzazione utente per org:', orgId);
+    const membership = await query(
+      'SELECT om.role as member_role FROM org_memberships om WHERE om.org_id = $1 AND om.user_id = $2 AND om.is_active = true',
+      [orgId, currentUserId]
+    );
+
+    if (membership.rows.length === 0) {
+      console.log('❌ [LOGO UPLOAD] Utente non membro dell\'organizzazione');
+      return c.json({ error: 'You are not a member of this organization' }, 403);
+    }
+
+    const memberRole = membership.rows[0].member_role;
+    console.log('📋 [LOGO UPLOAD] Ruolo membro:', memberRole);
+
+    // Solo admin possono cambiare il logo
+    if (memberRole !== 'admin' && !user.isAdmin) {
+      console.log('❌ [LOGO UPLOAD] Solo admin possono cambiare il logo');
+      return c.json({ error: 'Only admins can update organization logo' }, 403);
+    }
+
+    // Gestisci upload file
+    console.log('📁 [LOGO UPLOAD] Elaborazione file upload...');
+    const formData = await c.req.formData();
+    const logoFile = formData.get('logo') as File;
+
+    if (!logoFile) {
+      console.log('❌ [LOGO UPLOAD] File logo mancante');
+      return c.json({ error: 'Logo file is required' }, 400);
+    }
+
+    // Verifica tipo file
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(logoFile.type)) {
+      console.log('❌ [LOGO UPLOAD] Tipo file non supportato:', logoFile.type);
+      return c.json({ error: 'Only JPEG, PNG, and WebP images are allowed' }, 400);
+    }
+
+    // Verifica dimensione file (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (logoFile.size > maxSize) {
+      console.log('❌ [LOGO UPLOAD] File troppo grande:', logoFile.size, 'bytes');
+      return c.json({ error: 'File size must be less than 5MB' }, 400);
+    }
+
+    console.log('📋 [LOGO UPLOAD] File info:', {
+      name: logoFile.name,
+      type: logoFile.type,
+      size: logoFile.size
+    });
+
+    // Upload su Supabase Storage
+    console.log('☁️ [LOGO UPLOAD] Upload su Supabase Storage...');
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.log('❌ [LOGO UPLOAD] Configurazione Supabase mancante');
+      return c.json({ error: 'Storage service not configured' }, 500);
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media FIle';
+
+    // Genera nome file univoco
+    const fileExt = logoFile.name.split('.').pop();
+    const fileName = `org-logo-${orgId}-${Date.now()}.${fileExt}`;
+    const filePath = `logos/${fileName}`;
+
+    console.log('📁 [LOGO UPLOAD] Upload path:', filePath);
+
+    // Converti File in ArrayBuffer
+    const arrayBuffer = await logoFile.arrayBuffer();
+    const fileBuffer = new Uint8Array(arrayBuffer);
+
+    // Upload file
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(bucketName)
+      .upload(filePath, fileBuffer, {
+        contentType: logoFile.type,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('❌ [LOGO UPLOAD] Errore upload Supabase:', uploadError);
+      return c.json({ error: 'Failed to upload logo file', details: uploadError.message }, 500);
+    }
+
+    console.log('✅ [LOGO UPLOAD] File uploadato con successo:', uploadData.path);
+
+    // Genera URL pubblica
+    const logoUrl = publicObjectUrl(bucketName, filePath);
+    console.log('🔗 [LOGO UPLOAD] URL logo generata:', logoUrl);
+
+    // Aggiorna database
+    console.log('💾 [LOGO UPLOAD] Aggiornamento database...');
+    const updateResult = await query(
+      'UPDATE organizations SET logo_url = $1, updated_at = NOW() WHERE id = $2 RETURNING id, legal_name, logo_url',
+      [logoUrl, orgId]
+    );
+
+    if (updateResult.rows.length === 0) {
+      console.log('❌ [LOGO UPLOAD] Organizzazione non trovata per update');
+      return c.json({ error: 'Organization not found' }, 404);
+    }
+
+    console.log('✅ [LOGO UPLOAD] Database aggiornato:', updateResult.rows[0]);
+    console.log('🖼️ [LOGO UPLOAD] ===========================================');
+
+    return c.json({
+      success: true,
+      message: 'Logo uploaded successfully',
+      data: {
+        organization: {
+          id: updateResult.rows[0].id,
+          name: updateResult.rows[0].legal_name,
+          logoUrl: updateResult.rows[0].logo_url
+        }
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ [LOGO UPLOAD] Errore durante upload logo:', error.message);
+    console.error('❌ [LOGO UPLOAD] Stack trace:', error.stack);
+    console.log('🖼️ [LOGO UPLOAD] ===========================================');
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// ============================================================================
+// USER NOTIFICATION PREFERENCES
+// ============================================================================
+
+// GET /api/settings/notifications - Get user notification preferences
+app.get('/notifications', authMiddleware, async (c) => {
+  try {
+    console.log('🔔 [NOTIFICATIONS] ===========================================');
+    console.log('🔔 [NOTIFICATIONS] Lettura preferenze notifiche');
+
+    const user = c.get('user');
+    const currentUserId = user.userId || user.id;
+
+    console.log('🔔 [NOTIFICATIONS] userId:', currentUserId);
+
+    if (!currentUserId) {
+      console.log('❌ [NOTIFICATIONS] userId undefined');
+      return c.json({ error: 'User ID not found' }, 401);
+    }
+
+    // Leggi preferenze notifiche
+    console.log('📖 [NOTIFICATIONS] Query preferenze notifiche...');
+    const prefsResult = await query(
+      'SELECT id, user_id, email_orders, email_payments, email_updates, inapp_orders, inapp_messages, created_at, updated_at FROM user_notification_preferences WHERE user_id = $1',
+      [currentUserId]
+    );
+
+    console.log('📋 [NOTIFICATIONS] Risultati query:', prefsResult.rows.length);
+
+    let preferences;
+    if (prefsResult.rows.length === 0) {
+      // Crea preferenze di default se non esistono
+      console.log('📝 [NOTIFICATIONS] Preferenze non trovate, creo default...');
+      const defaultPrefs = {
+        user_id: currentUserId,
+        email_orders: true,
+        email_payments: true,
+        email_updates: true,
+        inapp_orders: true,
+        inapp_messages: true
+      };
+
+      const insertResult = await query(`
+        INSERT INTO user_notification_preferences (id, user_id, email_orders, email_payments, email_updates, inapp_orders, inapp_messages, created_at, updated_at)
+        VALUES (cuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING id, user_id, email_orders, email_payments, email_updates, inapp_orders, inapp_messages, created_at, updated_at
+      `, [
+        defaultPrefs.user_id,
+        defaultPrefs.email_orders,
+        defaultPrefs.email_payments,
+        defaultPrefs.email_updates,
+        defaultPrefs.inapp_orders,
+        defaultPrefs.inapp_messages
+      ]);
+
+      preferences = insertResult.rows[0];
+      console.log('✅ [NOTIFICATIONS] Preferenze default create:', preferences.id);
+    } else {
+      preferences = prefsResult.rows[0];
+      console.log('✅ [NOTIFICATIONS] Preferenze esistenti recuperate:', preferences.id);
+    }
+
+    console.log('📋 [NOTIFICATIONS] Preferenze finali:', {
+      email_orders: preferences.email_orders,
+      email_payments: preferences.email_payments,
+      email_updates: preferences.email_updates,
+      inapp_orders: preferences.inapp_orders,
+      inapp_messages: preferences.inapp_messages
+    });
+
+    console.log('🔔 [NOTIFICATIONS] ===========================================');
+
+    return c.json({
+      email_orders: preferences.email_orders,
+      email_payments: preferences.email_payments,
+      email_updates: preferences.email_updates,
+      inapp_orders: preferences.inapp_orders,
+      inapp_messages: preferences.inapp_messages
+    });
+
+  } catch (error: any) {
+    console.error('❌ [NOTIFICATIONS] Errore lettura preferenze:', error.message);
+    console.error('❌ [NOTIFICATIONS] Stack trace:', error.stack);
+    console.log('🔔 [NOTIFICATIONS] ===========================================');
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
+  }
+});
+
+// PATCH /api/settings/notifications - Update user notification preferences
+app.patch('/notifications', authMiddleware, async (c) => {
+  try {
+    console.log('🔔 [NOTIFICATIONS UPDATE] ===========================================');
+    console.log('🔔 [NOTIFICATIONS UPDATE] Aggiornamento preferenze notifiche');
+
+    const user = c.get('user');
+    const currentUserId = user.userId || user.id;
+    const updates = await c.req.json();
+
+    console.log('🔔 [NOTIFICATIONS UPDATE] userId:', currentUserId);
+    console.log('🔔 [NOTIFICATIONS UPDATE] updates:', updates);
+
+    if (!currentUserId) {
+      console.log('❌ [NOTIFICATIONS UPDATE] userId undefined');
+      return c.json({ error: 'User ID not found' }, 401);
+    }
+
+    // Valida input
+    const validFields = ['email_orders', 'email_payments', 'email_updates', 'inapp_orders', 'inapp_messages'];
+    const invalidFields = Object.keys(updates).filter(key => !validFields.includes(key));
+
+    if (invalidFields.length > 0) {
+      console.log('❌ [NOTIFICATIONS UPDATE] Campi non validi:', invalidFields);
+      return c.json({ error: 'Invalid fields provided', invalidFields }, 400);
+    }
+
+    // Verifica che esistano preferenze per l'utente
+    console.log('🔍 [NOTIFICATIONS UPDATE] Verifico esistenza preferenze...');
+    const existingPrefs = await query(
+      'SELECT id FROM user_notification_preferences WHERE user_id = $1',
+      [currentUserId]
+    );
+
+    if (existingPrefs.rows.length === 0) {
+      console.log('❌ [NOTIFICATIONS UPDATE] Preferenze non trovate per utente');
+      return c.json({ error: 'Notification preferences not found' }, 404);
+    }
+
+    // Costruisci query di update dinamica
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value !== undefined) {
+        updateFields.push(`${key} = $${paramIndex}`);
+        updateValues.push(value);
+        paramIndex++;
+      }
+    });
+
+    if (updateFields.length === 0) {
+      console.log('⚠️ [NOTIFICATIONS UPDATE] Nessun campo da aggiornare');
+      return c.json({ error: 'No valid fields to update' }, 400);
+    }
+
+    updateFields.push(`updated_at = NOW()`);
+    updateValues.push(currentUserId); // Aggiungi user_id alla fine
+
+    const updateQuery = `
+      UPDATE user_notification_preferences
+      SET ${updateFields.join(', ')}
+      WHERE user_id = $${paramIndex}
+      RETURNING id, user_id, email_orders, email_payments, email_updates, inapp_orders, inapp_messages, updated_at
+    `;
+
+    console.log('💾 [NOTIFICATIONS UPDATE] Query update:', updateQuery);
+    console.log('💾 [NOTIFICATIONS UPDATE] Values:', updateValues);
+
+    const updateResult = await query(updateQuery, updateValues);
+
+    if (updateResult.rows.length === 0) {
+      console.log('❌ [NOTIFICATIONS UPDATE] Update fallito');
+      return c.json({ error: 'Failed to update preferences' }, 500);
+    }
+
+    const updatedPrefs = updateResult.rows[0];
+    console.log('✅ [NOTIFICATIONS UPDATE] Preferenze aggiornate:', updatedPrefs.id);
+    console.log('📋 [NOTIFICATIONS UPDATE] Nuovi valori:', {
+      email_orders: updatedPrefs.email_orders,
+      email_payments: updatedPrefs.email_payments,
+      email_updates: updatedPrefs.email_updates,
+      inapp_orders: updatedPrefs.inapp_orders,
+      inapp_messages: updatedPrefs.inapp_messages
+    });
+
+    console.log('🔔 [NOTIFICATIONS UPDATE] ===========================================');
+
+    return c.json({
+      success: true,
+      message: 'Notification preferences updated successfully',
+      preferences: {
+        email_orders: updatedPrefs.email_orders,
+        email_payments: updatedPrefs.email_payments,
+        email_updates: updatedPrefs.email_updates,
+        inapp_orders: updatedPrefs.inapp_orders,
+        inapp_messages: updatedPrefs.inapp_messages
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ [NOTIFICATIONS UPDATE] Errore aggiornamento preferenze:', error.message);
+    console.error('❌ [NOTIFICATIONS UPDATE] Stack trace:', error.stack);
+    console.log('🔔 [NOTIFICATIONS UPDATE] ===========================================');
     return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
 });
