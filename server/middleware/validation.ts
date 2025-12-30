@@ -74,6 +74,8 @@ export const validateBody = <T extends z.ZodSchema>(
   };
 };
 
+// Force rebuild - version 1.0.1
+
 // Query parameter validation middleware
 export const validateQuery = <T extends z.ZodSchema>(
   schema: T
