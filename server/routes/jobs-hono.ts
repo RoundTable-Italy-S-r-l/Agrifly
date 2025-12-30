@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
 import { query } from '../utils/database';
-import { CreateJobSchema, CreateJobOfferSchema } from '../schemas/api.schemas';
+import { CreateJobSchema, CreateJobOfferSchema, CreateMessageSchema, MarkMessagesReadSchema } from '../schemas/api.schemas';
 // file-db.ts non è compatibile con Netlify Functions (usa import.meta)
 // Usiamo solo il database SQLite/PostgreSQL, non file-db
 
@@ -1239,25 +1239,21 @@ app.get('/offers/:offerId/messages', authMiddleware, async (c) => {
 });
 
 // POST MESSAGE FOR OFFER
-app.post('/offers/:offerId/messages', authMiddleware, async (c) => {
+app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessageSchema), async (c) => {
   try {
     const offerId = c.req.param('offerId');
-    const { sender_org_id, sender_user_id, message_text } = await c.req.json();
+    const validatedBody = c.get('validatedBody');
+    const { content: message_text } = validatedBody;
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
-
-    if (!offerId || !sender_org_id || !message_text) {
-      return c.json({ error: 'Offer ID, sender org ID, and message text required' }, 400);
-    }
 
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    // Verifica che sender_org_id corrisponda all'organizzazione dell'utente
-    if (sender_org_id !== user.organizationId) {
-      return c.json({ error: 'Unauthorized: sender_org_id must match your organization' }, 403);
-    }
+    // Usa l'organizzazione dell'utente autenticato come sender
+    const sender_org_id = user.organizationId;
+    const sender_user_id = user.id;
 
     console.log('💬 Creazione messaggio per offerta:', offerId);
 
@@ -1334,22 +1330,15 @@ app.post('/offers/:offerId/messages', authMiddleware, async (c) => {
 app.put('/offers/:offerId/messages/read', authMiddleware, async (c) => {
   try {
     const offerId = c.req.param('offerId');
-    const { reader_org_id } = await c.req.json();
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
-
-    if (!offerId || !reader_org_id) {
-      return c.json({ error: 'Offer ID and reader org ID required' }, 400);
-    }
 
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    // Verifica che reader_org_id corrisponda all'organizzazione dell'utente
-    if (reader_org_id !== user.organizationId) {
-      return c.json({ error: 'Unauthorized: reader_org_id must match your organization' }, 403);
-    }
+    // Usa l'organizzazione dell'utente autenticato come reader
+    const reader_org_id = user.organizationId;
 
     console.log('💬 Marca messaggi come letti per offerta:', offerId);
 
