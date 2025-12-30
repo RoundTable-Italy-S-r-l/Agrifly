@@ -108,17 +108,31 @@ app.get('/organization/general', authMiddleware, async (c) => {
 
     console.log('📖 Recupero impostazioni generali organizzazione:', orgId);
 
+    // Verifica autenticazione
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
+    console.log('👤 User autenticato:', user ? { userId: user.userId, orgId: user.organizationId } : 'null');
+
     // Usa il database SQLite/PostgreSQL
     const orgResult = await query(`
       SELECT * FROM organizations WHERE id = $1
     `, [orgId]);
 
+    console.log('🔍 Query result rows:', orgResult.rows.length);
+
     if (orgResult.rows.length === 0) {
+      console.log('❌ Organizzazione non trovata per GET:', orgId);
       return c.json({ error: 'Organization not found' }, 404);
     }
 
     const organization = orgResult.rows[0];
-    console.log('✅ Impostazioni generali recuperate:', organization);
+    console.log('✅ Impostazioni generali recuperate:', {
+      id: organization.id,
+      legal_name: organization.legal_name,
+      phone: organization.phone,
+      support_email: organization.support_email,
+      // Mostra solo alcuni campi per brevità
+    });
 
     return c.json({
       data: organization
@@ -146,6 +160,14 @@ app.patch('/organization/general', authMiddleware, async (c) => {
 
     console.log('🏢 Aggiornamento impostazioni generali organizzazione:', orgId, updates);
 
+    // Verifica che l'organizzazione esista prima dell'aggiornamento
+    const orgCheckResult = await query(`SELECT * FROM organizations WHERE id = $1`, [orgId]);
+    if (orgCheckResult.rows.length === 0) {
+      console.log('❌ Organizzazione non trovata:', orgId);
+      return c.json({ error: 'Organization not found' }, 404);
+    }
+    console.log('✅ Organizzazione trovata prima dell\'aggiornamento:', orgCheckResult.rows[0]);
+
     // Usa il database SQLite/PostgreSQL
     // Mappa dei campi consentiti
     const allowedFields = [
@@ -162,6 +184,8 @@ app.patch('/organization/general', authMiddleware, async (c) => {
       }
     }
 
+    console.log('🔧 Campi validi da aggiornare:', validUpdates);
+
     if (Object.keys(validUpdates).length === 0) {
       return c.json({ error: 'No valid fields to update' }, 400);
     }
@@ -171,11 +195,16 @@ app.patch('/organization/general', authMiddleware, async (c) => {
     const setClause = updateFields.map((field, index) => `${field} = $${index + 2}`).join(', ');
     const values = [orgId, ...updateFields.map(field => validUpdates[field])];
 
-    await query(`
-      UPDATE organizations 
+    console.log('🔧 Query UPDATE:', `UPDATE organizations SET ${setClause} WHERE id = $1`);
+    console.log('🔧 Values:', values);
+
+    const updateResult = await query(`
+      UPDATE organizations
       SET ${setClause}
       WHERE id = $1
     `, values);
+
+    console.log('✅ Risultato UPDATE:', updateResult);
 
     // Recupera l'organizzazione aggiornata
     const orgResult = await query(`SELECT * FROM organizations WHERE id = $1`, [orgId]);
