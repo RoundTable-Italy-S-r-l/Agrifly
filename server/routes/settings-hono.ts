@@ -126,21 +126,29 @@ app.get('/organization/general', authMiddleware, async (c) => {
     }
 
     const organization = orgResult.rows[0];
+
+    // Mappa i campi del database ai nomi del frontend
+    const mappedOrganization = {
+      ...organization,
+      org_type: organization.kind, // Mappa kind -> org_type per il frontend
+    };
+
     console.log('✅ Impostazioni generali recuperate:', {
-      id: organization.id,
-      legal_name: organization.legal_name,
-      logo_url: organization.logo_url,
-      phone: organization.phone,
-      support_email: organization.support_email,
-      vat_number: organization.vat_number,
-      tax_code: organization.tax_code,
-      org_type: organization.org_type,
-      address_line: organization.address_line,
+      id: mappedOrganization.id,
+      legal_name: mappedOrganization.legal_name,
+      logo_url: mappedOrganization.logo_url,
+      phone: mappedOrganization.phone,
+      support_email: mappedOrganization.support_email,
+      vat_number: mappedOrganization.vat_number,
+      tax_code: mappedOrganization.tax_code,
+      org_type: mappedOrganization.org_type,
+      kind: organization.kind, // Mostra anche il valore originale
+      address_line: mappedOrganization.address_line,
       all_fields: Object.keys(organization)
     });
 
     return c.json({
-      data: organization
+      data: mappedOrganization
     });
 
   } catch (error: any) {
@@ -187,18 +195,28 @@ app.patch('/organization/general', authMiddleware, async (c) => {
     }
 
     // Usa il database SQLite/PostgreSQL
-    // Mappa dei campi consentiti
-    const allowedFields = [
-      'legal_name', 'logo_url', 'phone', 'support_email', 'vat_number',
-      'tax_code', 'org_type', 'address_line', 'city', 'province',
-      'region', 'postal_code', 'country'
-    ];
+    // Mappa dei campi consentiti (frontend -> database)
+    const fieldMapping: Record<string, string> = {
+      'legal_name': 'legal_name',
+      'logo_url': 'logo_url',
+      'phone': 'phone',
+      'support_email': 'support_email',
+      'vat_number': 'vat_number',
+      'tax_code': 'tax_code',
+      'org_type': 'kind', // Mappa org_type -> kind
+      'address_line': 'address_line',
+      'city': 'city',
+      'province': 'province',
+      'region': 'region',
+      'postal_code': 'postal_code',
+      'country': 'country'
+    };
 
-    // Filtra solo i campi consentiti
+    // Filtra solo i campi consentiti e mappa i nomi
     const validUpdates: any = {};
     for (const [field, value] of Object.entries(updates)) {
-      if (allowedFields.includes(field) && value !== undefined) {
-        validUpdates[field] = value;
+      if (fieldMapping[field] && value !== undefined) {
+        validUpdates[fieldMapping[field]] = value;
       }
     }
 
@@ -238,10 +256,21 @@ app.patch('/organization/general', authMiddleware, async (c) => {
       return c.json({ error: 'Organization not found' }, 404);
     }
 
-    console.log('✅ Organizzazione aggiornata:', updatedOrg);
+    // Mappa i campi per il frontend
+    const mappedUpdatedOrg = {
+      ...updatedOrg,
+      org_type: updatedOrg.kind, // Mappa kind -> org_type per il frontend
+    };
+
+    console.log('✅ Organizzazione aggiornata:', {
+      id: mappedUpdatedOrg.id,
+      legal_name: mappedUpdatedOrg.legal_name,
+      org_type: mappedUpdatedOrg.org_type,
+      kind: updatedOrg.kind
+    });
 
     return c.json({
-      data: updatedOrg,
+      data: mappedUpdatedOrg,
       message: 'Impostazioni aggiornate con successo'
     });
 
