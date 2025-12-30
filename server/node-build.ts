@@ -1,8 +1,8 @@
 import path from "path";
-import { createServer } from "./index";
+import app from "./hono-app";
 import * as express from "express";
 
-const app = createServer();
+// app is already imported from hono-app
 const port = process.env.PORT || 4000;
 
 // In production, serve the built SPA files

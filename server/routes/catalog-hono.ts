@@ -628,8 +628,7 @@ app.get('/public', async (c) => {
     console.error('❌ [CATALOG PUBLIC] Error message:', error.message);
     console.error('❌ [CATALOG PUBLIC] Error code:', error.code);
     console.error('❌ [CATALOG PUBLIC] Stack:', error.stack);
-    // querySql è definito solo nel try block, quindi non possiamo accedervi qui
-    console.error('❌ [CATALOG PUBLIC] Parametri:', params);
+    // params è definito solo nel try block, quindi non possiamo accedervi qui
     // NON restituire dati mock in caso di errore - restituisci solo errore
     return c.json({
       error: 'Errore interno',

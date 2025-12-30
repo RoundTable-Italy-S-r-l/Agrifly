@@ -207,7 +207,8 @@ app.get('/:orgId', authMiddleware, async (c) => {
 // Placeholder per altre routes
 app.get('/', (c) => c.json({ message: 'bookings API' }));
 
-// Export function for Express server compatibility
+// Export function for Express server compatibility - COMMENTED OUT: uses Prisma which is not available
+/*
 export async function getBookings(req: any, res: any) {
   try {
     // Verify authentication
@@ -272,5 +273,6 @@ export async function getBookings(req: any, res: any) {
     res.status(500).json({ error: 'Errore interno del server' });
   }
 }
+*/
 
 export default app;

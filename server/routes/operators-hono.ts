@@ -151,6 +151,9 @@ app.get('/:orgId/:operatorId', async (c) => {
 
     console.log('👤 Richiesta dettaglio operatore:', operatorId, 'org:', orgId);
 
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://') || !!process.env.PGHOST;
+
     // Query per ottenere il dettaglio dell'operatore
     // Gestisce operatori individuali, membri senza profilo, e operatori "company"
     let operatorQuery;
