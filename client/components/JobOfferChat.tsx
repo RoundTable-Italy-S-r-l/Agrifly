@@ -14,6 +14,8 @@ interface JobOfferChatProps {
 }
 
 export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId, operatorOrgId }: JobOfferChatProps) {
+  console.log('💬 [CHAT COMPONENT] Rendered with:', { offerId, currentOrgId, currentUserId, buyerOrgId, operatorOrgId });
+
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -21,22 +23,38 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
   // Query per messaggi
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['jobOfferMessages', offerId],
-    queryFn: () => fetchJobOfferMessages(offerId),
+    queryFn: () => {
+      console.log('💬 [CHAT QUERY] Fetching messages for offerId:', offerId);
+      return fetchJobOfferMessages(offerId);
+    },
     refetchInterval: 3000, // Auto-refresh ogni 3 secondi
     enabled: !!offerId,
+    onSuccess: (data) => {
+      console.log('💬 [CHAT QUERY] Messages loaded:', data?.length || 0, 'messages');
+    },
+    onError: (error) => {
+      console.error('💬 [CHAT QUERY] Error loading messages:', error);
+    }
   });
 
   // Mutation per inviare messaggio
   const sendMessageMutation = useMutation({
-    mutationFn: (text: string) => sendJobOfferMessage(offerId, {
-      content: text
-    }),
+    mutationFn: (text: string) => {
+      console.log('💬 [CHAT SEND] Sending message:', text, 'for offerId:', offerId);
+      return sendJobOfferMessage(offerId, {
+        content: text
+      });
+    },
     onSuccess: () => {
+      console.log('💬 [CHAT SEND] Message sent successfully');
       setMessageText('');
       queryClient.invalidateQueries({ queryKey: ['jobOfferMessages', offerId] });
       // Marca messaggi come letti dopo l'invio
       markJobOfferMessagesAsRead(offerId, currentOrgId).catch(console.error);
     },
+    onError: (error) => {
+      console.error('💬 [CHAT SEND] Error sending message:', error);
+    }
   });
 
   // Marca messaggi come letti quando si caricano
