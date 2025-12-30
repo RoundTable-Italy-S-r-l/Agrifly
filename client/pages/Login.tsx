@@ -104,7 +104,7 @@ export default function Login() {
       await queryClient.invalidateQueries();
 
       const postLoginRedirect = localStorage.getItem('post_login_redirect');
-      console.log('🔄 Checking redirect after registration:', { postLoginRedirect, canBuy: data.organization.can_buy, emailVerified: data.user?.email_verified });
+      console.log('🔄 Checking redirect after registration:', { postLoginRedirect, canBuy: (data.organization.type || data.organization.org_type) === 'buyer', emailVerified: data.user?.email_verified });
 
       // Se l'email non è verificata, redirect a verifica email
       // NON migrare il carrello ora - sarà migrato dopo la verifica email
@@ -133,7 +133,7 @@ export default function Login() {
         }
       }
 
-      if (postLoginRedirect === 'nuovo-preventivo' && data.organization.can_buy) {
+      if (postLoginRedirect === 'nuovo-preventivo' && (data.organization.type || data.organization.org_type) === 'buyer') {
         // Trasferisci dati campo temporanei ai dati utente
         const tempFieldData = localStorage.getItem('temp_field_data');
         console.log('📋 Temp field data before transfer:', tempFieldData);
@@ -158,7 +158,7 @@ export default function Login() {
 
       // Gestisci redirect al carrello (sia 'carrello' che '/buyer/carrello')
       // Solo se l'email è già verificata
-      if ((postLoginRedirect === 'carrello' || postLoginRedirect === '/buyer/carrello' || postLoginRedirect?.includes('carrello')) && data.organization.can_buy) {
+      if ((postLoginRedirect === 'carrello' || postLoginRedirect === '/buyer/carrello' || postLoginRedirect?.includes('carrello')) && (data.organization.type || data.organization.org_type) === 'buyer') {
         localStorage.removeItem('post_login_redirect');
         console.log(`🛒 Redirect speciale dopo registrazione: /buyer/carrello`);
         navigate('/buyer/carrello', { replace: true });
@@ -257,10 +257,10 @@ export default function Login() {
       const organization = data.organization;
       const user = data.user;
 
-      console.log('🔄 Checking post_login_redirect:', { postLoginRedirect, canBuy: organization.can_buy });
+      console.log('🔄 Checking post_login_redirect:', { postLoginRedirect, canBuy: (organization.type || organization.org_type) === 'buyer' });
 
       // Gestisci redirect al carrello (sia 'carrello' che '/buyer/carrello')
-      if ((postLoginRedirect === 'carrello' || postLoginRedirect === '/buyer/carrello' || postLoginRedirect?.includes('carrello')) && organization.can_buy) {
+      if ((postLoginRedirect === 'carrello' || postLoginRedirect === '/buyer/carrello' || postLoginRedirect?.includes('carrello')) && (organization.type || organization.org_type) === 'buyer') {
         localStorage.removeItem('post_login_redirect');
         console.log(`🛒 Navigazione speciale a: /buyer/carrello`);
         navigate('/buyer/carrello', { replace: true });
