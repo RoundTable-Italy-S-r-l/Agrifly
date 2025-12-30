@@ -129,9 +129,14 @@ app.get('/organization/general', authMiddleware, async (c) => {
     console.log('✅ Impostazioni generali recuperate:', {
       id: organization.id,
       legal_name: organization.legal_name,
+      logo_url: organization.logo_url,
       phone: organization.phone,
       support_email: organization.support_email,
-      // Mostra solo alcuni campi per brevità
+      vat_number: organization.vat_number,
+      tax_code: organization.tax_code,
+      org_type: organization.org_type,
+      address_line: organization.address_line,
+      all_fields: Object.keys(organization)
     });
 
     return c.json({
@@ -167,6 +172,19 @@ app.patch('/organization/general', authMiddleware, async (c) => {
       return c.json({ error: 'Organization not found' }, 404);
     }
     console.log('✅ Organizzazione trovata prima dell\'aggiornamento:', orgCheckResult.rows[0]);
+
+    // Verifica quali colonne esistono nella tabella
+    try {
+      const columnsResult = await query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'organizations'
+        ORDER BY column_name
+      `);
+      console.log('📋 Colonne disponibili nella tabella organizations:', columnsResult.rows.map(r => r.column_name));
+    } catch (error) {
+      console.log('⚠️ Impossibile verificare le colonne (potrebbe essere SQLite):', error.message);
+    }
 
     // Usa il database SQLite/PostgreSQL
     // Mappa dei campi consentiti
@@ -205,6 +223,12 @@ app.patch('/organization/general', authMiddleware, async (c) => {
     `, values);
 
     console.log('✅ Risultato UPDATE:', updateResult);
+    console.log('✅ UPDATE affected rows:', updateResult.rowCount || 'unknown');
+
+    // Verifica che l'update abbia funzionato controllando le righe modificate
+    if (updateResult.rowCount === 0) {
+      console.log('⚠️ UPDATE non ha modificato nessuna riga - possibile che l\'organizzazione non esista o che i valori siano identici');
+    }
 
     // Recupera l'organizzazione aggiornata
     const orgResult = await query(`SELECT * FROM organizations WHERE id = $1`, [orgId]);
