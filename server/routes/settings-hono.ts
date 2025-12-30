@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { authMiddleware } from '../middleware/auth';
+import { validateBody } from '../middleware/validation';
+import { CreateInvitationSchema } from '../schemas/api.schemas';
 import { createClient } from '@supabase/supabase-js';
 import { publicObjectUrl } from '../utils/storage';
 
@@ -411,9 +413,10 @@ app.get('/organization/invitations', authMiddleware, async (c) => {
 });
 
 // POST /api/settings/organization/invitations/invite - Invite user
-app.post('/organization/invitations/invite', authMiddleware, async (c) => {
+app.post('/organization/invitations/invite', authMiddleware, validateBody(CreateInvitationSchema), async (c) => {
   try {
-    const { email, role } = await c.req.json();
+    const validatedBody = c.get('validatedBody');
+    const { email, role } = validatedBody;
     const user = c.get('user');
 
     console.log('📧 [INVITE] ===========================================');
@@ -425,16 +428,7 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     console.log('📧 [INVITE] isAdmin:', user.isAdmin);
     console.log('📧 [INVITE] orgId:', user.organizationId);
 
-    if (!email || !role) {
-      console.log('❌ [INVITE] Email o ruolo mancanti');
-      return c.json({ error: 'Email and role required' }, 400);
-    }
-
-    // Verifica che il ruolo sia valido
-    const validRoles = ['admin', 'vendor', 'operator', 'dispatcher'];
-    if (!validRoles.includes(role)) {
-      return c.json({ error: 'Invalid role' }, 400);
-    }
+    // Validazione già effettuata dal middleware Zod
 
     // Trova l'organizzazione dell'utente
     console.log('🔍 [INVITE] Cerco membership per user:', user.userId || user.id);
@@ -579,7 +573,7 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
         `, [inviteId, orgId, orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id, new Date().toISOString(), null]);
 
     // Invia email di invito
-    const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:8082'}/accept-invite?token=${token}`;
+    const inviteUrl = `${process.env.FRONTEND_URL || 'https://your-site.netlify.app'}/accept-invite?token=${token}`;
 
     console.log('📧 [INVITE] Invito salvato nel database con ID:', inviteId);
 
