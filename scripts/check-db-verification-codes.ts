@@ -63,9 +63,10 @@ async function checkVerificationCodes() {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     
     console.log('   Inserimento codice di test...');
+    const verificationId = 'test-verification-' + Date.now();
     const insertResult = await query(
-      'INSERT INTO verification_codes (user_id, email, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [testUserId, testEmail, testCode, 'EMAIL_VERIFICATION', expiresAt]
+      'INSERT INTO verification_codes (id, user_id, email, code, purpose, expires_at, used, used_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+      [verificationId, testUserId, testEmail, testCode, 'EMAIL_VERIFICATION', expiresAt, false, null]
     );
     
     console.log('✅ Codice inserito con ID:', insertResult.rows[0]?.id);

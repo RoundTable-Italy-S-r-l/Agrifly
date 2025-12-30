@@ -269,28 +269,35 @@ app.post('/create-from-cart', async (c) => {
     const now = new Date().toISOString();
     const orderQuery = `
       INSERT INTO orders (
-        id, order_number, buyer_org_id, seller_org_id, status, payment_status,
+        id, order_number, buyer_org_id, seller_org_id, quote_id, order_status, status, payment_status,
         subtotal_cents, tax_cents, shipping_cents, total_cents, currency,
-        shipping_address, billing_address, customer_notes, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        shipping_address, billing_address, shipped_at, delivered_at, vendor_org_id,
+        customer_notes, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
     `;
 
     const orderValues = [
       orderId,
       orderNumber,
-      cartData.org_id,
+      cartData.org_id, // buyer_org_id
       sellerOrgId,
-      'CONFIRMED',
-      'PAID', // Mock Stripe - pagamento sempre completato
+      null, // quote_id
+      'CONFIRMED', // order_status
+      'CONFIRMED', // status (duplicato per sicurezza)
+      'PAID', // payment_status - Mock Stripe
       subtotalCents,
       0, // tax_cents
       shippingCents,
       totalCents,
       'EUR',
-      JSON.stringify(shippingAddress),
-      JSON.stringify(billingAddress),
+      shippingAddress ? JSON.stringify(shippingAddress) : null,
+      billingAddress ? JSON.stringify(billingAddress) : null,
+      null, // shipped_at
+      null, // delivered_at
+      sellerOrgId, // vendor_org_id (duplicato di seller_org_id)
       customerNotes || null,
-      now // created_at
+      now, // created_at
+      now  // updated_at
     ];
 
     await query(orderQuery, orderValues);

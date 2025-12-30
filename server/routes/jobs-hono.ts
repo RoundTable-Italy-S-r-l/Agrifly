@@ -115,19 +115,29 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
     const dbUrl = process.env.DATABASE_URL || '';
     const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
     
-    const createJobsTableQuery = isPostgreSQL
+    const createTableQuery = isPostgreSQL
       ? `
       CREATE TABLE IF NOT EXISTS jobs (
-          id VARCHAR(255) PRIMARY KEY,
-          buyer_org_id VARCHAR(255) NOT NULL,
-          field_name VARCHAR(255) NOT NULL,
-          service_type VARCHAR(255) NOT NULL,
-        area_ha DECIMAL(10,4),
-        location_json TEXT,
-        target_date_start TIMESTAMP,
-        target_date_end TIMESTAMP,
+          id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+          buyer_org_id TEXT NOT NULL,
+          broker_org_id VARCHAR(255),
+          service_type TEXT NOT NULL DEFAULT 'SPRAY',
+          crop_type TEXT,
+          treatment_type TEXT,
+          terrain_conditions VARCHAR(255),
+          status TEXT NOT NULL DEFAULT 'OPEN',
+          field_name TEXT NOT NULL,
+          field_polygon TEXT,
+          area_ha DECIMAL(10,4),
+          location_json TEXT,
+          requested_window_start TIMESTAMP,
+          requested_window_end TIMESTAMP,
+          constraints_json TEXT,
+          visibility_mode VARCHAR(255) DEFAULT 'WHITELIST_ONLY',
+          accepted_offer_id VARCHAR(255),
+          target_date_start TIMESTAMP,
+          target_date_end TIMESTAMP,
           notes TEXT,
-          status VARCHAR(50) DEFAULT 'OPEN',
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
         )
@@ -136,21 +146,31 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
         CREATE TABLE IF NOT EXISTS jobs (
           id TEXT PRIMARY KEY,
           buyer_org_id TEXT NOT NULL,
-          field_name TEXT NOT NULL,
-          service_type TEXT NOT NULL,
+          broker_org_id TEXT,
+          service_type TEXT NOT NULL DEFAULT 'SPRAY',
+          crop_type TEXT,
+          treatment_type TEXT,
+          terrain_conditions TEXT,
+          status TEXT DEFAULT 'OPEN',
+          field_name TEXT,
+          field_polygon TEXT,
           area_ha REAL,
           location_json TEXT,
+          requested_window_start TEXT,
+          requested_window_end TEXT,
+          constraints_json TEXT,
+          visibility_mode TEXT DEFAULT 'WHITELIST_ONLY',
+          accepted_offer_id TEXT,
           target_date_start TEXT,
           target_date_end TEXT,
-        notes TEXT,
-        status TEXT DEFAULT 'OPEN',
+          notes TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `;
     
     try {
-      await query(createJobsTableQuery);
+      await query(createTableQuery);
     } catch (error: any) {
       console.error('Error creating jobs table:', error.message);
     }
