@@ -253,13 +253,11 @@ export default function Orders() {
         const org = JSON.parse(orgData);
         console.log('📦 Dati organizzazione dal localStorage:', org);
         setCurrentOrgId(org.id);
-        // Determina se è un vendor basandosi su type/org_type o can_sell (gestisce sia maiuscolo che minuscolo)
-        // L'API restituisce 'type', ma potrebbe anche esserci 'org_type' per retrocompatibilità
-        const orgType = ((org.type || org.org_type || '') + '').toUpperCase();
-        const canSell = org.can_sell === true || org.can_sell === 1 || org.can_sell === '1';
-        const vendor = orgType === 'VENDOR' || orgType === 'OPERATOR' || canSell;
+        // NUOVA LOGICA: determina se è vendor/operator dal tipo organizzazione
+        const orgType = ((org.type || org.org_type || '') + '').toLowerCase();
+        const vendor = orgType === 'vendor' || orgType === 'operator';
         setIsVendor(vendor);
-        console.log('🏪 Organizzazione:', org.name || org.legal_name || org.id, 'orgType:', orgType, 'canSell:', canSell, 'isVendor:', vendor);
+        console.log('🏪 Organizzazione:', org.name || org.legal_name || org.id, 'orgType:', orgType, 'isVendor:', vendor);
       } catch (error) {
         console.error('Errore nel parsing dei dati organizzazione:', error);
       }

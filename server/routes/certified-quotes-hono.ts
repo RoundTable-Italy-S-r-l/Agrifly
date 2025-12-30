@@ -83,7 +83,7 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
         FROM organizations o
         INNER JOIN rate_cards rc ON rc.seller_org_id = o.id
         LEFT JOIN service_configurations sc ON sc.org_id = o.id
-        WHERE (o.is_certified = true OR o.can_operate = true)
+        WHERE (o.is_certified = true OR o.type = 'operator' OR o.type = 'vendor')
           AND o.status = 'ACTIVE'
           AND rc.service_type = $1
           ${hasIsActiveColumn ? 'AND (rc.is_active = true OR rc.is_active IS NULL)' : ''}
@@ -109,7 +109,7 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
         FROM organizations o
         INNER JOIN rate_cards rc ON rc.seller_org_id = o.id
         LEFT JOIN service_configurations sc ON sc.org_id = o.id
-        WHERE o.can_operate = true
+        WHERE (o.type = 'operator' OR o.type = 'vendor')
           AND o.status = 'ACTIVE'
           AND rc.service_type = $1
           ${hasIsActiveColumn ? 'AND (rc.is_active = true OR rc.is_active IS NULL)' : ''}

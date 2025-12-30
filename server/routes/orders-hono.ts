@@ -74,14 +74,13 @@ app.get('/', async (c) => {
     } else if (role === 'buyer') {
       isSeller = false;
     } else {
-      // Auto-detect: controlla se l'org è vendor
-      const orgCheck = await query('SELECT org_type, can_sell FROM organizations WHERE id = $1', [orgId]);
+      // NUOVA LOGICA: determina se è vendor/operator dal tipo organizzazione
+      const orgCheck = await query('SELECT type, org_type FROM organizations WHERE id = $1', [orgId]);
       if (orgCheck.rows.length > 0) {
         const org = orgCheck.rows[0];
-        const orgType = (org.org_type || '').toUpperCase();
-        const canSell = org.can_sell === 1 || org.can_sell === true || org.can_sell === '1';
-        isSeller = orgType === 'VENDOR' || orgType === 'OPERATOR' || canSell;
-        console.log('🔍 Auto-detect vendor:', { orgId, orgType, canSell, isSeller });
+        const orgType = (org.type || org.org_type || '').toLowerCase();
+        isSeller = orgType === 'vendor' || orgType === 'operator';
+        console.log('🔍 Organization type check:', { orgId, orgType, isSeller });
       }
     }
 
