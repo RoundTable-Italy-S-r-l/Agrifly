@@ -414,14 +414,14 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     const { email, role } = await c.req.json();
     const user = c.get('user');
 
-    console.log('📧 [INVITE] Richiesta invito ricevuta:', {
-      email,
-      role,
-      userId: user.userId || user.id,
-      userRole: user.role,
-      userIsAdmin: user.isAdmin,
-      orgId: user.organizationId
-    });
+    console.log('📧 [INVITE] ===========================================');
+    console.log('📧 [INVITE] Richiesta invito ricevuta');
+    console.log('📧 [INVITE] email:', email);
+    console.log('📧 [INVITE] role:', role);
+    console.log('📧 [INVITE] userId:', user.userId || user.id);
+    console.log('📧 [INVITE] userRole:', user.role);
+    console.log('📧 [INVITE] isAdmin:', user.isAdmin);
+    console.log('📧 [INVITE] orgId:', user.organizationId);
 
     if (!email || !role) {
       console.log('❌ [INVITE] Email o ruolo mancanti');
@@ -459,21 +459,40 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     const orgType = membership.rows[0].type;
     const memberRole = membership.rows[0].role;
 
-    console.log('🔐 [INVITE] Controllo permessi:', {
-      memberRole,
-      userIsAdmin: user.isAdmin,
-      memberRoleIsAdmin: memberRole === 'admin',
-      canInvite: memberRole === 'admin' || user.isAdmin
-    });
+    console.log('🔐 [INVITE] Controllo permessi');
+    console.log('🔐 [INVITE] memberRole:', memberRole);
+    console.log('🔐 [INVITE] user.isAdmin:', user.isAdmin);
+    console.log('🔐 [INVITE] orgType:', orgType);
 
-    // Verifica che l'utente abbia il permesso di invitare (admin dell'organizzazione o admin globale)
-    if (memberRole !== 'admin' && !user.isAdmin) {
-      console.log('❌ [INVITE] Permessi negati:', {
-        memberRole,
-        userIsAdmin: user.isAdmin,
-        reason: 'Né admin dell\'org né admin globale'
-      });
-      return c.json({ error: 'Only admins can invite users' }, 403);
+    // Logica autorizzazione basata sul tipo organizzazione
+    let canInvite = false;
+    if (user.isAdmin) {
+      // Admin globale può sempre invitare
+      canInvite = true;
+      console.log('✅ [INVITE] Utente è admin globale - può invitare');
+    } else if (memberRole) {
+      // Verifica ruolo nell'organizzazione specifica
+      if (orgType === 'buyer') {
+        // Buyer org: solo admin possono invitare
+        canInvite = memberRole === 'admin';
+        console.log('🏢 [INVITE] Org buyer - ruolo richiesto: admin, ruolo attuale:', memberRole, 'canInvite:', canInvite);
+      } else if (orgType === 'vendor' || orgType === 'operator') {
+        // Vendor/Operator org: admin/vendor/operator/dispatcher possono invitare
+        const allowedRoles = ['admin', 'vendor', 'operator', 'dispatcher'];
+        canInvite = allowedRoles.includes(memberRole);
+        console.log('🏭 [INVITE] Org vendor/operator - ruoli permessi:', allowedRoles, 'ruolo attuale:', memberRole, 'canInvite:', canInvite);
+      } else {
+        console.log('❌ [INVITE] Tipo organizzazione non supportato:', orgType);
+        canInvite = false;
+      }
+    } else {
+      console.log('❌ [INVITE] Utente non è membro dell\'organizzazione');
+      canInvite = false;
+    }
+
+    if (!canInvite) {
+      console.log('🚫 [INVITE] Permesso negato - utente non autorizzato a invitare in questa org');
+      return c.json({ error: 'You do not have permission to invite users in this organization' }, 403);
     }
 
     console.log('✅ [INVITE] Permessi OK, procedo con invito');
@@ -539,7 +558,16 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 giorni
 
     console.log('📧 [INVITE] Creando invito con ID:', inviteId);
-    console.log('📧 [INVITE] Parametri INSERT:', [inviteId, orgId, email, role, token, 'PENDING', expiresAt, user.userId || user.id]);
+    console.log('📧 [INVITE] Parametri INSERT:', {
+      inviteId,
+      orgId,
+      email,
+      role,
+      tokenLength: token.length,
+      status: 'PENDING',
+      expiresAt,
+      invitedByUserId: user.userId || user.id
+    });
 
     // Crea invito
     const result = await query(`
@@ -562,15 +590,28 @@ app.post('/organization/invitations/invite', authMiddleware, async (c) => {
       // Non bloccare la creazione dell'invito se l'email fallisce
     }
 
+    console.log('✅ [INVITE] Invito creato con successo - ID:', result.rows[0].id);
+    console.log('📧 [INVITE] ===========================================');
+
     return c.json({
       success: true,
       invitationId: result.rows[0].id,
-      message: 'Invitation sent successfully'
+      message: 'Invitation sent successfully',
+      invitation: {
+        id: result.rows[0].id,
+        email,
+        role,
+        organization: organization.rows[0].legal_name,
+        expiresAt: expiresAt
+      }
     });
 
   } catch (error: any) {
-    console.error('❌ Errore invio invito:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    console.error('❌ [INVITE] Errore durante invio invito:', error.message);
+    console.error('❌ [INVITE] Stack trace:', error.stack);
+    console.error('❌ [INVITE] Params - email:', email, 'role:', role, 'userId:', user.userId || user.id);
+    console.log('📧 [INVITE] ===========================================');
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
 });
 
@@ -579,39 +620,122 @@ app.post('/organization/invitations/revoke/:invitationId', authMiddleware, async
   try {
     const invitationId = c.req.param('invitationId');
     const user = c.get('user');
+    const currentUserId = user.userId || user.id;
+
+    console.log('🔄 [REVOKE] ===========================================');
+    console.log('🔄 [REVOKE] Inizio revoca invito');
+    console.log('🔄 [REVOKE] invitationId:', invitationId);
+    console.log('🔄 [REVOKE] userId:', currentUserId);
+    console.log('🔄 [REVOKE] userRole:', user.role);
+    console.log('🔄 [REVOKE] isAdmin:', user.isAdmin);
 
     if (!invitationId) {
+      console.log('❌ [REVOKE] invitationId mancante');
       return c.json({ error: 'Invitation ID required' }, 400);
     }
 
-    // Trova l'invito e verifica permessi
+    if (!currentUserId) {
+      console.log('❌ [REVOKE] currentUserId undefined - user.userId:', user.userId, 'user.id:', user.id);
+      return c.json({ error: 'User ID not found' }, 401);
+    }
+
+    // 1. Trova l'invito
+    console.log('🔍 [REVOKE] Cerco invito nel database...');
     const invitation = await query(`
-      SELECT oi.*, om.role as inviter_role
+      SELECT oi.*, o.type as org_type, o.legal_name as org_name
       FROM organization_invitations oi
-      JOIN org_memberships om ON oi.organization_id = om.org_id AND om.user_id = $2
+      JOIN organizations o ON oi.organization_id = o.id
       WHERE oi.id = $1 AND oi.status = 'PENDING'
-    `, [invitationId, user.id]);
+    `, [invitationId]);
 
+    console.log('📋 [REVOKE] Query invito - risultati:', invitation.rows.length);
     if (invitation.rows.length === 0) {
-      return c.json({ error: 'Invitation not found' }, 404);
+      console.log('❌ [REVOKE] Invito non trovato o già revocato');
+      return c.json({ error: 'Invitation not found or already revoked' }, 404);
     }
 
-    // Solo admin possono revocare inviti (admin dell'organizzazione o admin globale)
-    if (invitation.rows[0].inviter_role !== 'admin' && !user.isAdmin) {
-      return c.json({ error: 'Only admins can revoke invitations' }, 403);
+    const inviteData = invitation.rows[0];
+    console.log('📋 [REVOKE] Invito trovato:', {
+      id: inviteData.id,
+      organization_id: inviteData.organization_id,
+      org_name: inviteData.org_name,
+      org_type: inviteData.org_type,
+      email: inviteData.email,
+      role: inviteData.role,
+      invited_by: inviteData.invited_by_user_id,
+      expires_at: inviteData.expires_at
+    });
+
+    // 2. Verifica permessi dell'utente corrente nell'organizzazione dell'invito
+    console.log('🔐 [REVOKE] Verifico permessi utente corrente in org:', inviteData.organization_id);
+    const membership = await query(
+      'SELECT om.role as member_role FROM org_memberships om WHERE om.org_id = $1 AND om.user_id = $2 AND om.is_active = true',
+      [inviteData.organization_id, currentUserId]
+    );
+
+    console.log('📋 [REVOKE] Membership utente corrente - risultati:', membership.rows.length);
+    const memberRole = membership.rows.length > 0 ? membership.rows[0].member_role : null;
+    console.log('📋 [REVOKE] Ruolo membro:', memberRole, 'isAdmin:', user.isAdmin);
+
+    // 3. Logica autorizzazione basata sul tipo organizzazione
+    console.log('🏢 [REVOKE] Verifico autorizzazione per org type:', inviteData.org_type);
+
+    let canRevoke = false;
+    if (user.isAdmin) {
+      // Admin globale può sempre revocare
+      canRevoke = true;
+      console.log('✅ [REVOKE] Utente è admin globale - può revocare');
+    } else if (memberRole) {
+      // Verifica ruolo nell'organizzazione specifica
+      if (inviteData.org_type === 'buyer') {
+        // Buyer org: solo admin possono revocare
+        canRevoke = memberRole === 'admin';
+        console.log('🏢 [REVOKE] Org buyer - ruolo richiesto: admin, ruolo attuale:', memberRole, 'canRevoke:', canRevoke);
+      } else if (inviteData.org_type === 'vendor' || inviteData.org_type === 'operator') {
+        // Vendor/Operator org: admin/vendor/operator/dispatcher possono revocare
+        const allowedRoles = ['admin', 'vendor', 'operator', 'dispatcher'];
+        canRevoke = allowedRoles.includes(memberRole);
+        console.log('🏭 [REVOKE] Org vendor/operator - ruoli permessi:', allowedRoles, 'ruolo attuale:', memberRole, 'canRevoke:', canRevoke);
+      } else {
+        console.log('❌ [REVOKE] Tipo organizzazione non supportato:', inviteData.org_type);
+        canRevoke = false;
+      }
+    } else {
+      console.log('❌ [REVOKE] Utente non è membro dell\'organizzazione dell\'invito');
+      canRevoke = false;
     }
 
-    // Revoca invito
-    await query(
+    if (!canRevoke) {
+      console.log('🚫 [REVOKE] Permesso negato - utente non autorizzato a revocare inviti in questa org');
+      return c.json({ error: 'You do not have permission to revoke invitations in this organization' }, 403);
+    }
+
+    // 4. Revoca invito
+    console.log('✅ [REVOKE] Permessi OK - procedo con revoca');
+    const revokeResult = await query(
       'UPDATE organization_invitations SET status = $1 WHERE id = $2',
       ['REVOKED', invitationId]
     );
 
-    return c.json({ success: true, message: 'Invitation revoked' });
+    console.log('✅ [REVOKE] Invito revocato con successo - righe aggiornate:', revokeResult.rows.length);
+    console.log('🔄 [REVOKE] ===========================================');
+
+    return c.json({
+      success: true,
+      message: 'Invitation revoked successfully',
+      invitation: {
+        id: inviteData.id,
+        email: inviteData.email,
+        organization: inviteData.org_name
+      }
+    });
 
   } catch (error: any) {
-    console.error('❌ Errore revoca invito:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    console.error('❌ [REVOKE] Errore durante revoca invito:', error.message);
+    console.error('❌ [REVOKE] Stack trace:', error.stack);
+    console.error('❌ [REVOKE] Params - invitationId:', invitationId, 'userId:', currentUserId);
+    console.log('🔄 [REVOKE] ===========================================');
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
 });
 
