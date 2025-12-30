@@ -1535,10 +1535,6 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
     if (offer.operator_org_id !== user.organizationId) {
       return c.json({ error: 'Non autorizzato a completare questa missione' }, 403);
     }
-    } else {
-      console.log('⚠️ [COMPLETE MISSION] TEMPORARY WORKAROUND: Allowing completion of AWARDED offer');
-      console.log('⚠️ [COMPLETE MISSION] Offer operator_org_id:', offer.operator_org_id, 'User org:', user.organizationId);
-    }
 
     const dbUrl = process.env.DATABASE_URL || '';
     const isPostgreSQL = true; // Force PostgreSQL for Supabase
