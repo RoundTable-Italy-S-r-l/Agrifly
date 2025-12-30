@@ -691,14 +691,27 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
         : JSON.stringify(pricing_snapshot_json);
     }
     // Leave as null if not provided - database allows null
-    
+
+    // Parse total_cents - handle both Italian (comma) and international (dot) decimal separators
+    let parsedTotalCents: number;
+    if (typeof total_cents === 'string') {
+      // Replace comma with dot for Italian format, then parse
+      const normalizedValue = total_cents.replace(',', '.');
+      parsedTotalCents = Math.round(parseFloat(normalizedValue) * 100); // Convert to cents
+    } else if (typeof total_cents === 'number') {
+      parsedTotalCents = Math.round(total_cents);
+    } else {
+      console.error('❌ [CREATE OFFER] Invalid total_cents type:', typeof total_cents, total_cents);
+      return c.json({ error: 'Invalid total_cents format' }, 400);
+    }
+
     console.log('📦 [CREATE OFFER] Valori per INSERT:', {
       offerId,
       jobId,
       operatorOrgId: user.organizationId,
-      total_cents: parseInt(total_cents),
-      total_cents_type: typeof total_cents,
-      pricingSnapshotStr: pricingSnapshotStr.substring(0, 100),
+      total_cents: parsedTotalCents,
+      original_total_cents: total_cents,
+      pricingSnapshotStr: pricingSnapshotStr ? pricingSnapshotStr.substring(0, 100) : null,
       currency: currency || 'EUR',
       proposed_start,
       proposed_end,
@@ -732,7 +745,7 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
       user.organizationId,
       'OFFERED',
       pricingSnapshotStr,
-      parseInt(total_cents),
+      parsedTotalCents,
       currency || 'EUR',
       proposedStart,
       proposedEnd,
