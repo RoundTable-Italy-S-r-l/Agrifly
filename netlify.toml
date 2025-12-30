@@ -11,11 +11,7 @@
 
 # Tutte le route API vanno alla funzione principale api.ts
 # Nessuna funzione separata - tutto gestito dal server principale
-[[redirects]]
-  from = "/api/services/*"
-  to = "/.netlify/functions/services"
-  status = 200
-
+# NOTA: /api/services/* viene gestito da api.ts tramite Hono, non più da services.js
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api"
