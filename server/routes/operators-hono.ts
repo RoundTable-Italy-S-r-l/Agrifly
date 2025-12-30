@@ -403,7 +403,7 @@ app.post('/:orgId', authMiddleware, validateBody(CreateOperatorSchema), async (c
 // UPDATE OPERATOR
 // ============================================================================
 
-app.put('/:orgId/:operatorId', async (c) => {
+app.put('/:orgId/:operatorId', validateBody(UpdateOperatorSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const operatorId = c.req.param('operatorId');

@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🚀 Running pre-push checks..."
+
+# Build check
+echo "🔨 Checking build..."
+npm run build > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "❌ Build failed!"
+  exit 1
+fi
+
+# Zod tests
+echo "✅ Running Zod validation tests..."
+node test-zod-complete.cjs > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "❌ Zod tests failed!"
+  exit 1
+fi
+
+echo "🎉 All checks passed! Ready to push."

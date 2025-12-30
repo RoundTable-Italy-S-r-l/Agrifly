@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { expandRateCardsTable } from '../utils/database-migrations';
 import { authMiddleware } from '../middleware/auth';
+import { validateBody } from '../middleware/validation';
+import { UpdateServiceSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -626,7 +628,7 @@ app.post('/:orgId', async (c) => {
 // UPDATE RATE CARD
 // ============================================================================
 
-app.put('/:orgId/:serviceType', async (c) => {
+app.put('/:orgId/:serviceType', validateBody(UpdateServiceSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const serviceType = c.req.param('serviceType');
