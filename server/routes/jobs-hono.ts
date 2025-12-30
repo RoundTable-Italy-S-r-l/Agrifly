@@ -955,6 +955,7 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
           job_id VARCHAR(255) NOT NULL,
           accepted_offer_id VARCHAR(255),
           buyer_org_id VARCHAR(255) NOT NULL,
+          seller_org_id VARCHAR(255) NOT NULL,
           executor_org_id VARCHAR(255) NOT NULL,
           service_type VARCHAR(255) NOT NULL,
           site_snapshot_json TEXT,
@@ -973,6 +974,7 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
           job_id TEXT NOT NULL,
           accepted_offer_id TEXT,
           buyer_org_id TEXT NOT NULL,
+          seller_org_id TEXT NOT NULL,
           executor_org_id TEXT NOT NULL,
           service_type TEXT NOT NULL,
           site_snapshot_json TEXT,
@@ -1025,15 +1027,16 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
     // Create booking
     await query(`
       INSERT INTO bookings (
-        id, job_id, accepted_offer_id, buyer_org_id, executor_org_id, service_type,
+        id, job_id, accepted_offer_id, buyer_org_id, seller_org_id, executor_org_id, service_type,
         site_snapshot_json, status, payment_status, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     `, [
       bookingId,
       jobId,
       offerId,
       job.buyer_org_id,
-      offer.operator_org_id,
+      offer.operator_org_id, // seller_org_id = operator organization
+      offer.operator_org_id, // executor_org_id = same as seller for now
       jobDetails.service_type,
       JSON.stringify({
         field_name: jobDetails.field_name,
@@ -1523,17 +1526,15 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
     const offer = offerResult.rows[0];
     const jobId = offer.job_id;
 
-    // Verify the offer is AWARDED
-    if (offer.status !== 'AWARDED') {
-      return c.json({ error: 'L\'offerta deve essere accettata per completare la missione' }, 400);
+    // Verify the offer is AWARDED or ACCEPTED
+    if (offer.status !== 'AWARDED' && offer.status !== 'ACCEPTED') {
+      return c.json({ error: 'L\'offerta deve essere assegnata o accettata per completare la missione' }, 400);
     }
 
-    // TEMPORARY WORKAROUND: Allow completion of any AWARDED offer for testing
-    if (offer.status !== 'AWARDED') {
-      // For non-AWARDED offers, still check authorization
-      if (offer.operator_org_id !== user.organizationId) {
-        return c.json({ error: 'Non autorizzato a completare questa missione' }, 403);
-      }
+    // Check authorization - operator can complete their own offers
+    if (offer.operator_org_id !== user.organizationId) {
+      return c.json({ error: 'Non autorizzato a completare questa missione' }, 403);
+    }
     } else {
       console.log('⚠️ [COMPLETE MISSION] TEMPORARY WORKAROUND: Allowing completion of AWARDED offer');
       console.log('⚠️ [COMPLETE MISSION] Offer operator_org_id:', offer.operator_org_id, 'User org:', user.organizationId);
@@ -1551,6 +1552,7 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
           job_id VARCHAR(255) NOT NULL,
           accepted_offer_id VARCHAR(255),
           buyer_org_id VARCHAR(255) NOT NULL,
+          seller_org_id VARCHAR(255) NOT NULL,
           executor_org_id VARCHAR(255) NOT NULL,
           service_type VARCHAR(255) NOT NULL,
           site_snapshot_json TEXT,
@@ -1569,6 +1571,7 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
           job_id TEXT NOT NULL,
           accepted_offer_id TEXT,
           buyer_org_id TEXT NOT NULL,
+          seller_org_id TEXT NOT NULL,
           executor_org_id TEXT NOT NULL,
           service_type TEXT NOT NULL,
           site_snapshot_json TEXT,
@@ -1648,15 +1651,16 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
       });
       await query(`
         INSERT INTO bookings (
-          id, job_id, accepted_offer_id, buyer_org_id, executor_org_id,
+          id, job_id, accepted_offer_id, buyer_org_id, seller_org_id, executor_org_id,
           service_type, site_snapshot_json, status, payment_status, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `, [
         bookingId,
         jobId,
         offerId,
         offer.buyer_org_id,
-        offer.operator_org_id,
+        offer.operator_org_id, // seller_org_id
+        offer.operator_org_id, // executor_org_id
         offer.service_type || 'SPRAY',
         siteSnapshot,
         'DONE',
