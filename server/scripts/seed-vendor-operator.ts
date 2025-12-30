@@ -60,10 +60,7 @@ async function seedVendorOperator() {
           support_email: 'support@dronepro.it',
           vat_number: 'IT12345678901',
           kind: 'BUSINESS',
-          can_buy: false,      // Non è un compratore
-          can_sell: true,      // È un venditore
-          can_operate: true,   // È anche un operatore
-          can_dispatch: false, // Non è un dispatcher
+          type: 'vendor',      // NUOVA LOGICA: tipo organizzazione invece di capabilities
           status: 'ACTIVE'
         }
       });

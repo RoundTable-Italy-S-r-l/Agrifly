@@ -52,10 +52,7 @@ async function seedTestUser() {
         postal_code: '53024',
         country: 'IT',
         kind: 'BUSINESS',
-        can_buy: true,
-        can_sell: false,
-        can_operate: false,
-        can_dispatch: false,
+        type: 'buyer',        // NUOVA LOGICA: tipo invece di capabilities
         status: 'ACTIVE'
       }
     });
@@ -92,10 +89,7 @@ async function seedTestUser() {
         postal_code: '53100',
         country: 'IT',
         kind: 'BUSINESS',
-        can_buy: false,
-        can_sell: false,
-        can_operate: true,
-        can_dispatch: false,
+        type: 'operator',     // NUOVA LOGICA: tipo invece di capabilities
         status: 'ACTIVE'
       }
     });

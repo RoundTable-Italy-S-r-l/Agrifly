@@ -15,10 +15,8 @@ export default function Dashboard() {
           if (orgData) {
             try {
               const org = JSON.parse(orgData);
-              // Determina dashboard basandosi sulle capabilities
-              // Se è buyer (can_buy=true e non ha altre capabilities) → dashboard buyer
-              // Se ha can_sell, can_operate, o can_dispatch → dashboard admin
-              // NUOVA LOGICA: usa solo il tipo organizzazione
+              // NUOVA LOGICA: determina dashboard dal tipo organizzazione
+              // buyer → /buyer, vendor/operator → /admin
               const orgType = org.type || org.org_type;
               if (orgType === 'buyer') {
                 navigate('/buyer');

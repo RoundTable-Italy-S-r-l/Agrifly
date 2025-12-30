@@ -69,10 +69,9 @@ model Organization {
   vat_number    String?   @map("vat_number")
   tax_code      String?   @map("tax_code")
   kind          OrgKind   @map("kind")
-  can_buy       Boolean   @default(true)  @map("can_buy")
-  can_sell      Boolean   @default(false) @map("can_sell")
-  can_operate   Boolean   @default(false) @map("can_operate")
-  can_dispatch  Boolean   @default(false) @map("can_dispatch")
+  // NUOVA LOGICA: capabilities calcolate dinamicamente dal ruolo utente - non più hardcoded
+  // can_buy, can_sell, can_operate, can_dispatch sono stati RIMOSSI
+  type          String?   @default("buyer") @map("type") // Tipo organizzazione: buyer/vendor/operator
   address_line  String    @map("address_line")
   city          String    @map("city")
   province      String    @map("province")
