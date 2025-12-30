@@ -20,7 +20,7 @@ app.get('/', authMiddleware, async (c) => {
 
     // Ensure table exists (compatible with both SQLite and PostgreSQL)
     const dbUrl = process.env.DATABASE_URL || '';
-    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const isPostgreSQL = true; // Force PostgreSQL for Supabase
 
     const createTableQuery = isPostgreSQL
       ? `
@@ -118,7 +118,7 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
 
     // Ensure tables exist (compatible with both SQLite and PostgreSQL)
     const dbUrl = process.env.DATABASE_URL || '';
-    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const isPostgreSQL = true; // Force PostgreSQL for Supabase
     
     const createTableQuery = isPostgreSQL
       ? `
@@ -389,7 +389,7 @@ app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true })
     }
 
     // Get validated and transformed data
-    const validatedBody = c.get('validatedBody') as any;
+    const validatedBody = c.get('validatedBody');
     const {
       field_name,
       service_type,
@@ -419,7 +419,7 @@ app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true })
 
     // Ensure table exists (compatible with both SQLite and PostgreSQL)
     const dbUrl = process.env.DATABASE_URL || '';
-    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const isPostgreSQL = true; // Force PostgreSQL for Supabase
     
     const createTableQuery = isPostgreSQL
       ? `
@@ -488,9 +488,9 @@ app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true })
         user.organizationId, // buyer_org_id
         null, // broker_org_id
         service_type,
-        body.crop_type || null, // crop_type
-        body.treatment_type || null, // treatment_type
-        body.terrain_conditions || null, // terrain_conditions
+        validatedBody.crop_type || null, // crop_type
+        validatedBody.treatment_type || null, // treatment_type
+        validatedBody.terrain_conditions || null, // terrain_conditions
         'OPEN', // status
         field_name,
         field_polygon || null, // field_polygon
@@ -534,9 +534,9 @@ app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true })
         user.organizationId, // buyer_org_id
         null, // broker_org_id
         service_type,
-        body.crop_type || null, // crop_type
-        body.treatment_type || null, // treatment_type
-        body.terrain_conditions || null, // terrain_conditions
+        validatedBody.crop_type || null, // crop_type
+        validatedBody.treatment_type || null, // treatment_type
+        validatedBody.terrain_conditions || null, // terrain_conditions
         'OPEN', // status
         field_name,
         field_polygon || null, // field_polygon
@@ -597,7 +597,7 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
     console.log('📋 [CREATE OFFER] Job ID:', jobId);
 
     // Get validated and transformed data
-    const validatedBody = c.get('validatedBody') as any;
+    const validatedBody = c.get('validatedBody');
     const {
       pricing_snapshot_json = null,
       total_cents,
@@ -676,7 +676,7 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
 
     // Insert job offer into database
     const dbUrl = process.env.DATABASE_URL || '';
-    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const isPostgreSQL = true; // Force PostgreSQL for Supabase
     console.log('💾 [CREATE OFFER] Database type:', isPostgreSQL ? 'PostgreSQL' : 'SQLite');
 
     // Handle pricing_snapshot_json - ensure it's valid JSON or null
@@ -736,7 +736,7 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
       now
     ];
 
-    // For SQLite, we need to add the offerId back to the values array
+    // For SQLite, we need to add the offerId to the values array
     const finalInsertValues = isPostgreSQL ? insertValues : [offerId, ...insertValues];
 
     console.log('📤 [CREATE OFFER] Esecuzione INSERT query...');
@@ -927,7 +927,7 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
     }
 
     const dbUrl = process.env.DATABASE_URL || '';
-    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const isPostgreSQL = true; // Force PostgreSQL for Supabase
     const now = new Date().toISOString();
 
     // Ensure bookings table exists with all required columns
@@ -1053,7 +1053,7 @@ app.put('/:jobId/offers/:offerId', authMiddleware, async (c) => {
 
     // Aggiorna l'offerta
     const dbUrl = process.env.DATABASE_URL || '';
-    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const isPostgreSQL = true; // Force PostgreSQL for Supabase
     const now = new Date().toISOString();
     const pricingSnapshotStr = pricing_snapshot_json 
       ? (typeof pricing_snapshot_json === 'string' ? pricing_snapshot_json : JSON.stringify(pricing_snapshot_json))
@@ -1133,7 +1133,7 @@ app.post('/:jobId/withdraw-offer/:offerId', authMiddleware, async (c) => {
 
     // Aggiorna lo stato dell'offerta a WITHDRAWN
     const dbUrl = process.env.DATABASE_URL || '';
-    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const isPostgreSQL = true; // Force PostgreSQL for Supabase
     const now = new Date().toISOString();
 
     await query(
@@ -1435,7 +1435,7 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
     }
 
     const dbUrl = process.env.DATABASE_URL || '';
-    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    const isPostgreSQL = true; // Force PostgreSQL for Supabase
     const now = new Date().toISOString();
 
     // Ensure bookings table exists with all required columns
