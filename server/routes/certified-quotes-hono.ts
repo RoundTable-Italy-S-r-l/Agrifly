@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { expandRateCardsTable } from '../utils/database-migrations';
+import { validateQuery, CertifiedQuotesRequestSchema } from '../schemas/api.schemas';
+import { validateQuery as validateQueryMiddleware } from '../middleware/validation';
 
 const app = new Hono();
 
@@ -17,18 +19,20 @@ const app = new Hono();
  * - crop_type?: string
  * - treatment_type?: string
  */
-app.get('/', async (c) => {
+app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) => {
   try {
-    const service_type = c.req.query('service_type');
-    const area_ha = parseFloat(c.req.query('area_ha') || '0');
-    const location_lat = parseFloat(c.req.query('location_lat') || '0');
-    const location_lng = parseFloat(c.req.query('location_lng') || '0');
-    const terrain_conditions = c.req.query('terrain_conditions') || 'FLAT';
-    const month = parseInt(c.req.query('month') || String(new Date().getMonth() + 1));
+    // Get validated and transformed query parameters
+    const validatedQuery = c.get('validatedQuery') as any;
+    const {
+      service_type,
+      area_ha,
+      location_lat,
+      location_lng,
+      terrain_conditions = 'FLAT',
+      month = new Date().getMonth() + 1
+    } = validatedQuery;
 
-    if (!service_type || !area_ha || area_ha <= 0) {
-      return c.json({ error: 'service_type and area_ha are required' }, 400);
-    }
+    console.log('🔍 [CERTIFIED QUOTES] Validated query:', validatedQuery);
 
     // Ensure rate_cards table has latest columns
     try {

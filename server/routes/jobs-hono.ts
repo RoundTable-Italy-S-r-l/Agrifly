@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
+import { validateBody } from '../middleware/validation';
 import { query } from '../utils/database';
+import { CreateJobSchema, CreateJobOfferSchema } from '../schemas/api.schemas';
 // file-db.ts non è compatibile con Netlify Functions (usa import.meta)
 // Usiamo solo il database SQLite/PostgreSQL, non file-db
 
@@ -378,7 +380,7 @@ app.get('/:jobId', authMiddleware, async (c) => {
 });
 
 // POST /api/jobs - Create a new job
-app.post('/', authMiddleware, async (c) => {
+app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true }), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
@@ -386,7 +388,8 @@ app.post('/', authMiddleware, async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const body = await c.req.json();
+    // Get validated and transformed data
+    const validatedBody = c.get('validatedBody') as any;
     const {
       field_name,
       service_type,
@@ -399,7 +402,7 @@ app.post('/', authMiddleware, async (c) => {
       crop_type,
       treatment_type,
       terrain_conditions
-    } = body;
+    } = validatedBody;
     
     // Se field_polygon è presente ma non è in location_json, aggiungilo
     let finalLocationJson = location_json;
@@ -577,14 +580,14 @@ app.post('/', authMiddleware, async (c) => {
 });
 
 // POST /api/jobs/:jobId/offers - Create job offer (operator)
-app.post('/:jobId/offers', authMiddleware, async (c) => {
+app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { transform: true }), async (c) => {
   try {
     console.log('🚀 [CREATE OFFER] Inizio richiesta');
-    
+
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
     console.log('👤 [CREATE OFFER] User:', { hasUser: !!user, orgId: user?.organizationId });
-    
+
     if (!user || !user.organizationId) {
       console.log('❌ [CREATE OFFER] Unauthorized - no user or orgId');
       return c.json({ error: 'Unauthorized' }, 401);
@@ -592,16 +595,9 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
 
     const jobId = c.req.param('jobId');
     console.log('📋 [CREATE OFFER] Job ID:', jobId);
-    
-    let body;
-    try {
-      body = await c.req.json();
-      console.log('📦 [CREATE OFFER] Body ricevuto:', JSON.stringify(body).substring(0, 200));
-    } catch (parseError: any) {
-      console.error('❌ [CREATE OFFER] Errore parsing body:', parseError.message);
-      return c.json({ error: 'Invalid JSON body' }, 400);
-    }
-    
+
+    // Get validated and transformed data
+    const validatedBody = c.get('validatedBody') as any;
     const {
       pricing_snapshot_json = null,
       total_cents,
@@ -609,7 +605,7 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
       proposed_start,
       proposed_end,
       provider_note
-    } = body;
+    } = validatedBody;
 
     console.log('🔍 [CREATE OFFER] Parametri estratti:', {
       total_cents,
@@ -692,25 +688,11 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
     }
     // Leave as null if not provided - database allows null
 
-    // Parse total_cents - handle both Italian (comma) and international (dot) decimal separators
-    let parsedTotalCents: number;
-    if (typeof total_cents === 'string') {
-      // Replace comma with dot for Italian format, then parse
-      const normalizedValue = total_cents.replace(',', '.');
-      parsedTotalCents = Math.round(parseFloat(normalizedValue) * 100); // Convert to cents
-    } else if (typeof total_cents === 'number') {
-      parsedTotalCents = Math.round(total_cents);
-    } else {
-      console.error('❌ [CREATE OFFER] Invalid total_cents type:', typeof total_cents, total_cents);
-      return c.json({ error: 'Invalid total_cents format' }, 400);
-    }
-
     console.log('📦 [CREATE OFFER] Valori per INSERT:', {
       offerId,
       jobId,
       operatorOrgId: user.organizationId,
-      total_cents: parsedTotalCents,
-      original_total_cents: total_cents,
+      total_cents: total_cents, // Already validated and transformed by Zod
       pricingSnapshotStr: pricingSnapshotStr ? pricingSnapshotStr.substring(0, 100) : null,
       currency: currency || 'EUR',
       proposed_start,
@@ -745,7 +727,7 @@ app.post('/:jobId/offers', authMiddleware, async (c) => {
       user.organizationId,
       'OFFERED',
       pricingSnapshotStr,
-      parsedTotalCents,
+      total_cents, // Already validated and transformed by Zod
       currency || 'EUR',
       proposedStart,
       proposedEnd,
