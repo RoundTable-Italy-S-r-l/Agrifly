@@ -75,8 +75,9 @@ app.post('/register', validateBody(RegisterOrganizationSchema, { transform: true
     const orgType = accountType; // 'buyer', 'vendor', o 'operator'
     const orgTypeLower = orgType.toLowerCase();
 
-    // Determina il kind dell'organizzazione (buyer vs vendor/operator)
-    const orgKind = orgTypeLower === 'buyer' ? 'BUYER' : 'VENDOR_OPERATOR';
+    // Mantieni kind = 'BUSINESS' per compatibilità con database esistente
+    // Il tipo reale viene determinato dalle capabilities (can_buy, can_sell, can_operate)
+    const orgKind = 'BUSINESS';
 
     // Ruolo iniziale: tutti iniziano come admin (grado gerarchico)
     // Secondo il nuovo modello: admin è il grado gerarchico, tutti iniziano così

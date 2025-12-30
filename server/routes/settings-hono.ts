@@ -127,10 +127,18 @@ app.get('/organization/general', authMiddleware, async (c) => {
 
     const organization = orgResult.rows[0];
 
+    // Determina il tipo organizzazione basato sulle capabilities (più affidabile di kind)
+    let orgType = 'BUYER'; // Default
+    if (organization.can_sell || organization.can_operate) {
+      orgType = 'VENDOR_OPERATOR';
+    } else if (organization.can_buy) {
+      orgType = 'BUYER';
+    }
+
     // Mappa i campi del database ai nomi del frontend
     const mappedOrganization = {
       ...organization,
-      org_type: organization.kind, // Mappa kind -> org_type per il frontend
+      org_type: orgType, // Determinato dalle capabilities, non da kind
     };
 
     console.log('✅ Impostazioni generali recuperate:', {
@@ -257,10 +265,18 @@ app.patch('/organization/general', authMiddleware, async (c) => {
       return c.json({ error: 'Organization not found' }, 404);
     }
 
+    // Determina il tipo organizzazione per la risposta
+    let responseOrgType = 'BUYER'; // Default
+    if (updatedOrg.can_sell || updatedOrg.can_operate) {
+      responseOrgType = 'VENDOR_OPERATOR';
+    } else if (updatedOrg.can_buy) {
+      responseOrgType = 'BUYER';
+    }
+
     // Mappa i campi per il frontend
     const mappedUpdatedOrg = {
       ...updatedOrg,
-      org_type: updatedOrg.kind, // Mappa kind -> org_type per il frontend
+      org_type: responseOrgType, // Determinato dalle capabilities
     };
 
     console.log('✅ Organizzazione aggiornata:', {
