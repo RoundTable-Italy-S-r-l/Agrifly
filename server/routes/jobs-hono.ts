@@ -224,7 +224,7 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
     // TEMPORANEO: Per testing, mostriamo tutti i job OPEN indipendentemente dall'organizzazione
     const result = await query(`
       SELECT
-        j.id, j.buyer_org_id, j.broker_org_id, j.service_type, j.crop_type, j.treatment_type, j.terrain_conditions,
+        j.id, j.buyer_org_id, j.broker_org_id, j.service_type, j.terrain_conditions,
         j.status, j.field_name, j.field_polygon, j.area_ha, j.location_json, j.requested_window_start, j.requested_window_end,
         j.constraints_json, j.visibility_mode, j.accepted_offer_id, j.target_date_start, j.target_date_end, j.notes,
         j.created_at, j.updated_at, o.legal_name as buyer_org_legal_name
