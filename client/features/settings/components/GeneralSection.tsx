@@ -35,7 +35,7 @@ const organizationSchema = z.object({
     .or(z.literal('')),
   vat_number: z.string().optional(),
   tax_code: z.string().optional(),
-  org_type: z.enum(['BUYER', 'VENDOR_OPERATOR']).optional(),
+  // org_type è determinato automaticamente dalle capabilities, non modificabile
   address_line: z.string().min(1, 'Indirizzo obbligatorio'),
   // Rimossi campi non usati nel submit: city, province, region, postal_code, country
   // se servono nel backend, aggiungili qui e nel form
@@ -60,7 +60,7 @@ export function GeneralSection() {
       support_email: '',
       vat_number: '',
       tax_code: '',
-      org_type: 'BUYER', // Default, verrà sovrascritto dai dati caricati
+      // org_type determinato automaticamente dalle capabilities
       address_line: '',
     },
   })
@@ -269,16 +269,23 @@ export function GeneralSection() {
               )}
             </div>
 
-            {/* Tipo organizzazione (solo lettura) */}
+            {/* Tipo organizzazione (determinato automaticamente dalle capabilities) */}
             <div className="space-y-2">
               <Label htmlFor="org_type">Tipo Organizzazione</Label>
               <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
-                {form.watch('org_type') === 'BUYER' ? 'Cliente (Buyer)' :
-                 form.watch('org_type') === 'VENDOR_OPERATOR' ? 'Fornitore/Operatore' :
-                 form.watch('org_type') || 'Non specificato'}
+                {(() => {
+                  const org = organization;
+                  if (org?.can_sell || org?.can_operate) {
+                    return 'Fornitore/Operatore (Vendor/Operator)';
+                  } else if (org?.can_buy) {
+                    return 'Cliente (Buyer)';
+                  } else {
+                    return 'Non specificato';
+                  }
+                })()}
               </div>
               <p className="text-xs text-gray-500">
-                Il tipo di organizzazione viene assegnato durante la registrazione e non può essere modificato.
+                Il tipo di organizzazione è determinato automaticamente dalle sue capabilities e non può essere modificato manualmente.
               </p>
             </div>
 
