@@ -213,7 +213,8 @@ app.patch('/organization/general', authMiddleware, async (c) => {
 
     // Usa il database SQLite/PostgreSQL
     // Mappa dei campi consentiti (frontend -> database)
-    // NOTA: org_type/kind non è modificabile - viene assegnato alla registrazione
+    // NOTA: org_type/kind e capabilities non sono normalmente modificabili - vengono assegnati alla registrazione
+    // TEMPORANEAMENTE abilitati per correggere dati inconsistenti
     const fieldMapping: Record<string, string> = {
       'legal_name': 'legal_name',
       'logo_url': 'logo_url',
@@ -227,14 +228,31 @@ app.patch('/organization/general', authMiddleware, async (c) => {
       'province': 'province',
       'region': 'region',
       'postal_code': 'postal_code',
-      'country': 'country'
+      'country': 'country',
+      // TEMP: abilitare capabilities per correggere Lenzi
+      'can_buy': 'can_buy',
+      'can_sell': 'can_sell',
+      'can_operate': 'can_operate',
+      'can_dispatch': 'can_dispatch'
     };
 
     // Filtra solo i campi consentiti e mappa i nomi
     const validUpdates: any = {};
+    console.log('🔍 Incoming updates:', updates);
+    console.log('🔍 Field mapping:', fieldMapping);
+
     for (const [field, value] of Object.entries(updates)) {
-      if (fieldMapping[field] && value !== undefined) {
-        validUpdates[fieldMapping[field]] = value;
+      console.log(`🔍 Checking field '${field}' with value:`, value, 'type:', typeof value);
+      if (fieldMapping[field]) {
+        console.log(`✅ Field '${field}' is allowed, maps to '${fieldMapping[field]}'`);
+        if (value !== undefined && value !== null) {
+          validUpdates[fieldMapping[field]] = value;
+          console.log(`✅ Added to validUpdates: ${fieldMapping[field]} =`, value);
+        } else {
+          console.log(`❌ Skipped ${field} - value is undefined/null`);
+        }
+      } else {
+        console.log(`❌ Field '${field}' not in mapping`);
       }
     }
 
