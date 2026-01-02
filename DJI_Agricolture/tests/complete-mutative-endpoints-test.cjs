@@ -318,27 +318,24 @@ const mutativeEndpoints = [
     requiresAuth: true,
     authType: 'buyer',
     pathParams: async (factory, authTokens) => {
-      // Crea address di test
-      const createResponse = await fetch(`${API_BASE}/ecommerce/addresses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authTokens.buyer}`
-        },
-        body: JSON.stringify({
-          name: 'Original Address',
-          address_line: 'Via Original 1',
-          city: 'Original City',
-          province: 'TN',
-          postal_code: '38051',
-          country: 'IT'
-        })
+      // Usa factory per creare address
+      const meResponse = await fetch(`${API_BASE}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${authTokens.buyer}` }
       });
-      if (createResponse.ok) {
-        const created = await createResponse.json();
-        return { addressId: created.id };
-      }
-      return { addressId: 'test-address-id' };
+      const me = await meResponse.json();
+      const orgId = me.organization?.id || me.organizationId;
+      
+      const address = await factory.createAddress(orgId, {
+        name: 'Original Address',
+        address_line: 'Via Original 1',
+        city: 'Original City',
+        province: 'TN',
+        postal_code: '38051',
+        country: 'IT',
+        type: 'SHIPPING'
+      });
+      
+      return { addressId: address.id };
     },
     invalidBody: { name: '' },
     validBody: {
@@ -1067,10 +1064,25 @@ const mutativeEndpoints = [
     requiresAuth: true,
     authType: 'buyer',
     invalidBody: { email_orders: 'not-boolean' },
-    validBody: {
-      email_orders: true,
-      email_payments: false,
-      email_updates: true
+    validBody: async (factory, authTokens) => {
+      // Crea notification preferences prima del test
+      const meResponse = await fetch(`${API_BASE}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${authTokens.buyer}` }
+      });
+      const me = await meResponse.json();
+      const userId = me.id || me.userId;
+      
+      await factory.createNotificationPreferences(userId, {
+        email_orders: false,
+        email_payments: false,
+        email_updates: false
+      });
+      
+      return {
+        email_orders: true,
+        email_payments: false,
+        email_updates: true
+      };
     },
     verifyWrite: async (db, recordId, writeData) => {
       // Cerca in user_notification_preferences o users

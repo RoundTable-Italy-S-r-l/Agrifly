@@ -2,7 +2,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { authAPI } from "@/lib/auth";
 import { getCart } from "@/lib/api";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, LayoutDashboard } from "lucide-react";
+import { getDashboardPath } from "@/lib/auth-redirect";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -133,27 +134,27 @@ export function Layout({ children }: LayoutProps) {
     };
   }, [location.pathname]);
 
-  // Funzione per ottenere il ruolo dell'utente
-  const getUserRole = () => {
+  // Funzione per ottenere il tipo organizzazione e dashboard path
+  const getOrgType = () => {
     try {
       const orgData = localStorage.getItem('organization');
       if (orgData) {
         const org = JSON.parse(orgData);
-        return org.role;
+        return org.type || org.org_type || null;
       }
     } catch (e) {
-      console.warn('Errore lettura ruolo utente:', e);
+      console.warn('Errore lettura tipo organizzazione:', e);
     }
     return null;
   };
 
-  // Funzione per ottenere il path della dashboard in base al ruolo
-  const getDashboardPath = () => {
-    const role = getUserRole();
-    if (role && role.includes('ADMIN')) {
-      return '/admin';
-    }
-    return '/dashboard'; // Reindirizza automaticamente
+  const getDashboardLabel = () => {
+    const orgType = getOrgType();
+    if (orgType === 'buyer') return 'Dashboard Buyer';
+    if (orgType === 'provider') return 'Dashboard Admin';
+    // Fallback per retrocompatibilità
+    if (orgType === 'vendor' || orgType === 'operator') return 'Dashboard Admin';
+    return 'Dashboard';
   };
 
   const handleLogout = () => {
@@ -216,53 +217,68 @@ export function Layout({ children }: LayoutProps) {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
-            {/* Carrello */}
-            <button
-              onClick={() => {
-                if (isAuthenticated) {
-                  navigate('/buyer/carrello');
-                } else {
-                  navigate('/login?redirect=/buyer/carrello');
-                }
-              }}
-              className="relative inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
-              title="Carrello"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[8px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
-                  {cartItemCount > 99 ? '99+' : cartItemCount}
-                </span>
-              )}
-            </button>
+            {/* Carrello - sempre visibile per buyer, solo quando loggato per altri */}
+            {(() => {
+              const orgType = getOrgType();
+              const showCart = !isAuthenticated || orgType === 'buyer';
+              
+              if (showCart) {
+                return (
+                  <button
+                    onClick={() => {
+                      if (isAuthenticated) {
+                        navigate('/buyer/carrello');
+                      } else {
+                        navigate('/login?redirect=/buyer/carrello');
+                      }
+                    }}
+                    className="relative inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                    title="Carrello"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    {cartItemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[8px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                        {cartItemCount > 99 ? '99+' : cartItemCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              }
+              return null;
+            })()}
 
             {isAuthenticated ? (
               <>
-                <Link
-                  to={getDashboardPath()}
-                  className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
-                >
-                  <span>Dashboard</span>
-                </Link>
                 <button
                   onClick={handleLogout}
                   className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
-                  >
+                >
                   <span>Logout</span>
                 </button>
+                <Link
+                  to={(() => {
+                    const orgType = getOrgType();
+                    return getDashboardPath({ type: orgType, org_type: orgType } as any);
+                  })()}
+                  className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black transition-colors flex items-center gap-2"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  {getDashboardLabel()}
+                </Link>
               </>
             ) : (
-              <Link
-                to="/login"
-                className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
-              >
-                <span>Login</span>
-              </Link>
+              <>
+                <Link
+                  to="/login"
+                  className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                >
+                  <span>Login</span>
+                </Link>
+                <button className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black">
+                  Contattaci
+                </button>
+              </>
             )}
-
-            <button className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black">
-              Contattaci
-            </button>
           </div>
         </div>
       </header>

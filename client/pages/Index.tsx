@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Package, MapPin, Target, Zap, TrendingUp, Phone, LogOut } from 'lucide-react';
+import { Package, MapPin, Target, Zap, TrendingUp, Phone, LogOut, LayoutDashboard } from 'lucide-react';
 import { authAPI } from '@/lib/auth';
-import { saveCurrentPathAsRedirect } from '@/lib/auth-redirect';
+import { saveCurrentPathAsRedirect, getDashboardPath } from '@/lib/auth-redirect';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -57,12 +57,9 @@ export default function Index() {
     navigate('/');
   };
 
-  const getDashboardPath = () => {
-    if (orgType === 'buyer') return '/buyer';
-    if (orgType === 'provider') return '/admin';
-    // Fallback per retrocompatibilità
-    if (orgType === 'vendor' || orgType === 'operator') return '/admin';
-    return '/dashboard';
+  const getDashboardPathValue = () => {
+    if (!orgType) return '/dashboard';
+    return getDashboardPath({ type: orgType, org_type: orgType } as any);
   };
 
   const getDashboardLabel = () => {
@@ -127,9 +124,10 @@ export default function Index() {
                   <span>Logout</span>
                 </button>
                 <Link
-                  to={getDashboardPath()}
-                  className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black transition-colors"
+                  to={getDashboardPathValue()}
+                  className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black transition-colors flex items-center gap-2"
                 >
+                  <LayoutDashboard className="w-4 h-4" />
                   {getDashboardLabel()}
                 </Link>
               </>
