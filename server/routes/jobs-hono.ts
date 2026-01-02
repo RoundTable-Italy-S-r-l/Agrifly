@@ -291,8 +291,16 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
             has_existing_offer: hasActiveOffer,
             existing_offer_status: existingOfferStatus
           };
+        } catch (jobError: any) {
+          console.error(`❌ [OPERATOR JOBS] Error processing job ${job.id}:`, jobError);
+          // Return null to filter out this job
+          return null;
+        }
       })
     );
+
+    // Filter out null results (jobs that failed to process)
+    const validJobs = jobsWithOfferStatus.filter((job): job is NonNullable<typeof job> => job !== null);
 
     return c.json({ jobs: validJobs });
   } catch (error: any) {
