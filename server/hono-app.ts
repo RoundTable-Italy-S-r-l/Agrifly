@@ -98,6 +98,7 @@ app.get('/api/offers/:orgId', authMiddleware, async (c) => {
         jo.created_at, jo.updated_at,
         j.field_name, j.service_type, j.area_ha, j.location_json,
         j.target_date_start, j.target_date_end, j.notes, j.status as job_status,
+        j.buyer_org_id,
         buyer_org.legal_name as buyer_org_legal_name,
         operator_org.legal_name as operator_org_legal_name
       FROM job_offers jo
@@ -155,6 +156,7 @@ app.get('/api/offers/:orgId', authMiddleware, async (c) => {
           notes: row.notes,
           status: row.job_status,
           buyer_org: {
+            id: row.buyer_org_id || null,
             legal_name: row.buyer_org_legal_name || 'N/A'
           }
         },

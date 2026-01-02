@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { expandRateCardsTable } from '../utils/database-migrations';
+import { validateBody } from '../middleware/validation';
+import { QuoteEstimateSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -21,24 +23,20 @@ const app = new Hono();
  *   month?: number (1-12, for seasonal multipliers)
  * }
  */
-app.post('/', async (c) => {
+app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody');
     const {
       seller_org_id,
       service_type,
       area_ha,
-      distance_km,
+      distance_km = 0,
       is_hilly_terrain = false,
       has_obstacles = false,
       custom_multipliers = {},
       custom_surcharges = {},
       month = new Date().getMonth() + 1
     } = body;
-
-    if (!seller_org_id || !service_type || !area_ha) {
-      return c.json({ error: 'seller_org_id, service_type, and area_ha are required' }, 400);
-    }
 
     // Ensure rate_cards table has latest columns
     try {

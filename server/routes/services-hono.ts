@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { expandRateCardsTable } from '../utils/database-migrations';
 import { authMiddleware } from '../middleware/auth';
-import { validateBody } from '../middleware/validation';
-import { UpdateServiceSchema } from '../schemas/api.schemas';
+import { validateBody, validateParams } from '../middleware/validation';
+import { CreateServiceSchema, UpdateServiceSchema, DeleteServiceParamsSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -322,14 +322,10 @@ app.get('/:orgId/:serviceType', async (c) => {
 // UPSERT RATE CARD
 // ============================================================================
 
-app.post('/:orgId', async (c) => {
+app.post('/:orgId', authMiddleware, validateBody(CreateServiceSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
-    const body = await c.req.json();
-
-    if (!orgId) {
-      return c.json({ error: 'Organization ID required' }, 400);
-    }
+    const body = c.get('validatedBody');
 
     // Ensure rate_cards table has latest columns
     try {
@@ -765,15 +761,11 @@ app.put('/:orgId/:serviceType', validateBody(UpdateServiceSchema), async (c) => 
 // UPDATE RATE CARD (PUT endpoint by ID)
 // ============================================================================
 
-app.put('/:orgId/:rateCardId', async (c) => {
+app.put('/:orgId/:rateCardId', authMiddleware, validateBody(UpdateServiceSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const rateCardId = c.req.param('rateCardId');
-    const body = await c.req.json();
-
-    if (!orgId || !rateCardId) {
-      return c.json({ error: 'Organization ID and Rate Card ID required' }, 400);
-    }
+    const body = c.get('validatedBody');
 
     console.log('💰 PUT Update rate card by ID:', rateCardId, 'per org:', orgId, 'data:', body);
 
@@ -947,15 +939,11 @@ app.put('/:orgId/:rateCardId', async (c) => {
 // UPDATE RATE CARD (PUT endpoint by serviceType - kept for backward compatibility)
 // ============================================================================
 
-app.put('/:orgId/:serviceType', async (c) => {
+app.put('/:orgId/:serviceType', authMiddleware, validateBody(UpdateServiceSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const serviceType = c.req.param('serviceType');
-    const body = await c.req.json();
-
-    if (!orgId || !serviceType) {
-      return c.json({ error: 'Organization ID and Service Type required' }, 400);
-    }
+    const body = c.get('validatedBody');
 
     console.log('💰 PUT Update rate card by serviceType:', serviceType, 'per org:', orgId, 'data:', body);
 
@@ -1068,14 +1056,9 @@ app.put('/:orgId/:serviceType', async (c) => {
 // DELETE RATE CARD
 // ============================================================================
 
-app.delete('/:orgId/:serviceType', async (c) => {
+app.delete('/:orgId/:serviceType', authMiddleware, validateParams(DeleteServiceParamsSchema), async (c) => {
   try {
-    const orgId = c.req.param('orgId');
-    const serviceType = c.req.param('serviceType');
-
-    if (!orgId || !serviceType) {
-      return c.json({ error: 'Organization ID and Service Type required' }, 400);
-    }
+    const { orgId, serviceType } = c.get('validatedParams');
 
     console.log('🗑️ Eliminazione rate card:', serviceType, 'per org:', orgId);
 

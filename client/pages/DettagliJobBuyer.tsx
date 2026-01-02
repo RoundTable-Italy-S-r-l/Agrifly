@@ -33,7 +33,6 @@ import {
 } from 'lucide-react';
 import { getAuthHeaders } from '@/lib/auth';
 import JobFieldMap from './components/JobFieldMap';
-import { JobOfferChat } from '@/components/JobOfferChat';
 
 interface Job {
   id: string;
@@ -461,6 +460,13 @@ const DettagliJobBuyer = () => {
                         <div className="flex items-center gap-2 mb-2">
                           <User className="w-4 h-4 text-slate-500" />
                           <span className="font-semibold text-slate-900 text-sm">{offer.operator_org.legal_name}</span>
+                          <Link
+                            to={`/operators/${offer.operator_org.id}`}
+                            className="ml-2 text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                          >
+                            <User className="w-3 h-3" />
+                            Vedi profilo
+                          </Link>
                         </div>
 
                         <div className="flex items-center gap-4 text-xs text-slate-600 mb-2">
@@ -503,30 +509,6 @@ const DettagliJobBuyer = () => {
                         </div>
                       </div>
                     </div>
-                    {/* Chat per offerta accettata */}
-                    {(() => {
-                      const shouldShowChat = offer.status === 'AWARDED' && currentOrgId;
-                      if (shouldShowChat) {
-                        console.log('💬 Rendering chat for offer:', {
-                          offerId: offer.id,
-                          offerStatus: offer.status,
-                          currentOrgId,
-                          buyerOrgId: job.buyer_org_id || (job as any).buyer_org?.id || currentOrgId,
-                          operatorOrgId: offer.operator_org?.id || (offer.operator_org as any)?.id || ''
-                        });
-                      }
-                      return shouldShowChat ? (
-                        <div className="mt-4 pt-4 border-t border-slate-200">
-                          <JobOfferChat
-                            offerId={offer.id}
-                            currentOrgId={currentOrgId}
-                            currentUserId={currentUserId || undefined}
-                            buyerOrgId={job.buyer_org_id || (job as any).buyer_org?.id || currentOrgId}
-                            operatorOrgId={offer.operator_org?.id || (offer.operator_org as any)?.id || ''}
-                          />
-                        </div>
-                      ) : null;
-                    })()}
                   </div>
                 ))}
               </div>

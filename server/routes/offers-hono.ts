@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { authMiddleware } from '../middleware/auth';
-import { CreateOfferSchema, UpdateOfferSchema } from '../schemas/api.schemas';
+import { validateBody, validateParams } from '../middleware/validation';
+import { CreateOfferSchema, UpdateOfferSchema, DeleteOfferParamsSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -76,27 +77,15 @@ app.get('/:orgId', async (c) => {
 // POST /api/offers - Create offer
 // ============================================================================
 
-app.post('/', authMiddleware, async (c) => {
+app.post('/', authMiddleware, validateBody(CreateOfferSchema), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
 
-    // Parse and validate request body
-    const body = await c.req.json();
+    const body = c.get('validatedBody');
 
     // Set vendor_org_id from authenticated user
-    body.vendor_org_id = user.organizationId;
-
-    // Validate input
-    const validationResult = CreateOfferSchema.safeParse(body);
-    if (!validationResult.success) {
-      return c.json({
-        error: 'Dati non validi',
-        details: validationResult.error.issues
-      }, 400);
-    }
-
-    const data = validationResult.data;
+    const data = { ...body, vendor_org_id: user.organizationId };
 
     console.log('🎁 Creazione offerta:', data);
 
@@ -104,9 +93,9 @@ app.post('/', authMiddleware, async (c) => {
     const insertResult = await query(`
       INSERT INTO offers (
         id, vendor_org_id, offer_type, name, rules_json,
-        valid_from, valid_to, status, created_at, updated_at
+        valid_from, valid_to, status
       ) VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7
       )
       RETURNING *
     `, [
@@ -123,12 +112,22 @@ app.post('/', authMiddleware, async (c) => {
 
     console.log('✅ Offerta creata:', newOffer.id);
 
+    // Parse rules_json if it's a string
+    let rulesJson = newOffer.rules_json;
+    if (typeof rulesJson === 'string') {
+      try {
+        rulesJson = JSON.parse(rulesJson);
+      } catch (e) {
+        rulesJson = {};
+      }
+    }
+
     return c.json({
       id: newOffer.id,
       vendor_org_id: newOffer.vendor_org_id,
       offer_type: newOffer.offer_type,
       name: newOffer.name,
-      rules_json: JSON.parse(newOffer.rules_json),
+      rules_json: rulesJson,
       valid_from: newOffer.valid_from,
       valid_to: newOffer.valid_to,
       status: newOffer.status
@@ -149,24 +148,13 @@ app.post('/', authMiddleware, async (c) => {
 // PUT /api/offers/:offerId - Update offer
 // ============================================================================
 
-app.put('/:offerId', authMiddleware, async (c) => {
+app.put('/:offerId', authMiddleware, validateBody(UpdateOfferSchema), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
 
     const offerId = c.req.param('offerId');
-    const body = await c.req.json();
-
-    // Validate input
-    const validationResult = UpdateOfferSchema.safeParse(body);
-    if (!validationResult.success) {
-      return c.json({
-        error: 'Dati non validi',
-        details: validationResult.error.issues
-      }, 400);
-    }
-
-    const data = validationResult.data;
+    const data = c.get('validatedBody');
 
     console.log('🔄 Aggiornamento offerta:', { offerId, data });
 
@@ -218,7 +206,7 @@ app.put('/:offerId', authMiddleware, async (c) => {
       return c.json({ error: 'Nessun campo da aggiornare' }, 400);
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    // Note: offers table doesn't have updated_at column
     values.push(offerId); // Add offerId as last parameter
 
     const updateQuery = `
@@ -238,12 +226,22 @@ app.put('/:offerId', authMiddleware, async (c) => {
 
     console.log('✅ Offerta aggiornata:', offerId);
 
+    // Parse rules_json if it's a string
+    let rulesJson = updatedOffer.rules_json;
+    if (typeof rulesJson === 'string') {
+      try {
+        rulesJson = JSON.parse(rulesJson);
+      } catch (e) {
+        rulesJson = {};
+      }
+    }
+
     return c.json({
       id: updatedOffer.id,
       vendor_org_id: updatedOffer.vendor_org_id,
       offer_type: updatedOffer.offer_type,
       name: updatedOffer.name,
-      rules_json: JSON.parse(updatedOffer.rules_json),
+      rules_json: rulesJson,
       valid_from: updatedOffer.valid_from,
       valid_to: updatedOffer.valid_to,
       status: updatedOffer.status
@@ -264,12 +262,12 @@ app.put('/:offerId', authMiddleware, async (c) => {
 // DELETE /api/offers/:offerId - Delete offer
 // ============================================================================
 
-app.delete('/:offerId', authMiddleware, async (c) => {
+app.delete('/:offerId', authMiddleware, validateParams(DeleteOfferParamsSchema), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
 
-    const offerId = c.req.param('offerId');
+    const { offerId } = c.get('validatedParams');
 
     console.log('🗑️ Eliminazione offerta:', offerId);
 

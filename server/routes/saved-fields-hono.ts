@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { query } from '../utils/database';
-import { validateBody } from '../middleware/validation';
-import { CreateSavedFieldSchema } from '../schemas/api.schemas';
+import { validateBody, validateParams } from '../middleware/validation';
+import { CreateSavedFieldSchema, DeleteFieldParamsSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -242,14 +242,14 @@ app.post('/', authMiddleware, validateBody(CreateSavedFieldSchema), async (c) =>
 });
 
 // DELETE /:fieldId - Delete a saved field
-app.delete('/:fieldId', authMiddleware, async (c) => {
+app.delete('/:fieldId', authMiddleware, validateParams(DeleteFieldParamsSchema), async (c) => {
   try {
     const user = c.get('user');
     if (!user || !user.organizationId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const fieldId = c.req.param('fieldId');
+    const { fieldId } = c.get('validatedParams');
 
     // Check if we're using PostgreSQL or SQLite
     const isPostgreSQL = process.env.DATABASE_URL?.startsWith('postgresql://') || process.env.DATABASE_URL?.startsWith('postgres://');

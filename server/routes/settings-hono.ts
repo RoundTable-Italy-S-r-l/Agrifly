@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { authMiddleware } from '../middleware/auth';
-import { validateBody } from '../middleware/validation';
-import { CreateInvitationSchema, UpdateOrganizationSchema } from '../schemas/api.schemas';
+import { validateBody, validateParams } from '../middleware/validation';
+import { CreateInvitationSchema, UpdateOrganizationSchema, UpdateNotificationPreferencesSchema, RevokeInvitationParamsSchema } from '../schemas/api.schemas';
 import { createClient } from '@supabase/supabase-js';
 import { publicObjectUrl } from '../utils/storage';
 
@@ -182,17 +182,27 @@ app.get('/organization/general', authMiddleware, async (c) => {
 });
 
 // PATCH /api/settings/organization/general - Update organization general settings
-app.patch('/organization/general', authMiddleware, async (c) => {
+app.patch('/organization/general', authMiddleware, validateBody(UpdateOrganizationSchema), async (c) => {
   try {
     const queryParams = c.req.query();
     const orgId = queryParams.orgId;
-    const updates = await c.req.json();
+    const updates = c.get('validatedBody');
 
     if (!orgId) {
       return c.json({ error: 'Organization ID required' }, 400);
     }
 
     console.log('🏢 Aggiornamento impostazioni generali organizzazione:', orgId, updates);
+
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
+    const userOrgId = user?.organizationId;
+
+    // Verifica che l'utente appartenga all'organizzazione che sta modificando
+    if (!userOrgId || userOrgId !== orgId) {
+      console.log('❌ Tentativo di modificare organizzazione diversa dalla propria:', { userOrgId, requestedOrgId: orgId });
+      return c.json({ error: 'Forbidden: Cannot modify another organization' }, 403);
+    }
 
     // Verifica che l'organizzazione esista prima dell'aggiornamento
     const orgCheckResult = await query(`SELECT * FROM organizations WHERE id = $1`, [orgId]);
@@ -734,9 +744,9 @@ app.post('/organization/invitations/invite', authMiddleware, validateBody(Create
 });
 
 // POST /api/settings/organization/invitations/revoke/{invitationId} - Revoke invitation
-app.post('/organization/invitations/revoke/:invitationId', authMiddleware, async (c) => {
+app.post('/organization/invitations/revoke/:invitationId', authMiddleware, validateParams(RevokeInvitationParamsSchema), async (c) => {
   try {
-    const invitationId = c.req.param('invitationId');
+    const { invitationId } = c.get('validatedParams');
     const user = c.get('user');
     const currentUserId = user.userId || user.id;
 
@@ -1098,14 +1108,14 @@ app.get('/notifications', authMiddleware, async (c) => {
 });
 
 // PATCH /api/settings/notifications - Update user notification preferences
-app.patch('/notifications', authMiddleware, async (c) => {
+app.patch('/notifications', authMiddleware, validateBody(UpdateNotificationPreferencesSchema), async (c) => {
   try {
     console.log('🔔 [NOTIFICATIONS UPDATE] ===========================================');
     console.log('🔔 [NOTIFICATIONS UPDATE] Aggiornamento preferenze notifiche');
 
     const user = c.get('user');
     const currentUserId = user.userId || user.id;
-    const updates = await c.req.json();
+    const updates = c.get('validatedBody');
 
     console.log('🔔 [NOTIFICATIONS UPDATE] userId:', currentUserId);
     console.log('🔔 [NOTIFICATIONS UPDATE] updates:', updates);

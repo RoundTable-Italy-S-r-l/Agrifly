@@ -29,6 +29,7 @@ import ServiceDetail from "./pages/ServiceDetail";
 import DroneDetail from "./pages/DroneDetail";
 import Checkout from "./pages/Checkout";
 import OrderDetail from "./pages/OrderDetail";
+import OperatorProfile from "./pages/OperatorProfile";
 import NotFound from "./pages/NotFound";
 
 // Buyer pages
@@ -39,8 +40,7 @@ import ImpostazioniBuyer from "./pages/ImpostazioniBuyer";
 import DettagliJobBuyer from "./pages/DettagliJobBuyer";
 import CartBuyer from "./pages/CartBuyer";
 
-// Landing page preventivo indipendente
-import PreventivoLanding from "./landing-preventivo";
+// Landing page preventivo rimossa - non più utilizzata
 
 const queryClient = new QueryClient();
 
@@ -65,7 +65,6 @@ const App = () => {
             />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/servizi" element={<ServiziGIS />} />
-            <Route path="/preventivo" element={<PreventivoLanding />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
@@ -217,6 +216,7 @@ const App = () => {
 
             <Route path="/prodotti/:id" element={<DroneDetail />} />
             <Route path="/ordini/:orderId" element={<OrderDetail />} />
+            <Route path="/operators/:orgId" element={<OperatorProfile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

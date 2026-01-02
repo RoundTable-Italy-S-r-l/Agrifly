@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { authMiddleware } from '../middleware/auth';
-import { validateBody } from '../middleware/validation';
-import { CreateOperatorSchema, UpdateOperatorSchema } from '../schemas/api.schemas';
+import { validateBody, validateParams } from '../middleware/validation';
+import { CreateOperatorSchema, UpdateOperatorSchema, DeleteOperatorParamsSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -480,10 +480,9 @@ app.put('/:orgId/:operatorId', validateBody(UpdateOperatorSchema), async (c) => 
 // DELETE OPERATOR
 // ============================================================================
 
-app.delete('/:orgId/:operatorId', async (c) => {
+app.delete('/:orgId/:operatorId', authMiddleware, validateParams(DeleteOperatorParamsSchema), async (c) => {
   try {
-    const orgId = c.req.param('orgId');
-    const operatorId = c.req.param('operatorId');
+    const { orgId, operatorId } = c.get('validatedParams');
 
     if (!orgId || !operatorId) {
       return c.json({ error: 'Organization ID and Operator ID required' }, 400);
@@ -511,6 +510,116 @@ app.delete('/:orgId/:operatorId', async (c) => {
 
   } catch (error: any) {
     console.error('❌ Errore delete operator:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// ============================================================================
+// GET ORGANIZATION PUBLIC INFO
+// ============================================================================
+
+// GET /api/operators/org/:orgId - Ottieni info pubbliche organizzazione
+app.get('/org/:orgId', async (c) => {
+  try {
+    const orgId = c.req.param('orgId');
+    
+    if (!orgId) {
+      return c.json({ error: 'Organization ID required' }, 400);
+    }
+    
+    console.log(`📋 Richiesta info pubblica organizzazione:`, orgId);
+    
+    const result = await query(`
+      SELECT 
+        id,
+        legal_name,
+        phone,
+        support_email,
+        address_line,
+        city,
+        province,
+        region,
+        postal_code,
+        country,
+        type,
+        is_certified
+      FROM organizations
+      WHERE id = $1 AND status = 'ACTIVE'
+    `, [orgId]);
+    
+    if (result.rows.length === 0) {
+      return c.json({ error: 'Organizzazione non trovata' }, 404);
+    }
+    
+    return c.json(result.rows[0]);
+    
+  } catch (error: any) {
+    console.error('❌ Errore get organization public info:', error);
+    return c.json({
+      error: 'Errore interno',
+      message: error.message
+    }, 500);
+  }
+});
+
+// ============================================================================
+// GET RESPONSE METRICS
+// ============================================================================
+
+// GET /api/operators/metrics/:entityType/:entityId - Ottieni metriche di risposta
+app.get('/metrics/:entityType/:entityId', authMiddleware, async (c) => {
+  try {
+    const entityType = c.req.param('entityType'); // 'ORGANIZATION' o 'OPERATOR_PROFILE'
+    const entityId = c.req.param('entityId');
+    
+    if (!entityType || !entityId) {
+      return c.json({ error: 'Entity type and ID required' }, 400);
+    }
+    
+    if (entityType !== 'ORGANIZATION' && entityType !== 'OPERATOR_PROFILE') {
+      return c.json({ error: 'Invalid entity type. Must be ORGANIZATION or OPERATOR_PROFILE' }, 400);
+    }
+    
+    console.log(`📊 Richiesta metriche risposta per ${entityType}:`, entityId);
+    
+    const result = await query(`
+      SELECT 
+        avg_response_minutes,
+        sample_count,
+        last_response_at,
+        calculation_window_days,
+        last_calculated_at
+      FROM response_metrics
+      WHERE entity_type = $1 AND entity_id = $2
+    `, [entityType, entityId]);
+    
+    if (result.rows.length === 0) {
+      return c.json({
+        avg_response_minutes: null,
+        sample_count: 0,
+        last_response_at: null,
+        calculation_window_days: 90,
+        last_calculated_at: null,
+        status: 'insufficient_data'
+      });
+    }
+    
+    const metric = result.rows[0];
+    
+    return c.json({
+      avg_response_minutes: parseFloat(metric.avg_response_minutes) || null,
+      sample_count: parseInt(metric.sample_count) || 0,
+      last_response_at: metric.last_response_at,
+      calculation_window_days: parseInt(metric.calculation_window_days) || 90,
+      last_calculated_at: metric.last_calculated_at,
+      status: metric.sample_count >= 5 ? 'reliable' : 'building'
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Errore get response metrics:', error);
     return c.json({
       error: 'Errore interno',
       message: error.message

@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { validateBody } from '../middleware/validation';
+import { validateBody, validateParams } from '../middleware/validation';
 import { query } from '../utils/database';
-import { CreateJobSchema, CreateJobOfferSchema, CreateMessageSchema, MarkMessagesReadSchema, AcceptOfferParamsSchema, CompleteMissionParamsSchema } from '../schemas/api.schemas';
+import { CreateJobSchema, CreateJobOfferSchema, CreateMessageSchema, MarkMessagesReadSchema, AcceptOfferParamsSchema, CompleteMissionParamsSchema, WithdrawOfferParamsSchema } from '../schemas/api.schemas';
 // file-db.ts non è compatibile con Netlify Functions (usa import.meta)
 // Usiamo solo il database SQLite/PostgreSQL, non file-db
 
@@ -883,7 +883,7 @@ app.get('/:jobId/offers', authMiddleware, async (c) => {
 });
 
 // POST /api/jobs/:jobId/accept-offer/:offerId - Accept job offer (buyer)
-app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
+app.post('/:jobId/accept-offer/:offerId', authMiddleware, validateParams(AcceptOfferParamsSchema), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
@@ -891,25 +891,7 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    // Validate URL parameters
-    const paramsResult = AcceptOfferParamsSchema.safeParse({
-      jobId: c.req.param('jobId'),
-      offerId: c.req.param('offerId')
-    });
-
-    if (!paramsResult.success) {
-      return c.json({
-        error: 'Validation failed',
-        message: 'Parametri URL non validi',
-        details: paramsResult.error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code
-        }))
-      }, 400);
-    }
-
-    const { jobId, offerId } = paramsResult.data;
+    const { jobId, offerId } = c.get('validatedParams');
 
     console.log('✅ [ACCEPT OFFER] Accettazione offerta:', { jobId, offerId, buyerOrgId: user.organizationId });
 
@@ -1065,7 +1047,7 @@ app.post('/:jobId/accept-offer/:offerId', authMiddleware, async (c) => {
 
 // PUT /api/jobs/:jobId/offers/:offerId - Update job offer (operator/vendor)
 // IMPORTANTE: questa route deve essere PRIMA di /:orgId per evitare conflitti di routing
-app.put('/:jobId/offers/:offerId', authMiddleware, async (c) => {
+app.put('/:jobId/offers/:offerId', authMiddleware, validateBody(CreateJobOfferSchema, { transform: true }), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
@@ -1158,7 +1140,7 @@ app.put('/:jobId/offers/:offerId', authMiddleware, async (c) => {
 
 // POST /api/jobs/:jobId/withdraw-offer/:offerId - Withdraw job offer (operator/vendor)
 // IMPORTANTE: questa route deve essere PRIMA di /:orgId per evitare conflitti di routing
-app.post('/:jobId/withdraw-offer/:offerId', authMiddleware, async (c) => {
+app.post('/:jobId/withdraw-offer/:offerId', authMiddleware, validateParams(WithdrawOfferParamsSchema), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
@@ -1166,8 +1148,7 @@ app.post('/:jobId/withdraw-offer/:offerId', authMiddleware, async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const jobId = c.req.param('jobId');
-    const offerId = c.req.param('offerId');
+    const { jobId, offerId } = c.get('validatedParams');
 
     console.log('🔄 Ritiro offerta:', { jobId, offerId, operatorOrgId: user.organizationId });
 
@@ -1429,7 +1410,7 @@ app.post('/offers/:offerId/messages', authMiddleware, validateBody(CreateMessage
 });
 
 // MARK MESSAGES AS READ FOR OFFER
-app.put('/offers/:offerId/messages/read', authMiddleware, async (c) => {
+app.put('/offers/:offerId/messages/read', authMiddleware, validateBody(MarkMessagesReadSchema), async (c) => {
   try {
     const offerId = c.req.param('offerId');
     // @ts-ignore - Hono context typing issue
@@ -1487,7 +1468,7 @@ app.put('/offers/:offerId/messages/read', authMiddleware, async (c) => {
 
 // POST /api/jobs/offers/:offerId/complete - Complete mission (operator/vendor)
 // IMPORTANTE: questa route deve essere PRIMA di /offers/:orgId per evitare conflitti
-app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
+app.post('/offers/:offerId/complete', authMiddleware, validateParams(CompleteMissionParamsSchema), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;
@@ -1495,24 +1476,7 @@ app.post('/offers/:offerId/complete', authMiddleware, async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    // Validate URL parameters
-    const paramsResult = CompleteMissionParamsSchema.safeParse({
-      offerId: c.req.param('offerId')
-    });
-
-    if (!paramsResult.success) {
-      return c.json({
-        error: 'Validation failed',
-        message: 'Parametri URL non validi',
-        details: paramsResult.error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code
-        }))
-      }, 400);
-    }
-
-    const { offerId } = paramsResult.data;
+    const { offerId } = c.get('validatedParams');
 
     console.log('✅ [COMPLETE MISSION] Completamento missione per offerta:', { offerId, operatorOrgId: user.organizationId });
 
@@ -1723,6 +1687,7 @@ app.get('/offers/:orgId', authMiddleware, async (c) => {
         jo.created_at, jo.updated_at,
         j.field_name, j.service_type, j.area_ha, j.location_json,
         j.target_date_start, j.target_date_end, j.notes, j.status as job_status,
+        j.buyer_org_id,
         buyer_org.legal_name as buyer_org_legal_name,
         operator_org.legal_name as operator_org_legal_name
       FROM job_offers jo
@@ -1780,6 +1745,7 @@ app.get('/offers/:orgId', authMiddleware, async (c) => {
           notes: row.notes,
           status: row.job_status,
           buyer_org: {
+            id: row.buyer_org_id || null,
             legal_name: row.buyer_org_legal_name || 'N/A'
           }
         },

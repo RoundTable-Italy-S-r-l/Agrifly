@@ -1,19 +1,15 @@
 import { Hono } from 'hono';
 import { calculateDistance, generateNavigationLinks, formatCoordinatesForGraphHopper } from '../utils/routing';
 import { GRAPHHOPPER_API_KEY } from '../config';
+import { validateBody } from '../middleware/validation';
+import { DirectionsRequestSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
 // Routing endpoint with GraphHopper API
-app.post('/directions', async (c) => {
+app.post('/directions', validateBody(DirectionsRequestSchema), async (c) => {
   try {
-    const { origin, destination } = await c.req.json();
-
-    if (!origin || !destination) {
-      return c.json({
-        error: 'Missing required parameters: origin and destination'
-      }, 400);
-    }
+    const { origin, destination } = c.get('validatedBody');
 
     // Extract coordinates from origin and destination
     // Expected format: [lng, lat] or { lng, lat }

@@ -108,6 +108,8 @@ model Organization {
   networks_target                ApprovedNetwork[]        @relation("NetworkTarget")
   job_invites_operator           JobInvite[]              @relation("InvitedOperator")
   conversation_participants      ConversationParticipant[]
+  response_events_requester      ResponseEvent[] @relation("RequesterOrg")
+  response_events_responder       ResponseEvent[] @relation("ResponderOrg")
   wishlist_items                 WishlistItem[]
   shopping_carts                 ShoppingCart[]
   addresses                      Address[]
@@ -1295,6 +1297,7 @@ model Conversation {
 
   participants ConversationParticipant[]
   messages     Message[]
+  response_events ResponseEvent[]
 
   @@unique([context_type, context_id])
   @@map("conversations")
@@ -1347,6 +1350,66 @@ model Message {
 
   @@index([conversation_id, created_at])
   @@map("messages")
+}
+
+// ============================================================================
+// 12.5) RESPONSE METRICS: Tempo medio risposta ai messaggi
+// ============================================================================
+
+model ResponseEvent {
+  id                  String   @id @default(cuid()) @map("id")
+  conversation_id     String   @map("conversation_id")
+  
+  // Chi ha fatto la richiesta (ultimo messaggio del blocco)
+  requester_org_id    String   @map("requester_org_id")
+  requester_user_id   String?  @map("requester_user_id")
+  request_message_id  String   @map("request_message_id")
+  
+  // Chi ha risposto
+  responder_org_id     String   @map("responder_org_id")
+  responder_user_id   String?  @map("responder_user_id")
+  response_message_id String   @map("response_message_id")
+  
+  // Metrica
+  response_seconds    Int      @map("response_seconds")
+  response_minutes    Float    @map("response_minutes")
+  
+  created_at         DateTime  @default(now()) @map("created_at")
+  
+  conversation       Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  requester_org      Organization @relation("RequesterOrg", fields: [requester_org_id], references: [id], onDelete: Cascade)
+  responder_org      Organization @relation("ResponderOrg", fields: [responder_org_id], references: [id], onDelete: Cascade)
+  
+  @@index([conversation_id, created_at])
+  @@index([responder_org_id, created_at])
+  @@index([responder_user_id, created_at])
+  @@map("response_events")
+}
+
+model ResponseMetric {
+  id                  String   @id @default(cuid()) @map("id")
+  
+  // Entità misurata (può essere Organization o OperatorProfile)
+  entity_type        EntityType @map("entity_type")
+  entity_id          String     @map("entity_id")
+  
+  // Metriche aggregate
+  avg_response_minutes Float   @map("avg_response_minutes")
+  sample_count         Int     @default(0) @map("sample_count")
+  last_response_at      DateTime? @map("last_response_at")
+  
+  // Window di calcolo
+  calculation_window_days Int @default(90) @map("calculation_window_days")
+  last_calculated_at       DateTime @default(now()) @map("last_calculated_at")
+  
+  @@unique([entity_type, entity_id])
+  @@index([entity_type, avg_response_minutes])
+  @@map("response_metrics")
+}
+
+enum EntityType {
+  ORGANIZATION
+  OPERATOR_PROFILE
 }
 
 // ============================================================================

@@ -85,6 +85,19 @@ export const LoginSchema = z.object({
 });
 
 // Certified quotes request schema
+// Quote estimate schema
+export const QuoteEstimateSchema = z.object({
+  seller_org_id: z.string().min(1, 'Seller organization ID obbligatorio'),
+  service_type: ServiceTypeSchema,
+  area_ha: z.number().positive('Area deve essere positiva'),
+  distance_km: z.number().nonnegative().default(0),
+  is_hilly_terrain: z.boolean().default(false),
+  has_obstacles: z.boolean().default(false),
+  custom_multipliers: z.record(z.number()).optional(),
+  custom_surcharges: z.record(z.number()).optional(),
+  month: z.number().int().min(1).max(12).optional()
+});
+
 export const CertifiedQuotesRequestSchema = z.object({
   service_type: ServiceTypeSchema.optional(),
   area_ha: italianNumberTransform,
@@ -196,6 +209,42 @@ export const UpdateAddressSchema = z.object({
   phone: z.string().optional()
 });
 
+// Wishlist schemas
+export const AddWishlistItemSchema = z.object({
+  orgId: z.string().min(1, 'Organization ID obbligatorio'),
+  productId: z.string().min(1, 'Product ID obbligatorio'),
+  note: z.string().optional()
+});
+
+// Address schemas (legacy format support)
+export const CreateAddressLegacySchema = z.object({
+  orgId: z.string().min(1),
+  type: z.enum(['SHIPPING', 'BILLING']),
+  name: z.string().min(1),
+  company: z.string().optional(),
+  address_line: z.string().min(1),
+  city: z.string().min(1),
+  province: z.string().min(1),
+  postal_code: z.string().min(1),
+  country: z.string().default('IT'),
+  phone: z.string().optional(),
+  is_default: z.boolean().optional().default(false)
+});
+
+export const UpdateAddressLegacySchema = z.object({
+  orgId: z.string().min(1).optional(),
+  type: z.enum(['SHIPPING', 'BILLING']).optional(),
+  name: z.string().min(1).optional(),
+  company: z.string().optional(),
+  address_line: z.string().min(1).optional(),
+  city: z.string().min(1).optional(),
+  province: z.string().min(1).optional(),
+  postal_code: z.string().min(1).optional(),
+  country: z.string().optional(),
+  phone: z.string().optional(),
+  is_default: z.boolean().optional()
+});
+
 // Settings schemas
 export const CreateInvitationSchema = z.object({
   email: z.string().email('Email non valida'),
@@ -294,16 +343,115 @@ export const CreateOfferSchema = z.object({
   }),
   name: z.string().min(1, 'Nome offerta obbligatorio'),
   rules_json: z.any(), // JSON object with offer rules
-  valid_from: z.string().transform((val) => new Date(val)),
-  valid_to: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  valid_from: z.string().refine((val) => {
+    try {
+      const date = new Date(val);
+      return !isNaN(date.getTime()) && val.match(/^\d{4}-\d{2}-\d{2}/); // ISO format check
+    } catch {
+      return false;
+    }
+  }, { message: 'Data valid_from non valida (formato ISO richiesto: YYYY-MM-DD)' }).transform((val) => new Date(val)),
+  valid_to: z.string().optional().refine((val) => {
+    if (!val) return true;
+    try {
+      const date = new Date(val);
+      return !isNaN(date.getTime()) && val.match(/^\d{4}-\d{2}-\d{2}/);
+    } catch {
+      return false;
+    }
+  }, { message: 'Data valid_to non valida (formato ISO richiesto: YYYY-MM-DD)' }).transform((val) => val ? new Date(val) : undefined),
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE')
+});
+
+// Notification preferences schema
+export const UpdateNotificationPreferencesSchema = z.object({
+  email_orders: z.boolean().optional(),
+  email_payments: z.boolean().optional(),
+  email_updates: z.boolean().optional(),
+  inapp_orders: z.boolean().optional(),
+  inapp_messages: z.boolean().optional()
+});
+
+// Catalog schemas
+export const ToggleProductSchema = z.object({
+  skuId: z.string().min(1).optional(),
+  catalogItemId: z.string().min(1).optional(),
+  isForSale: z.boolean()
+});
+
+export const UpdateVendorProductSchema = z.object({
+  skuId: z.string().min(1),
+  price: z.number().positive().optional(),
+  stock: z.number().int().nonnegative().optional(),
+  leadTimeDays: z.number().int().nonnegative().optional(),
+  notes: z.string().optional(),
+  isForSale: z.boolean().optional(),
+  isForRent: z.boolean().optional()
+});
+
+// Delete parameter schemas (for path params validation)
+export const DeleteOfferParamsSchema = z.object({
+  offerId: z.string().min(1, 'Offer ID obbligatorio')
+});
+
+export const DeleteItemParamsSchema = z.object({
+  itemId: z.string().min(1, 'Item ID obbligatorio')
+});
+
+export const DeleteAddressParamsSchema = z.object({
+  addressId: z.string().min(1, 'Address ID obbligatorio')
+});
+
+export const DeleteOperatorParamsSchema = z.object({
+  orgId: z.string().min(1, 'Organization ID obbligatorio'),
+  operatorId: z.string().min(1, 'Operator ID obbligatorio')
+});
+
+export const DeleteFieldParamsSchema = z.object({
+  fieldId: z.string().min(1, 'Field ID obbligatorio')
+});
+
+export const DeleteServiceParamsSchema = z.object({
+  orgId: z.string().min(1, 'Organization ID obbligatorio'),
+  serviceType: z.string().min(1, 'Service type obbligatorio')
+});
+
+export const RevokeInvitationParamsSchema = z.object({
+  invitationId: z.string().min(1, 'Invitation ID obbligatorio')
+});
+
+export const WithdrawOfferParamsSchema = z.object({
+  jobId: z.string().min(1, 'Job ID obbligatorio'),
+  offerId: z.string().min(1, 'Offer ID obbligatorio')
+});
+
+// Cart migration schema
+export const MigrateCartSchema = z.object({
+  sessionId: z.string().min(1, 'Session ID obbligatorio'),
+  userId: z.string().min(1, 'User ID obbligatorio'),
+  orgId: z.string().min(1, 'Organization ID obbligatorio')
 });
 
 export const UpdateOfferSchema = z.object({
   name: z.string().min(1).optional(),
   rules_json: z.any().optional(),
-  valid_from: z.string().transform((val) => new Date(val)).optional(),
-  valid_to: z.string().optional().transform((val) => val ? new Date(val) : undefined).optional(),
+  valid_from: z.string().refine((val) => {
+    try {
+      const date = new Date(val);
+      return !isNaN(date.getTime()) && val.match(/^\d{4}-\d{2}-\d{2}/);
+    } catch {
+      return false;
+    }
+  }, { message: 'Data valid_from non valida (formato ISO richiesto: YYYY-MM-DD)' }).transform((val) => new Date(val)).optional(),
+  valid_to: z.string().optional().refine((val) => {
+    if (!val) return true;
+    try {
+      const date = new Date(val);
+      return !isNaN(date.getTime()) && val.match(/^\d{4}-\d{2}-\d{2}/);
+    } catch {
+      return false;
+    }
+  }, { message: 'Data valid_to non valida (formato ISO richiesto: YYYY-MM-DD)' }).transform((val) => val ? new Date(val) : undefined).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional()
 });
 

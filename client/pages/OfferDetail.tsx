@@ -1376,6 +1376,36 @@ export default function OfferDetail() {
           </Card>
         </div>
 
+        {/* Riquadro Buyer Info Flash */}
+        {offer.job.buyer_org && (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <User className="w-5 h-5" />
+                Informazioni Cliente
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div>
+                  <div className="font-semibold text-lg text-slate-900 mb-1">
+                    {offer.job.buyer_org.legal_name}
+                  </div>
+                  <div className="text-sm text-slate-600">Organizzazione richiedente</div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/operators/${offer.job.buyer_org.id}`)}
+                  className="w-full"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Vedi profilo completo e metriche
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Organizzazioni coinvolte */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>

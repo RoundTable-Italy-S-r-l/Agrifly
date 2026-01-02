@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
+import { validateBody } from '../middleware/validation';
+import { CreateMessageSchema, MarkMessagesReadSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -64,14 +66,10 @@ app.get('/:orderId', async (c) => {
 // Route: POST /api/orders/:orderId/messages
 // ============================================================================
 
-app.post('/:orderId/messages', async (c) => {
+app.post('/:orderId/messages', validateBody(CreateMessageSchema), async (c) => {
   try {
     const orderId = c.req.param('orderId');
-    const { sender_org_id, sender_user_id, message_text } = await c.req.json();
-
-    if (!orderId || !sender_org_id || !message_text) {
-      return c.json({ error: 'Order ID, sender org ID, and message text required' }, 400);
-    }
+    const { sender_org_id, sender_user_id, message_text } = c.get('validatedBody');
 
     console.log('💬 Creazione messaggio per ordine:', orderId);
 
@@ -143,14 +141,10 @@ app.post('/:orderId/messages', async (c) => {
 // Route: PUT /api/orders/:orderId/messages/read
 // ============================================================================
 
-app.put('/:orderId/messages/read', async (c) => {
+app.put('/:orderId/messages/read', validateBody(MarkMessagesReadSchema), async (c) => {
   try {
     const orderId = c.req.param('orderId');
-    const { reader_org_id } = await c.req.json();
-
-    if (!orderId || !reader_org_id) {
-      return c.json({ error: 'Order ID and reader org ID required' }, 400);
-    }
+    const { reader_org_id } = c.get('validatedBody');
 
     console.log('💬 Marca messaggi come letti per ordine:', orderId);
 

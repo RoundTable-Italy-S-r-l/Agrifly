@@ -1,6 +1,9 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { publicObjectUrl } from '../utils/storage';
+import { validateBody } from '../middleware/validation';
+import { authMiddleware } from '../middleware/auth';
+import { ToggleProductSchema, UpdateVendorProductSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -9,14 +12,10 @@ const app = new Hono();
 // Route specifica prima della route generica per evitare conflitti
 // ============================================================================
 
-app.post('/vendor/:orgId/toggle', async (c) => {
+app.post('/vendor/:orgId/toggle', validateBody(ToggleProductSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
-    const { skuId, catalogItemId, isForSale } = await c.req.json();
-
-    if (typeof isForSale !== 'boolean') {
-      return c.json({ error: 'isForSale obbligatorio e deve essere boolean' }, 400);
-    }
+    const { skuId, catalogItemId, isForSale } = c.get('validatedBody');
 
     // Accetta sia skuId che catalogItemId (per compatibilità frontend)
     // Il frontend potrebbe passare l'ID del catalog item come skuId
@@ -86,10 +85,19 @@ app.post('/vendor/:orgId/toggle', async (c) => {
 // Route specifica prima della route generica per evitare conflitti
 // ============================================================================
 
-app.put('/vendor/:orgId/product', async (c) => {
+app.put('/vendor/:orgId/product', authMiddleware, validateBody(UpdateVendorProductSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
-    const body = await c.req.json();
+    const body = c.get('validatedBody');
+    
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
+    const userOrgId = user?.organizationId;
+
+    // Verifica che l'utente possa modificare solo il proprio catalogo
+    if (!userOrgId || userOrgId !== orgId) {
+      return c.json({ error: 'Forbidden: Cannot modify another organization catalog' }, 403);
+    }
     const { skuId, catalogItemId, price, leadTimeDays, notes, stock } = body;
 
     // Accetta sia skuId che catalogItemId (per compatibilità frontend)
@@ -241,9 +249,18 @@ app.put('/vendor/:orgId/product', async (c) => {
 // GET VENDOR CATALOG
 // ============================================================================
 
-app.get('/vendor/:orgId', async (c) => {
+app.get('/vendor/:orgId', authMiddleware, async (c) => {
   try {
     const orgId = c.req.param('orgId');
+    
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
+    const userOrgId = user?.organizationId;
+
+    // Verifica che l'utente possa accedere solo al proprio catalogo (a meno che non sia admin)
+    if (userOrgId && userOrgId !== orgId && !user?.isAdmin) {
+      return c.json({ error: 'Forbidden: Cannot access another organization catalog' }, 403);
+    }
     
     console.log('📦 Richiesta catalogo vendor per org:', orgId);
 

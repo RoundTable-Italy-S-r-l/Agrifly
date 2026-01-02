@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
-import { validateBody } from '../middleware/validation';
-import { AddCartItemSchema, UpdateCartItemSchema, CreateAddressSchema, UpdateAddressSchema } from '../schemas/api.schemas';
+import { validateBody, validateParams } from '../middleware/validation';
+import { AddCartItemSchema, UpdateCartItemSchema, CreateAddressSchema, UpdateAddressSchema, AddWishlistItemSchema, CreateAddressLegacySchema, UpdateAddressLegacySchema, DeleteItemParamsSchema, DeleteAddressParamsSchema, MigrateCartSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
 
@@ -369,9 +369,9 @@ app.put('/cart/items/:itemId', validateBody(UpdateCartItemSchema), async (c) => 
 });
 
 // DELETE /api/ecommerce/cart/items/:itemId - Rimuovi item dal carrello
-app.delete('/cart/items/:itemId', async (c) => {
+app.delete('/cart/items/:itemId', validateParams(DeleteItemParamsSchema), async (c) => {
   try {
-    const itemId = c.req.param('itemId');
+    const { itemId } = c.get('validatedParams');
 
     const result = await query(
       'DELETE FROM cart_items WHERE id = $1 RETURNING *',
@@ -394,13 +394,9 @@ app.delete('/cart/items/:itemId', async (c) => {
 });
 
 // POST /api/ecommerce/cart/migrate - Migra carrello guest a utente
-app.post('/cart/migrate', async (c) => {
+app.post('/cart/migrate', validateBody(MigrateCartSchema), async (c) => {
   try {
-    const { sessionId, userId, orgId } = await c.req.json();
-
-    if (!sessionId || !userId || !orgId) {
-      return c.json({ error: 'sessionId, userId e orgId sono obbligatori' }, 400);
-    }
+    const { sessionId, userId, orgId } = c.get('validatedBody');
 
     // Trova carrello guest
     const guestCartResult = await query(
@@ -563,12 +559,12 @@ async function ensureWishlistProductIdColumn() {
 }
 
 // POST /api/ecommerce/wishlist - Aggiungi item alla wishlist
-app.post('/wishlist', async (c) => {
+app.post('/wishlist', validateBody(AddWishlistItemSchema), async (c) => {
   try {
     // Assicurati che product_id esista
     await ensureWishlistProductIdColumn();
     
-    const { orgId, productId, note } = await c.req.json();
+    const { orgId, productId, note } = c.get('validatedBody');
 
     if (!orgId) {
       return c.json({ error: 'Organization ID required' }, 400);
@@ -651,9 +647,9 @@ app.post('/wishlist', async (c) => {
 });
 
 // DELETE /api/ecommerce/wishlist/:itemId - Rimuovi item dalla wishlist
-app.delete('/wishlist/:itemId', async (c) => {
+app.delete('/wishlist/:itemId', validateParams(DeleteItemParamsSchema), async (c) => {
   try {
-    const itemId = c.req.param('itemId');
+    const { itemId } = c.get('validatedParams');
 
     const result = await query(
       'DELETE FROM wishlist_items WHERE id = $1 RETURNING *',
@@ -713,9 +709,9 @@ app.get('/addresses', async (c) => {
 });
 
 // POST /api/ecommerce/addresses - Crea nuovo indirizzo
-app.post('/addresses', async (c) => {
+app.post('/addresses', validateBody(CreateAddressLegacySchema), async (c) => {
   try {
-    const addressData = await c.req.json();
+    const addressData = c.get('validatedBody');
     const { orgId, type, name, company, address_line, city, province, postal_code, country, phone, is_default } = addressData;
 
     if (!orgId || !type || !name || !address_line || !city || !province || !postal_code) {
@@ -748,10 +744,10 @@ app.post('/addresses', async (c) => {
 });
 
 // PUT /api/ecommerce/addresses/:addressId - Aggiorna indirizzo
-app.put('/addresses/:addressId', async (c) => {
+app.put('/addresses/:addressId', validateBody(UpdateAddressLegacySchema), async (c) => {
   try {
     const addressId = c.req.param('addressId');
-    const updates = await c.req.json();
+    const updates = c.get('validatedBody');
 
     // Se sta impostando come default, rimuovi il flag da altri indirizzi
     if (updates.is_default) {
@@ -789,9 +785,9 @@ app.put('/addresses/:addressId', async (c) => {
 });
 
 // DELETE /api/ecommerce/addresses/:addressId - Elimina indirizzo
-app.delete('/addresses/:addressId', async (c) => {
+app.delete('/addresses/:addressId', validateParams(DeleteAddressParamsSchema), async (c) => {
   try {
-    const addressId = c.req.param('addressId');
+    const { addressId } = c.get('validatedParams');
 
     const result = await query(
       'DELETE FROM addresses WHERE id = $1 RETURNING *',

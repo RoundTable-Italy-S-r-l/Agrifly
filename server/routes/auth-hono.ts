@@ -262,7 +262,7 @@ app.post('/verify-email', validateBody(VerifyEmailSchema), async (c) => {
 // REINVIA CODICE VERIFICA
 // ============================================================================
 
-app.post('/resend-verification', async (c) => {
+app.post('/resend-verification', validateBody(ResendVerificationSchema), async (c) => {
   try {
     // Verifica che utente sia autenticato
     const authHeader = c.req.header('Authorization');
@@ -324,17 +324,9 @@ app.post('/resend-verification', async (c) => {
 // LOGIN SEMPLIFICATO
 // ============================================================================
 
-app.post('/login', async (c) => {
+app.post('/login', validateBody(LoginSchema), async (c) => {
   try {
-    let body;
-    try {
-      body = await c.req.json();
-    } catch (parseError) {
-      return c.json({
-        error: 'Invalid JSON',
-        message: 'Il corpo della richiesta non è un JSON valido'
-      }, 400);
-    }
+    const body = c.get('validatedBody');
 
     const { email, password } = body;
 
@@ -663,13 +655,9 @@ app.get('/me', async (c) => {
 // RICHIESTA RESET PASSWORD
 // ============================================================================
 
-app.post('/request-password-reset', async (c) => {
+app.post('/request-password-reset', validateBody(RequestPasswordResetSchema), async (c) => {
   try {
-    const { email } = await c.req.json();
-
-    if (!email) {
-      return c.json({ error: 'Email obbligatoria' }, 400);
-    }
+    const { email } = c.get('validatedBody');
 
     // Rate limiting
     const rateLimit = rateLimiter.check(`reset_${email}`, 3, 60 * 60 * 1000);
@@ -751,17 +739,9 @@ app.post('/request-password-reset', async (c) => {
 // RESET PASSWORD CON TOKEN
 // ============================================================================
 
-app.post('/reset-password', async (c) => {
+app.post('/reset-password', validateBody(ResetPasswordSchema), async (c) => {
   try {
-    const { token, newPassword } = await c.req.json();
-
-    if (!token || !newPassword) {
-      return c.json({ error: 'Token e nuova password obbligatori' }, 400);
-    }
-
-    if (newPassword.length < 8) {
-      return c.json({ error: 'La password deve essere di almeno 8 caratteri' }, 400);
-    }
+    const { token, newPassword } = c.get('validatedBody');
 
     console.log('🔐 Reset password - token ricevuto:', token.substring(0, 10) + '...');
     
