@@ -452,10 +452,6 @@ export function GeneralSection() {
                         {city}
                       </SelectItem>
                     ))
-                  ) : selectedProvince ? (
-                    <SelectItem value="" disabled>
-                      Nessuna città disponibile
-                    </SelectItem>
                   ) : null}
                 </SelectContent>
               </Select>
