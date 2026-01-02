@@ -544,17 +544,18 @@ const mutativeEndpoints = [
       }
       return { orgId, operatorId: 'test-operator-id' };
     },
-    invalidBody: { first_name: '' },
+    invalidBody: { service_tags: 'invalid' },
     validBody: {
-      first_name: 'Updated',
-      last_name: 'Operator',
-      phone: '+39 999 888 7777'
+      service_tags: ['SPRAY', 'MAPPING']
     },
     verifyWrite: async (db, recordId, writeData) => {
-      const { data } = await db.from('operator_profiles').select('first_name, last_name').eq('id', recordId).single();
+      const { data } = await db.from('operator_profiles').select('service_tags').eq('id', recordId).single();
       if (!data) return { match: false, field: 'id', expected: recordId, actual: null };
-      if (data.first_name !== writeData.first_name) {
-        return { match: false, field: 'first_name', expected: writeData.first_name, actual: data.first_name };
+      // service_tags è JSON, converti per confronto
+      const tags = typeof data.service_tags === 'string' ? JSON.parse(data.service_tags) : data.service_tags;
+      const expectedTags = writeData.service_tags;
+      if (JSON.stringify(tags.sort()) !== JSON.stringify(expectedTags.sort())) {
+        return { match: false, field: 'service_tags', expected: expectedTags, actual: tags };
       }
       return { match: true };
     }

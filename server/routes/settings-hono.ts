@@ -900,15 +900,25 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     }
 
     // Gestisci upload file
-    let formData: FormData;
+    // Hono usa parseBody() per multipart/form-data, non formData()
+    let body: any;
     try {
-      formData = await c.req.formData();
+      // Verifica content-type
+      const contentType = c.req.header('content-type') || '';
+      if (!contentType.includes('multipart/form-data')) {
+        return c.json({ error: 'Content-Type must be multipart/form-data' }, 400);
+      }
+      
+      // parseBody() restituisce un oggetto con i campi del form
+      body = await c.req.parseBody();
     } catch (error: any) {
-      console.error('❌ Error parsing formData:', error);
+      console.error('❌ Error parsing body:', error);
+      console.error('   Content-Type:', c.req.header('content-type'));
+      console.error('   Error details:', error.message);
       return c.json({ error: 'Failed to parse form data', details: error.message }, 400);
     }
 
-    const logoFile = formData.get('logo');
+    const logoFile = body.logo;
 
     if (!logoFile) {
       return c.json({ error: 'Logo file is required' }, 400);

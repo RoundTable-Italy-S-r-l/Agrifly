@@ -421,7 +421,7 @@ app.post('/:orgId', authMiddleware, validateBody(CreateOperatorSchema), async (c
 // UPDATE OPERATOR
 // ============================================================================
 
-app.put('/:orgId/:operatorId', validateBody(UpdateOperatorSchema), async (c) => {
+app.put('/:orgId/:operatorId', authMiddleware, validateBody(UpdateOperatorSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const operatorId = c.req.param('operatorId');
@@ -451,6 +451,25 @@ app.put('/:orgId/:operatorId', validateBody(UpdateOperatorSchema), async (c) => 
       return c.json({ error: 'Operatore non trovato' }, 404);
     }
 
+    // Handle service_tags JSON serialization
+    let serviceTagsJson: string;
+    if (service_tags !== undefined) {
+      if (Array.isArray(service_tags)) {
+        serviceTagsJson = JSON.stringify(service_tags);
+      } else if (typeof service_tags === 'string') {
+        try {
+          const parsed = JSON.parse(service_tags);
+          serviceTagsJson = JSON.stringify(parsed);
+        } catch {
+          serviceTagsJson = JSON.stringify([service_tags]);
+        }
+      } else {
+        serviceTagsJson = '[]';
+      }
+    } else {
+      serviceTagsJson = '[]'; // Default empty array
+    }
+
     // Aggiorna l'operatore
     const updateQuery = `
       UPDATE operator_profiles
@@ -465,9 +484,6 @@ app.put('/:orgId/:operatorId', validateBody(UpdateOperatorSchema), async (c) => 
         updated_at = NOW()
       WHERE id = $8 AND org_id = $9
     `;
-
-    // PostgreSQL: Cast to jsonb for proper array handling
-    const serviceTagsJson = Array.isArray(service_tags) ? JSON.stringify(service_tags || []) : (service_tags || '[]');
     
     await query(updateQuery, [
       serviceTagsJson,

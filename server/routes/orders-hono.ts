@@ -272,8 +272,8 @@ app.post('/create-from-cart', authMiddleware, validateBody(CreateOrderFromCartSc
         id, order_number, buyer_org_id, seller_org_id, quote_id, order_status, status, payment_status,
         total_cents, currency,
         shipping_address, billing_address, shipped_at, delivered_at, vendor_org_id,
-        customer_notes, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     `;
 
     const orderValues = [
@@ -292,7 +292,6 @@ app.post('/create-from-cart', authMiddleware, validateBody(CreateOrderFromCartSc
       null, // shipped_at
       null, // delivered_at
       sellerOrgId, // vendor_org_id (duplicato di seller_org_id)
-      customerNotes || null,
       now, // created_at
       now  // updated_at
     ];

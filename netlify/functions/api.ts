@@ -59,12 +59,29 @@ export async function handler(event: any, context: any) {
     const protocol = event.headers['x-forwarded-proto'] || 'https';
 
     // Prepara il body per Hono (Netlify passa il body come stringa)
-    let requestBody = undefined;
+    let requestBody: string | undefined = undefined;
     if (event.body && event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD') {
+      const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+      
       // Se è JSON, mantieni come stringa (Hono lo parserà)
-      if (event.headers['content-type']?.includes('application/json')) {
+      if (contentType.includes('application/json')) {
         requestBody = event.body;
-      } else {
+      }
+      // Se è multipart/form-data, passa il body così com'è (Hono gestirà il parsing)
+      // Netlify potrebbe passarlo come stringa base64 o come stringa raw
+      else if (contentType.includes('multipart/form-data')) {
+        // Se è base64 encoded (isBase64Encoded flag), decodificalo in Buffer
+        // Hono ha bisogno del body come stringa o Buffer per multipart
+        if (event.isBase64Encoded) {
+          // Converti base64 in Buffer, poi in stringa binary per Hono
+          const buffer = Buffer.from(event.body, 'base64');
+          requestBody = buffer.toString('binary');
+        } else {
+          requestBody = event.body;
+        }
+      }
+      // Altri tipi (text/plain, etc.)
+      else {
         requestBody = event.body;
       }
     }

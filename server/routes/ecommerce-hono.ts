@@ -801,7 +801,7 @@ app.put('/addresses/:addressId', authMiddleware, validateBody(UpdateAddressLegac
 });
 
 // DELETE /api/ecommerce/addresses/:addressId - Elimina indirizzo
-app.delete('/addresses/:addressId', validateParams(DeleteAddressParamsSchema), async (c) => {
+app.delete('/addresses/:addressId', authMiddleware, validateParams(DeleteAddressParamsSchema), async (c) => {
   try {
     const { addressId } = c.get('validatedParams');
 
