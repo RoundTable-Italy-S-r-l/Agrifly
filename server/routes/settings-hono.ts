@@ -901,21 +901,31 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
 
     // Gestisci upload file
     const formData = await c.req.formData();
-    const logoFile = formData.get('logo') as File;
+    const logoFile = formData.get('logo') as File | File[] | null;
 
     if (!logoFile) {
       return c.json({ error: 'Logo file is required' }, 400);
     }
 
-    // Verifica tipo file
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(logoFile.type)) {
+    // Gestisci caso array (dovrebbe essere singolo file)
+    const file = Array.isArray(logoFile) ? logoFile[0] : logoFile;
+
+    if (!file || !(file instanceof File)) {
+      return c.json({ error: 'Invalid file format' }, 400);
+    }
+
+    // Verifica tipo file (con fallback)
+    const fileType = file.type || '';
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    const isAllowedType = allowedTypes.some(type => fileType.toLowerCase().includes(type.split('/')[1]));
+
+    if (!isAllowedType && fileType) {
       return c.json({ error: 'Only JPEG, PNG, and WebP images are allowed' }, 400);
     }
 
     // Verifica dimensione file (max 5MB)
     const maxSize = 5 * 1024 * 1024;
-    if (logoFile.size > maxSize) {
+    if (file.size > maxSize) {
       return c.json({ error: 'File size must be less than 5MB' }, 400);
     }
 
@@ -931,19 +941,47 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media FIle';
 
     // Genera nome file univoco
-    const fileExt = logoFile.name.split('.').pop() || 'jpg';
-    const fileName = `org-logo-${orgId}-${Date.now()}.${fileExt}`;
-    const filePath = `logos/${fileName}`;
+    const fileName = file.name || 'logo';
+    const fileExt = fileName.split('.').pop() || (fileType.includes('png') ? 'png' : fileType.includes('webp') ? 'webp' : 'jpg');
+    const uniqueFileName = `org-logo-${orgId}-${Date.now()}.${fileExt}`;
+    const filePath = `logos/${uniqueFileName}`;
 
-    // Converti File in ArrayBuffer
-    const arrayBuffer = await logoFile.arrayBuffer();
-    const fileBuffer = new Uint8Array(arrayBuffer);
+    // Converti File in Buffer/ArrayBuffer
+    let fileBuffer: Uint8Array;
+    try {
+      if (file.arrayBuffer) {
+        const arrayBuffer = await file.arrayBuffer();
+        fileBuffer = new Uint8Array(arrayBuffer);
+      } else if (file.stream) {
+        // Fallback per ambienti che non supportano arrayBuffer
+        const chunks: Uint8Array[] = [];
+        const reader = file.stream().getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        fileBuffer = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          fileBuffer.set(chunk, offset);
+          offset += chunk.length;
+        }
+      } else {
+        return c.json({ error: 'File reading not supported' }, 500);
+      }
+    } catch (error: any) {
+      console.error('❌ Error reading file:', error);
+      return c.json({ error: 'Failed to read file', details: error.message }, 500);
+    }
 
     // Upload file
+    const contentType = fileType || (fileExt === 'png' ? 'image/png' : fileExt === 'webp' ? 'image/webp' : 'image/jpeg');
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucketName)
       .upload(filePath, fileBuffer, {
-        contentType: logoFile.type,
+        contentType,
         upsert: true
       });
 
