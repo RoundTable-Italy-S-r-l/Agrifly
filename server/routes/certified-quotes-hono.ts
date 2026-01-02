@@ -170,7 +170,22 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
             : {};
 
           // Calculate base service cost (area × base_rate_per_ha)
-          const baseRatePerHaCents = parseInt(org.base_rate_per_ha_cents);
+          // Assicurati che base_rate_per_ha_cents sia un numero valido
+          const baseRatePerHaCentsRaw = org.base_rate_per_ha_cents;
+          let baseRatePerHaCents = 0;
+          
+          if (typeof baseRatePerHaCentsRaw === 'string') {
+            baseRatePerHaCents = parseInt(baseRatePerHaCentsRaw, 10);
+          } else if (typeof baseRatePerHaCentsRaw === 'number') {
+            baseRatePerHaCents = Math.round(baseRatePerHaCentsRaw);
+          }
+          
+          // Validazione: se il valore è troppo grande o NaN, usa un default
+          if (isNaN(baseRatePerHaCents) || baseRatePerHaCents < 0 || baseRatePerHaCents > 1000000) {
+            console.error('❌ [CERTIFIED QUOTES] Invalid base_rate_per_ha_cents:', baseRatePerHaCentsRaw, 'for org:', org.id);
+            baseRatePerHaCents = 5000; // Default: 50 euro/ha in centesimi
+          }
+          
           console.log('💰 [CERTIFIED QUOTES] Price calculation:', {
             area_ha,
             baseRatePerHaCents,
@@ -178,7 +193,15 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
             org_id: org.id,
             org_name: org.legal_name
           });
+          
+          // Calcola baseCents con validazione
           const baseCents = Math.round(area_ha * baseRatePerHaCents);
+          
+          // Validazione: se baseCents è troppo grande, c'è un problema
+          if (baseCents > 1000000000) { // 10 milioni di euro
+            console.error('❌ [CERTIFIED QUOTES] Calculated baseCents too large:', baseCents, 'for org:', org.id);
+            throw new Error(`Invalid price calculation: baseCents=${baseCents}, area_ha=${area_ha}, rate=${baseRatePerHaCents}`);
+          }
 
           // Apply seasonal multiplier
           let seasonalMult = 1.0;
@@ -220,10 +243,15 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
           const multipliedCents = Math.round(seasonalAdjustedCents * terrainMult);
 
           // Calculate travel costs
-          const travelFixedCents = org.travel_fixed_cents ? parseInt(org.travel_fixed_cents) : 0;
-          const travelRatePerKmCents = org.travel_rate_per_km_cents ? parseInt(org.travel_rate_per_km_cents) : 0;
-          const travelVariableCents = Math.round(distanceKm * travelRatePerKmCents);
-          const travelCents = travelFixedCents + travelVariableCents;
+          const travelFixedCents = org.travel_fixed_cents ? (typeof org.travel_fixed_cents === 'string' ? parseInt(org.travel_fixed_cents, 10) : Math.round(org.travel_fixed_cents)) : 0;
+          const travelRatePerKmCents = org.travel_rate_per_km_cents ? (typeof org.travel_rate_per_km_cents === 'string' ? parseInt(org.travel_rate_per_km_cents, 10) : Math.round(org.travel_rate_per_km_cents)) : 0;
+          
+          // Validazione valori travel
+          const safeTravelFixedCents = isNaN(travelFixedCents) || travelFixedCents < 0 || travelFixedCents > 1000000 ? 0 : travelFixedCents;
+          const safeTravelRatePerKmCents = isNaN(travelRatePerKmCents) || travelRatePerKmCents < 0 || travelRatePerKmCents > 100000 ? 0 : travelRatePerKmCents;
+          
+          const travelVariableCents = Math.round(distanceKm * safeTravelRatePerKmCents);
+          const travelCents = safeTravelFixedCents + travelVariableCents;
 
           // Calculate surcharges
           let surchargesCents = 0;
@@ -242,8 +270,18 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
 
           // Calculate subtotal and apply minimum charge
           const subtotalCents = multipliedCents + travelCents + surchargesCents;
-          const minChargeCents = parseInt(org.min_charge_cents);
-          const totalCents = Math.max(subtotalCents, minChargeCents);
+          const minChargeCentsRaw = org.min_charge_cents;
+          const minChargeCents = minChargeCentsRaw 
+            ? (typeof minChargeCentsRaw === 'string' ? parseInt(minChargeCentsRaw, 10) : Math.round(minChargeCentsRaw))
+            : 0;
+          const safeMinChargeCents = isNaN(minChargeCents) || minChargeCents < 0 || minChargeCents > 1000000 ? 0 : minChargeCents;
+          const totalCents = Math.max(subtotalCents, safeMinChargeCents);
+          
+          // Validazione finale: se totalCents è troppo grande, c'è un problema
+          if (totalCents > 1000000000) { // 10 milioni di euro
+            console.error('❌ [CERTIFIED QUOTES] Calculated totalCents too large:', totalCents, 'for org:', org.id);
+            throw new Error(`Invalid total price calculation: totalCents=${totalCents}`);
+          }
 
           console.log('💰 [CERTIFIED QUOTES] Final calculation:', {
             org_name: org.legal_name,
