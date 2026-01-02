@@ -869,92 +869,71 @@ app.post('/organization/invitations/revoke/:invitationId', authMiddleware, valid
 // POST /api/settings/organization/upload-logo - Upload organization logo
 app.post('/organization/upload-logo', authMiddleware, async (c) => {
   try {
-    console.log('🖼️ [LOGO UPLOAD] ===========================================');
-    console.log('🖼️ [LOGO UPLOAD] Inizio upload logo organizzazione');
-
-    const user = c.get('user');
-    const currentUserId = user.userId || user.id;
+    const user = c.get('user') as any;
+    const currentUserId = user?.userId || user?.id;
     const queryParams = c.req.query();
     const orgId = queryParams.orgId;
 
-    console.log('🖼️ [LOGO UPLOAD] userId:', currentUserId);
-    console.log('🖼️ [LOGO UPLOAD] orgId:', orgId);
-
     if (!orgId) {
-      console.log('❌ [LOGO UPLOAD] orgId mancante');
       return c.json({ error: 'Organization ID required' }, 400);
     }
 
+    if (!currentUserId) {
+      return c.json({ error: 'User ID required' }, 400);
+    }
+
     // Verifica che l'utente sia membro dell'organizzazione
-    console.log('🔐 [LOGO UPLOAD] Verifico autorizzazione utente per org:', orgId);
     const membership = await query(
       'SELECT om.role as member_role FROM org_memberships om WHERE om.org_id = $1 AND om.user_id = $2 AND om.is_active = true',
       [orgId, currentUserId]
     );
 
     if (membership.rows.length === 0) {
-      console.log('❌ [LOGO UPLOAD] Utente non membro dell\'organizzazione');
       return c.json({ error: 'You are not a member of this organization' }, 403);
     }
 
     const memberRole = membership.rows[0].member_role;
-    console.log('📋 [LOGO UPLOAD] Ruolo membro:', memberRole);
 
     // Solo admin possono cambiare il logo
-    if (memberRole !== 'admin' && !user.isAdmin) {
-      console.log('❌ [LOGO UPLOAD] Solo admin possono cambiare il logo');
+    if (memberRole !== 'admin' && !user?.isAdmin) {
       return c.json({ error: 'Only admins can update organization logo' }, 403);
     }
 
     // Gestisci upload file
-    console.log('📁 [LOGO UPLOAD] Elaborazione file upload...');
     const formData = await c.req.formData();
     const logoFile = formData.get('logo') as File;
 
     if (!logoFile) {
-      console.log('❌ [LOGO UPLOAD] File logo mancante');
       return c.json({ error: 'Logo file is required' }, 400);
     }
 
     // Verifica tipo file
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(logoFile.type)) {
-      console.log('❌ [LOGO UPLOAD] Tipo file non supportato:', logoFile.type);
       return c.json({ error: 'Only JPEG, PNG, and WebP images are allowed' }, 400);
     }
 
     // Verifica dimensione file (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024;
     if (logoFile.size > maxSize) {
-      console.log('❌ [LOGO UPLOAD] File troppo grande:', logoFile.size, 'bytes');
       return c.json({ error: 'File size must be less than 5MB' }, 400);
     }
 
-    console.log('📋 [LOGO UPLOAD] File info:', {
-      name: logoFile.name,
-      type: logoFile.type,
-      size: logoFile.size
-    });
-
     // Upload su Supabase Storage
-    console.log('☁️ [LOGO UPLOAD] Upload su Supabase Storage...');
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      console.log('❌ [LOGO UPLOAD] Configurazione Supabase mancante');
       return c.json({ error: 'Storage service not configured' }, 500);
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media FIle';
+    const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media File';
 
     // Genera nome file univoco
-    const fileExt = logoFile.name.split('.').pop();
+    const fileExt = logoFile.name.split('.').pop() || 'jpg';
     const fileName = `org-logo-${orgId}-${Date.now()}.${fileExt}`;
     const filePath = `logos/${fileName}`;
-
-    console.log('📁 [LOGO UPLOAD] Upload path:', filePath);
 
     // Converti File in ArrayBuffer
     const arrayBuffer = await logoFile.arrayBuffer();
@@ -969,30 +948,22 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
       });
 
     if (uploadError) {
-      console.error('❌ [LOGO UPLOAD] Errore upload Supabase:', uploadError);
+      console.error('❌ Logo upload error:', uploadError);
       return c.json({ error: 'Failed to upload logo file', details: uploadError.message }, 500);
     }
 
-    console.log('✅ [LOGO UPLOAD] File uploadato con successo:', uploadData.path);
-
     // Genera URL pubblica
     const logoUrl = publicObjectUrl(bucketName, filePath);
-    console.log('🔗 [LOGO UPLOAD] URL logo generata:', logoUrl);
 
     // Aggiorna database
-    console.log('💾 [LOGO UPLOAD] Aggiornamento database...');
     const updateResult = await query(
       'UPDATE organizations SET logo_url = $1, updated_at = NOW() WHERE id = $2 RETURNING id, legal_name, logo_url',
       [logoUrl, orgId]
     );
 
     if (updateResult.rows.length === 0) {
-      console.log('❌ [LOGO UPLOAD] Organizzazione non trovata per update');
       return c.json({ error: 'Organization not found' }, 404);
     }
-
-    console.log('✅ [LOGO UPLOAD] Database aggiornato:', updateResult.rows[0]);
-    console.log('🖼️ [LOGO UPLOAD] ===========================================');
 
     return c.json({
       success: true,
@@ -1007,9 +978,7 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     });
 
   } catch (error: any) {
-    console.error('❌ [LOGO UPLOAD] Errore durante upload logo:', error.message);
-    console.error('❌ [LOGO UPLOAD] Stack trace:', error.stack);
-    console.log('🖼️ [LOGO UPLOAD] ===========================================');
+    console.error('❌ Logo upload error:', error);
     return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
 });

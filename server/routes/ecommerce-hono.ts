@@ -727,14 +727,20 @@ app.post('/addresses', authMiddleware, validateBody(CreateAddressLegacySchema), 
       );
     }
 
-    // Generate ID (cuid format)
+    // Generate ID (cuid format) - ensure it's at least 25 chars and max 30
     const generateId = () => {
       const timestamp = Date.now().toString(36);
       const random = Math.random().toString(36).substring(2, 15);
-      return `addr_${timestamp}${random}`.substring(0, 30);
+      const id = `addr_${timestamp}${random}`;
+      // Ensure minimum length of 25 chars, max 30
+      return id.length >= 25 ? id.substring(0, 30) : id.padEnd(25, random).substring(0, 30);
     };
     
     const addressId = generateId();
+    
+    if (!addressId || addressId.length < 1) {
+      return c.json({ error: 'Failed to generate address ID' }, 500);
+    }
     
     const result = await query(
       `INSERT INTO addresses (id, org_id, type, name, company, address_line, city, province, postal_code, country, phone, is_default)

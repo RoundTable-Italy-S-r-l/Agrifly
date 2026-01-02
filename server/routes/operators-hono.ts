@@ -360,7 +360,22 @@ app.post('/:orgId', authMiddleware, validateBody(CreateOperatorSchema), async (c
     `;
 
     // PostgreSQL: Ensure service_tags is properly formatted JSON
-    const serviceTagsJson = Array.isArray(service_tags) ? JSON.stringify(service_tags || []) : (service_tags || '[]');
+    // Handle both array and string inputs
+    let serviceTagsJson: string;
+    if (Array.isArray(service_tags)) {
+      serviceTagsJson = JSON.stringify(service_tags);
+    } else if (typeof service_tags === 'string') {
+      // If it's already a string, try to parse and re-stringify to ensure valid JSON
+      try {
+        const parsed = JSON.parse(service_tags);
+        serviceTagsJson = JSON.stringify(parsed);
+      } catch {
+        // If parsing fails, treat as array literal and wrap
+        serviceTagsJson = JSON.stringify([service_tags]);
+      }
+    } else {
+      serviceTagsJson = '[]';
+    }
     
     const values = [
       orgId,
