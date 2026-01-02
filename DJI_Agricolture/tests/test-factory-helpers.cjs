@@ -370,6 +370,73 @@ class TestDataFactory {
     this.createdRecords.push({ type: 'operator', id: operatorId });
     return operator;
   }
+
+  async createAddress(orgId, overrides = {}) {
+    if (!supabase) throw new Error('Supabase not available');
+
+    const addressId = `addr_${Date.now()}${Math.random().toString(36).substr(2, 9)}`.substring(0, 30);
+    const address = {
+      id: addressId,
+      org_id: orgId,
+      type: overrides.type || 'SHIPPING',
+      name: overrides.name || `Test Address ${Date.now()}`,
+      address_line: overrides.address_line || 'Via Test 123',
+      city: overrides.city || 'Test City',
+      province: overrides.province || 'TN',
+      postal_code: overrides.postal_code || '38051',
+      country: overrides.country || 'IT',
+      is_default: overrides.is_default || false,
+      ...overrides
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('addresses')
+        .insert(address)
+        .select()
+        .single();
+
+      if (!error && data) {
+        this.createdRecords.push({ type: 'address', id: addressId });
+        return data;
+      }
+    } catch (e) {
+      // Ignora - prosegui con mock
+    }
+
+    this.createdRecords.push({ type: 'address', id: addressId });
+    return address;
+  }
+
+  async createNotificationPreferences(userId, overrides = {}) {
+    if (!supabase) throw new Error('Supabase not available');
+
+    const prefs = {
+      user_id: userId,
+      email_orders: overrides.email_orders !== undefined ? overrides.email_orders : true,
+      email_payments: overrides.email_payments !== undefined ? overrides.email_payments : true,
+      email_updates: overrides.email_updates !== undefined ? overrides.email_updates : true,
+      ...overrides
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('user_notification_preferences')
+        .upsert(prefs, { onConflict: 'user_id' })
+        .select()
+        .single();
+
+      if (!error && data) {
+        this.createdRecords.push({ type: 'notification_preference', id: data.id || userId });
+        return data;
+      }
+    } catch (e) {
+      // Ignora se la tabella non esiste
+    }
+
+    // Restituisci comunque i prefs per i test
+    return prefs;
+  }
 }
 
 module.exports = { TestDataFactory };

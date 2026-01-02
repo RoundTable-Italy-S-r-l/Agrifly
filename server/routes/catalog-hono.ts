@@ -442,8 +442,7 @@ app.get('/public', async (c) => {
       isNetlify: !!(process.env.NETLIFY || process.env.NETLIFY_BUILD)
     });
 
-    // Query notevolmente semplificata per catalogo pubblico
-    // Adattata allo schema Supabase esistente - mostra prodotti di base
+    // Query migliorata: aggrega SKU, vendor, prezzi e stock
     let querySql = `
       SELECT
         p.id as product_id,
@@ -455,11 +454,18 @@ app.get('/public', async (c) => {
         p.specs_core_json,
         p.images_json,
         p.glb_files_json,
-        p.id as productId,
-        1 as vendor_count,
-        NULL as min_price_euros,
-        0 as total_stock
+        COUNT(DISTINCT vci.vendor_org_id) as vendor_count,
+        MIN(CASE WHEN pli.price_cents IS NOT NULL THEN pli.price_cents END) / 100.0 as min_price_euros,
+        COALESCE(SUM(i.qty_on_hand - i.qty_reserved), 0) as total_stock
       FROM products p
+      LEFT JOIN skus s ON s.product_id = p.id AND s.status = 'ACTIVE'
+      LEFT JOIN vendor_catalog_items vci ON vci.sku_id = s.id AND vci.is_for_sale = true
+      LEFT JOIN price_list_items pli ON pli.sku_id = s.id
+      LEFT JOIN price_lists pl ON pli.price_list_id = pl.id 
+        AND pl.status = 'ACTIVE'
+        AND pl.valid_from <= NOW()
+        AND (pl.valid_to IS NULL OR pl.valid_to >= NOW())
+      LEFT JOIN inventories i ON i.sku_id = s.id
       WHERE p.status = 'ACTIVE'
     `;
 
@@ -473,48 +479,39 @@ app.get('/public', async (c) => {
       paramIndex++;
     }
 
+    // Group by per aggregazione
+    querySql += `
+      GROUP BY p.id, p.name, p.brand, p.model, p.product_type, 
+               p.specs_json, p.specs_core_json, p.images_json, p.glb_files_json
+    `;
+
+    // Filtri prezzo (dopo aggregazione)
+    const havingConditions: string[] = [];
+    if (minPrice !== null) {
+      havingConditions.push(`MIN(CASE WHEN pli.price_cents IS NOT NULL THEN pli.price_cents END) / 100.0 >= $${paramIndex}`);
+      params.push(minPrice);
+      paramIndex++;
+    }
+    if (maxPrice !== null) {
+      havingConditions.push(`MIN(CASE WHEN pli.price_cents IS NOT NULL THEN pli.price_cents END) / 100.0 <= $${paramIndex}`);
+      params.push(maxPrice);
+      paramIndex++;
+    }
+    if (havingConditions.length > 0) {
+      querySql += ` HAVING ${havingConditions.join(' AND ')}`;
+    }
+
     // Ordina per brand e model
     querySql += ` ORDER BY p.brand, p.model`;
 
-    // TEMPORANEO: Usa dati hardcoded per testare il flusso frontend
-    // TODO: Rimuovere quando il database sarà corretto
-    const mockProducts = [
-      {
-        product_id: 'prd_t50',
-        product_name: 'DJI Agras T50',
-        brand: 'DJI',
-        model: 'Agras T50',
-        product_type: 'DRONE',
-        specs_json: '{"tank": "40L", "battery": "30min", "feature": "Drone agricolo avanzato"}',
-        images_json: '["https://example.com/t50.jpg"]',
-        glb_files_json: null,
-        productId: 'prd_t50',
-        vendor_count: 2,
-        min_price_euros: 28500.00,
-        total_stock: 5
-      },
-      {
-        product_id: 'prd_t30',
-        product_name: 'DJI Agras T30',
-        brand: 'DJI',
-        model: 'Agras T30',
-        product_type: 'DRONE',
-        specs_json: '{"tank": "30L", "battery": "20min", "feature": "Drone versatile"}',
-        images_json: '["https://example.com/t30.jpg"]',
-        glb_files_json: null,
-        productId: 'prd_t30',
-        vendor_count: 1,
-        min_price_euros: 22000.00,
-        total_stock: 3
-      }
-    ];
-
-    const result = { rows: mockProducts };
-    console.log(`📦 [CATALOG PUBLIC] Prodotti mock caricati: ${result.rows.length}`);
+    // Esegui query reale
+    const result = await query(querySql, params);
 
     console.log(`📦 [CATALOG PUBLIC] Prodotti trovati: ${result.rows.length}`);
     if (result.rows.length > 0) {
       console.log(`📦 [CATALOG PUBLIC] Primo risultato raw:`, result.rows[0]);
+    } else {
+      console.log(`⚠️ [CATALOG PUBLIC] Nessun prodotto trovato con i filtri applicati`);
     }
 
     // Rimuovi debug e procedi con elaborazione normale
@@ -586,7 +583,7 @@ app.get('/public', async (c) => {
 
       return {
         id: row.product_id,
-        productId: row.productId || row.product_id, // da tabella assets (prd_t25, etc.) o fallback a id
+        productId: row.product_id, // Usa sempre product_id (UUID del Product)
         name: row.product_name,
         model: row.model,
         brand: row.brand,
@@ -731,11 +728,8 @@ app.get('/product/:productId/vendors', async (c) => {
       JOIN vendor_catalog_items vci ON vci.sku_id = s.id
       JOIN organizations o ON vci.vendor_org_id = o.id
       LEFT JOIN inventories i ON vci.sku_id = i.sku_id AND i.vendor_org_id = o.id
-      WHERE (
-        p.id = $1
-        OR EXISTS (SELECT 1 FROM assets a WHERE a.sku_id = s.id AND a."productId" = $1)
-      )
-        AND o.org_type = 'VENDOR'
+      WHERE p.id = $1
+        AND (o.type = 'provider' OR o.org_type = 'VENDOR' OR o.org_type = 'provider')
         AND o.status = 'ACTIVE'
         AND vci.is_for_sale = true
         AND s.status = 'ACTIVE'

@@ -147,7 +147,7 @@ app.get('/:id', async (c) => {
       `;
       queryParams = [param];
     } else {
-      // Cerca prima per productId degli assets (es. prd_t100), poi per id prodotto, poi per sku_code come fallback
+      // Cerca per product_id (UUID), sku_code, o sku_id
       querySql = `
         SELECT DISTINCT
           p.id,
@@ -163,19 +163,13 @@ app.get('/:id', async (c) => {
           p.glb_files_json,
           p.manuals_pdf_json,
           s.sku_code,
-          (
-            SELECT a2."productId"
-            FROM assets a2
-            WHERE a2.sku_id = s.id
-              AND a2.asset_status = 'AVAILABLE'
-            LIMIT 1
-          ) as "productId"
+          p.id as "productId"
         FROM products p
         JOIN skus s ON p.id = s.product_id
         WHERE (
-          EXISTS (SELECT 1 FROM assets a WHERE a.sku_id = s.id AND a."productId" = $1)
-          OR p.id = $1
+          p.id = $1
           OR s.sku_code = $1
+          OR s.id = $1
         )
           AND p.status = 'ACTIVE'
           AND s.status = 'ACTIVE'

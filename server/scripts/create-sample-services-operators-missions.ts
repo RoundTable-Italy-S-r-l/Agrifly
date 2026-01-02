@@ -331,7 +331,6 @@ async function main() {
           owning_org_id: lenziOrg.id,
           managed_by_org_id: lenziOrg.id,
           sku_id: skus[i].id,
-          productId: skus[i].product_id,
           serial_number: `DEMO-${skus[i].product.model}-${i + 1}`,
           asset_status: 'AVAILABLE',
           home_location_id: location.id

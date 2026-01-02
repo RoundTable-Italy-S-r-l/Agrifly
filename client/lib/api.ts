@@ -679,11 +679,11 @@ export const fetchPublicCatalog = (filters?: {
   if (filters?.minPrice) params.append('minPrice', filters.minPrice.toString());
   if (filters?.maxPrice) params.append('maxPrice', filters.maxPrice.toString());
 
-  return apiRequest<PublicCatalogResponse>(`/api/catalog/public?${params}`);
+  return apiRequest<PublicCatalogResponse>(`/catalog/public?${params}`);
 };
 
 export const fetchProductVendors = (productId: string): Promise<ProductVendorsResponse> => {
-  return apiRequest<ProductVendorsResponse>(`/api/catalog/product/${productId}/vendors`);
+  return apiRequest<ProductVendorsResponse>(`/catalog/product/${productId}/vendors`);
 };
 
 export const fetchVendorCatalog = (orgId: string): Promise<VendorCatalogResponse> =>

@@ -528,8 +528,6 @@ model Asset {
   home_location       Location?           @relation(fields: [home_location_id], references: [id], onDelete: SetNull)
   maintenance_events  MaintenanceEvent[]
   booking_assignments BookingAssignment[]
-  product             Product?            @relation(fields: [productId], references: [id])
-  productId           String?
 
   @@map("assets")
 }
