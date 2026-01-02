@@ -963,21 +963,31 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     const filePath = `org-logos/${uniqueFileName}`;
 
     // Converti File in Buffer/ArrayBuffer
+    // In Netlify Functions, il file potrebbe essere un Blob o File
     let fileBuffer: Uint8Array | Buffer;
     try {
-      // Prova arrayBuffer (standard File API)
+      // Metodo 1: arrayBuffer (più comune)
       if (typeof (file as any).arrayBuffer === 'function') {
-        const arrayBuffer = await (file as any).arrayBuffer();
-        fileBuffer = new Uint8Array(arrayBuffer);
-      } 
-      // Prova stream (fallback)
+        try {
+          const arrayBuffer = await (file as any).arrayBuffer();
+          fileBuffer = new Uint8Array(arrayBuffer);
+        } catch (abError: any) {
+          // Se arrayBuffer fallisce, prova altri metodi
+          throw new Error(`arrayBuffer failed: ${abError.message}`);
+        }
+      }
+      // Metodo 2: stream
       else if (typeof (file as any).stream === 'function') {
         const chunks: Uint8Array[] = [];
         const reader = (file as any).stream().getReader();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) chunks.push(value);
+          }
+        } finally {
+          reader.releaseLock();
         }
         const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
         fileBuffer = new Uint8Array(totalLength);
@@ -987,24 +997,33 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
           offset += chunk.length;
         }
       }
-      // Prova come Buffer direttamente (Node.js)
+      // Metodo 3: Buffer (Node.js)
       else if (Buffer.isBuffer(file)) {
         fileBuffer = file;
       }
-      // Ultimo tentativo: prova a leggere come Blob
-      else if (typeof (file as any).text === 'function' || typeof (file as any).bytes === 'function') {
-        // Se è un Blob-like object, prova a convertirlo
-        const blob = file as Blob;
-        const arrayBuffer = await blob.arrayBuffer();
+      // Metodo 4: Blob con arrayBuffer
+      else if (file instanceof Blob) {
+        const arrayBuffer = await file.arrayBuffer();
         fileBuffer = new Uint8Array(arrayBuffer);
       }
+      // Metodo 5: Prova a leggere come text e convertire (ultimo tentativo)
       else {
-        console.error('❌ File object type:', typeof file, 'Methods:', Object.keys(file));
-        return c.json({ error: 'File reading not supported', details: 'File object does not have arrayBuffer, stream, or Buffer methods' }, 500);
+        // Se è un oggetto con bytes o data, prova a usarlo direttamente
+        const fileAny = file as any;
+        if (fileAny.bytes) {
+          fileBuffer = new Uint8Array(fileAny.bytes);
+        } else if (fileAny.data) {
+          fileBuffer = Buffer.isBuffer(fileAny.data) ? fileAny.data : new Uint8Array(fileAny.data);
+        } else {
+          const errorMsg = `File reading not supported. Type: ${typeof file}, Keys: ${Object.keys(file || {}).join(', ')}`;
+          console.error('❌', errorMsg);
+          return c.json({ error: 'File reading not supported', details: errorMsg }, 500);
+        }
       }
     } catch (error: any) {
       console.error('❌ Error reading file:', error);
       console.error('   File type:', typeof file);
+      console.error('   File constructor:', (file as any)?.constructor?.name);
       console.error('   File keys:', Object.keys(file || {}));
       return c.json({ error: 'Failed to read file', details: error.message }, 500);
     }
