@@ -900,8 +900,15 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     }
 
     // Gestisci upload file
-    const formData = await c.req.formData();
-    const logoFile = formData.get('logo') as File | File[] | null;
+    let formData: FormData;
+    try {
+      formData = await c.req.formData();
+    } catch (error: any) {
+      console.error('❌ Error parsing formData:', error);
+      return c.json({ error: 'Failed to parse form data', details: error.message }, 400);
+    }
+
+    const logoFile = formData.get('logo');
 
     if (!logoFile) {
       return c.json({ error: 'Logo file is required' }, 400);
@@ -910,14 +917,20 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     // Gestisci caso array (dovrebbe essere singolo file)
     const file = Array.isArray(logoFile) ? logoFile[0] : logoFile;
 
-    if (!file || !(file instanceof File)) {
+    // In Netlify, potrebbe non essere un'istanza di File standard
+    // Verifica che abbia le proprietà necessarie
+    if (!file || (typeof file !== 'object')) {
       return c.json({ error: 'Invalid file format' }, 400);
     }
 
+    // Estrai proprietà file (compatibile con File e oggetti simili)
+    const fileSize = (file as any).size || 0;
+    const fileName = (file as any).name || 'logo';
+    const fileType = (file as any).type || '';
+
     // Verifica tipo file (con fallback)
-    const fileType = file.type || '';
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-    const isAllowedType = allowedTypes.some(type => fileType.toLowerCase().includes(type.split('/')[1]));
+    const isAllowedType = fileType ? allowedTypes.some(type => fileType.toLowerCase().includes(type.split('/')[1])) : true;
 
     if (!isAllowedType && fileType) {
       return c.json({ error: 'Only JPEG, PNG, and WebP images are allowed' }, 400);
@@ -925,8 +938,12 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
 
     // Verifica dimensione file (max 5MB)
     const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
+    if (fileSize > maxSize) {
       return c.json({ error: 'File size must be less than 5MB' }, 400);
+    }
+
+    if (fileSize === 0) {
+      return c.json({ error: 'File is empty' }, 400);
     }
 
     // Upload su Supabase Storage
@@ -941,21 +958,22 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media FIle';
 
     // Genera nome file univoco
-    const fileName = file.name || 'logo';
     const fileExt = fileName.split('.').pop() || (fileType.includes('png') ? 'png' : fileType.includes('webp') ? 'webp' : 'jpg');
     const uniqueFileName = `org-logo-${orgId}-${Date.now()}.${fileExt}`;
-    const filePath = `logos/${uniqueFileName}`;
+    const filePath = `org-logos/${uniqueFileName}`;
 
     // Converti File in Buffer/ArrayBuffer
-    let fileBuffer: Uint8Array;
+    let fileBuffer: Uint8Array | Buffer;
     try {
-      if (file.arrayBuffer) {
-        const arrayBuffer = await file.arrayBuffer();
+      // Prova arrayBuffer (standard File API)
+      if (typeof (file as any).arrayBuffer === 'function') {
+        const arrayBuffer = await (file as any).arrayBuffer();
         fileBuffer = new Uint8Array(arrayBuffer);
-      } else if (file.stream) {
-        // Fallback per ambienti che non supportano arrayBuffer
+      } 
+      // Prova stream (fallback)
+      else if (typeof (file as any).stream === 'function') {
         const chunks: Uint8Array[] = [];
-        const reader = file.stream().getReader();
+        const reader = (file as any).stream().getReader();
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -968,11 +986,26 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
           fileBuffer.set(chunk, offset);
           offset += chunk.length;
         }
-      } else {
-        return c.json({ error: 'File reading not supported' }, 500);
+      }
+      // Prova come Buffer direttamente (Node.js)
+      else if (Buffer.isBuffer(file)) {
+        fileBuffer = file;
+      }
+      // Ultimo tentativo: prova a leggere come Blob
+      else if (typeof (file as any).text === 'function' || typeof (file as any).bytes === 'function') {
+        // Se è un Blob-like object, prova a convertirlo
+        const blob = file as Blob;
+        const arrayBuffer = await blob.arrayBuffer();
+        fileBuffer = new Uint8Array(arrayBuffer);
+      }
+      else {
+        console.error('❌ File object type:', typeof file, 'Methods:', Object.keys(file));
+        return c.json({ error: 'File reading not supported', details: 'File object does not have arrayBuffer, stream, or Buffer methods' }, 500);
       }
     } catch (error: any) {
       console.error('❌ Error reading file:', error);
+      console.error('   File type:', typeof file);
+      console.error('   File keys:', Object.keys(file || {}));
       return c.json({ error: 'Failed to read file', details: error.message }, 500);
     }
 

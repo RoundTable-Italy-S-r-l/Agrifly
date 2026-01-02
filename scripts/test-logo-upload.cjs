@@ -65,20 +65,20 @@ async function testLogoUpload() {
     console.error('❌ Errore:', error.message);
   }
 
-  // Test 3: Verifica cartella logos
-  console.log('\n📁 Test 3: Verifica cartella logos');
+  // Test 3: Verifica cartella org-logos
+  console.log('\n📁 Test 3: Verifica cartella org-logos');
   try {
     const { data: logosFiles, error: logosError } = await supabase.storage
       .from(bucketName)
-      .list('logos', {
+      .list('org-logos', {
         limit: 10
       });
 
     if (logosError) {
-      console.log('⚠️  Cartella logos non esiste o errore:', logosError.message);
+      console.log('⚠️  Cartella org-logos non esiste o errore:', logosError.message);
       console.log('   (verrà creata automaticamente al primo upload)');
     } else {
-      console.log('✅ Cartella logos esiste');
+      console.log('✅ Cartella org-logos esiste');
       if (logosFiles && logosFiles.length > 0) {
         console.log(`  Contiene ${logosFiles.length} file/cartelle`);
       } else {
@@ -95,7 +95,7 @@ async function testLogoUpload() {
     // Crea un file di test in memoria
     const testContent = Buffer.from('test logo content');
     const testFileName = `test-logo-${Date.now()}.txt`;
-    const testFilePath = `logos/${testFileName}`;
+    const testFilePath = `org-logos/${testFileName}`;
 
     console.log('  Upload path:', testFilePath);
 
