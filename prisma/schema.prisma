@@ -341,7 +341,6 @@ model Product {
   brand                  String        @map("brand")
   model                  String        @map("model")
   name                   String        @map("name")
-  purpose                String?       @map("purpose") // Array JSON di ServiceType: ["SPRAY", "SPREAD"] o ["MAPPING"]
   specs_json             String?       @map("specs_json")
   specs_core_json        String?       @map("specs_core_json") // Core specs per scheda drone
   specs_extra_json       String?       @map("specs_extra_json") // Extra specs per pagina dettaglio
@@ -353,10 +352,26 @@ model Product {
   manuals_pdf_json       String?       @map("manuals_pdf_json") // Array di path/URL PDF: [{url, filename, type, size}]
   status                 ProductStatus @default(ACTIVE) @map("status")
 
-  skus   Sku[]
-  assets Asset[]
+  skus           Sku[]
+  assets         Asset[]
+  productPurposes ProductPurpose[]
 
   @@map("products")
+}
+
+// Tabella di relazione many-to-many: Product <-> ServiceType (purpose/tags)
+model ProductPurpose {
+  id         String      @id @default(cuid()) @map("id")
+  product_id String      @map("product_id")
+  purpose    ServiceType @map("purpose")
+  created_at DateTime    @default(now()) @map("created_at")
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([product_id, purpose])
+  @@index([product_id])
+  @@index([purpose])
+  @@map("product_purposes")
 }
 
 enum ProductType {

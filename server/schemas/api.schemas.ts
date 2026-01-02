@@ -342,6 +342,13 @@ export const CompleteMissionParamsSchema = z.object({
   offerId: z.string().min(1, 'Offer ID obbligatorio')
 });
 
+export const CompleteMissionSchema = z.object({
+  completion_notes: z.string().optional(),
+  actual_area_ha: z.number().positive().optional(),
+  actual_duration_hours: z.number().positive().optional(),
+  photos_json: z.any().optional()
+});
+
 // Offer creation/update schemas
 export const CreateOfferSchema = z.object({
   offer_type: z.enum(['BUNDLE', 'PROMO', 'SEASON_PACKAGE'], {

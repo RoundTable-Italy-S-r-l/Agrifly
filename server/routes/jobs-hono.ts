@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { validateBody, validateParams } from '../middleware/validation';
 import { query } from '../utils/database';
-import { CreateJobSchema, CreateJobOfferSchema, CreateMessageSchema, MarkMessagesReadSchema, AcceptOfferParamsSchema, CompleteMissionParamsSchema, WithdrawOfferParamsSchema } from '../schemas/api.schemas';
+import { CreateJobSchema, CreateJobOfferSchema, CreateMessageSchema, MarkMessagesReadSchema, AcceptOfferParamsSchema, CompleteMissionParamsSchema, CompleteMissionSchema, WithdrawOfferParamsSchema } from '../schemas/api.schemas';
 // file-db.ts non è compatibile con Netlify Functions (usa import.meta)
 // Usiamo solo il database SQLite/PostgreSQL, non file-db
 
@@ -1468,7 +1468,7 @@ app.put('/offers/:offerId/messages/read', authMiddleware, validateBody(MarkMessa
 
 // POST /api/jobs/offers/:offerId/complete - Complete mission (operator/vendor)
 // IMPORTANTE: questa route deve essere PRIMA di /offers/:orgId per evitare conflitti
-app.post('/offers/:offerId/complete', authMiddleware, validateParams(CompleteMissionParamsSchema), async (c) => {
+app.post('/offers/:offerId/complete', authMiddleware, validateParams(CompleteMissionParamsSchema), validateBody(CompleteMissionSchema), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
     const user = c.get('user') as any;

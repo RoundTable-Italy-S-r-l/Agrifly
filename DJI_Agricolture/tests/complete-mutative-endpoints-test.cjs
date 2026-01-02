@@ -977,7 +977,8 @@ const mutativeEndpoints = [
       
       const offer = await factory.createJobOffer(job.id, vendorOrgId, {
         total_cents: 50000,
-        currency: 'EUR'
+        currency: 'EUR',
+        status: 'ACCEPTED' // Deve essere ACCEPTED per inviare messaggi
       });
       
       return { offerId: offer.id };

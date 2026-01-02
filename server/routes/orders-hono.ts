@@ -596,7 +596,6 @@ app.get('/:orderId', async (c) => {
         o.currency,
         o.shipping_address,
         o.billing_address,
-        o.customer_notes,
         o.tracking_number,
         o.created_at,
         o.shipped_at,
