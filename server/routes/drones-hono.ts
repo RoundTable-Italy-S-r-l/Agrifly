@@ -666,23 +666,29 @@ app.get('/:id', async (c) => {
 app.get('/:id/metrics', async (c) => {
   try {
     const param = c.req.param('id');
+    console.log('🔍 [METRICS] Richiesta metriche per:', param);
     
-    // Trova prodotto per product_id o sku_code
+    // Trova prodotto per product_id, sku_code, o sku_id (stessa logica di fetchDroneById)
     const productResult = await query(`
-      SELECT 
+      SELECT DISTINCT
         p.id,
         p.name,
         p.specs_core_json,
-        array_agg(pp.purpose) as purposes
+        array_agg(DISTINCT pp.purpose) FILTER (WHERE pp.purpose IS NOT NULL) as purposes
       FROM products p
       LEFT JOIN product_purposes pp ON p.id = pp.product_id
-      WHERE (p.id = $1 OR EXISTS (
-        SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.sku_code = $1
-      ))
+      LEFT JOIN skus s ON p.id = s.product_id
+      WHERE (
+        p.id = $1
+        OR s.sku_code = $1
+        OR s.id = $1
+      )
         AND p.status = 'ACTIVE'
       GROUP BY p.id, p.name, p.specs_core_json
       LIMIT 1
     `, [param]);
+    
+    console.log('🔍 [METRICS] Risultato query:', productResult.rows.length, 'prodotti trovati');
     
     if (productResult.rows.length === 0) {
       return c.json({ error: 'Product not found' }, 404);
