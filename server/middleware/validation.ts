@@ -14,7 +14,10 @@ export const validateBody = <T extends z.ZodSchema>(
     try {
       body = await c.req.json();
     } catch (parseError) {
-      console.error('❌ [VALIDATION] JSON parse error:', parseError);
+      // Only log in non-test environments
+      if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+        console.error('❌ [VALIDATION] JSON parse error:', parseError);
+      }
       return c.json({
         error: 'Invalid JSON',
         message: 'Il corpo della richiesta non è un JSON valido'
@@ -47,10 +50,13 @@ export const validateBody = <T extends z.ZodSchema>(
       await next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error('❌ [VALIDATION] Validation failed:', {
-          errors: error.errors,
-          body: body || 'undefined'
-        });
+        // Only log in non-test environments
+        if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+          console.error('❌ [VALIDATION] Validation failed:', {
+            errors: error.errors,
+            body: body || 'undefined'
+          });
+        }
 
         return c.json({
           error: 'Validation failed',
@@ -64,7 +70,10 @@ export const validateBody = <T extends z.ZodSchema>(
       }
 
       // Handle transform errors (like invalid number formats)
-      console.error('❌ [VALIDATION] Transform error:', error);
+      // Only log in non-test environments
+      if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+        console.error('❌ [VALIDATION] Transform error:', error);
+      }
       return c.json({
         error: 'Validation failed',
         message: 'I dati forniti contengono valori non validi',
