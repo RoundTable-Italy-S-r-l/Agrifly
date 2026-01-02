@@ -48,12 +48,6 @@ export function GeneralSection() {
   const { data: organization, isLoading } = useOrganizationGeneral()
   const updateMutation = useUpdateOrganizationGeneral()
 
-  // DEBUG: Log dettagliato dei dati ricevuti
-  console.log('🔍 [GENERAL SECTION] Organization data received:', organization)
-  if (organization) {
-    console.log('🔍 [GENERAL SECTION] Organization type field:', organization.type)
-    console.log('🔍 [GENERAL SECTION] Organization org_type field:', organization.org_type)
-  }
 
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>('')
@@ -75,7 +69,6 @@ export function GeneralSection() {
   // Carica i dati quando organization è disponibile
   useEffect(() => {
     if (organization) {
-      console.log('🔄 [GENERAL SECTION] Resetting form with organization data:', organization)
       form.reset({
         legal_name: organization.legal_name || '',
         logo_url: organization.logo_url || '',
@@ -166,16 +159,13 @@ export function GeneralSection() {
   }
 
   const onSubmit = async (data: OrganizationForm) => {
-    console.log('💾 [GENERAL SECTION] Submitting form data:', data)
     try {
       const result = await updateMutation.mutateAsync(data)
-      console.log('✅ [GENERAL SECTION] Update successful, result:', result)
       toast({
         title: 'Successo',
         description: 'Impostazioni salvate correttamente.',
       })
     } catch (error: any) {
-      console.error('❌ [GENERAL SECTION] Update failed:', error)
       toast({
         title: 'Errore',
         description: 'Impossibile salvare le impostazioni.',
@@ -283,22 +273,15 @@ export function GeneralSection() {
                 {(() => {
                   const org = organization;
                   const orgType = org?.type || org?.org_type;
-                  console.log('🔍 [GENERAL SECTION] Determining org type display:', {
-                    org_type: org?.type,
-                    org_org_type: org?.org_type,
-                    determined_orgType: orgType
-                  });
-
                   let result;
-                  if (orgType === 'vendor' || orgType === 'operator') {
-                    result = 'Fornitore/Operatore (Vendor/Operator)';
+                  if (orgType === 'provider') {
+                    result = 'Provider';
                   } else if (orgType === 'buyer') {
-                    result = 'Cliente (Buyer)';
+                    result = 'Acquirente';
                   } else {
                     result = 'Non specificato';
                   }
 
-                  console.log('🔍 [GENERAL SECTION] Display result:', result);
                   return result;
                 })()}
               </div>

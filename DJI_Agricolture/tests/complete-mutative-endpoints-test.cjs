@@ -1257,6 +1257,9 @@ const mutativeEndpoints = [
       const product = await factory.createProduct();
       const inventory = await factory.createInventory(orgId, product.id, { qty_on_hand: 100 });
       
+      // Crea vendor_catalog_item per assicurarsi che il prodotto sia disponibile
+      await factory.createVendorCatalogItem(orgId, inventory.sku_id, { is_for_sale: true });
+      
       // Recupera orgId per il buyer
       const buyerMeResponse = await fetch(`${API_BASE}/auth/me`, {
         headers: { 'Authorization': `Bearer ${authTokens.buyer}` }

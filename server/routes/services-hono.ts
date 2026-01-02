@@ -624,7 +624,7 @@ app.post('/:orgId', authMiddleware, validateBody(CreateServiceSchema), async (c)
 // UPDATE RATE CARD
 // ============================================================================
 
-app.put('/:orgId/:serviceType', validateBody(UpdateServiceSchema), async (c) => {
+app.put('/:orgId/:serviceType', authMiddleware, validateBody(UpdateServiceSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const serviceType = c.req.param('serviceType');

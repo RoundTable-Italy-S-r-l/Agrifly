@@ -146,6 +146,7 @@ app.get('/organization/general', authMiddleware, async (c) => {
     // Mappa i campi del database ai nomi del frontend
     const mappedOrganization = {
       ...organization,
+      type: orgType, // Per compatibilità frontend
       org_type: orgType, // Determinato dalle capabilities, non da kind
     };
 
@@ -308,15 +309,9 @@ app.patch('/organization/general', authMiddleware, validateBody(UpdateOrganizati
     // Mappa i campi per il frontend
     const mappedUpdatedOrg = {
       ...updatedOrg,
-      org_type: responseOrgType, // Dal database
+      type: responseOrgType, // Per compatibilità frontend
+      org_type: responseOrgType,
     };
-
-    console.log('✅ Organizzazione aggiornata:', {
-      id: mappedUpdatedOrg.id,
-      legal_name: mappedUpdatedOrg.legal_name,
-      org_type: mappedUpdatedOrg.org_type,
-      kind: updatedOrg.kind
-    });
 
     return c.json({
       data: mappedUpdatedOrg,

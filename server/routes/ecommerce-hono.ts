@@ -754,7 +754,7 @@ app.post('/addresses', authMiddleware, validateBody(CreateAddressLegacySchema), 
 });
 
 // PUT /api/ecommerce/addresses/:addressId - Aggiorna indirizzo
-app.put('/addresses/:addressId', validateBody(UpdateAddressLegacySchema), async (c) => {
+app.put('/addresses/:addressId', authMiddleware, validateBody(UpdateAddressLegacySchema), async (c) => {
   try {
     const addressId = c.req.param('addressId');
     const updates = c.get('validatedBody');
