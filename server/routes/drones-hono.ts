@@ -689,9 +689,12 @@ app.get('/:id/metrics', async (c) => {
     }
     
     const product = productResult.rows[0];
-    const purposes = product.purposes.filter((p: any) => p !== null);
+    const purposes = (product.purposes || []).filter((p: any) => p !== null && p !== undefined);
+    
+    console.log('🔍 [METRICS] Prodotto:', product.name, 'Purposes:', purposes);
     
     if (purposes.length === 0) {
+      console.error('❌ [METRICS] Prodotto senza purpose:', product.id);
       return c.json({ error: 'Product has no purpose defined' }, 400);
     }
     
@@ -705,9 +708,12 @@ app.get('/:id/metrics', async (c) => {
       console.warn('Errore parsing specs_core_json:', e);
     }
     
-    if (!Array.isArray(specs_core_json)) {
-      return c.json({ error: 'Product specs_core_json not available' }, 400);
+    if (!Array.isArray(specs_core_json) || specs_core_json.length === 0) {
+      console.error('❌ [METRICS] specs_core_json non disponibile o vuoto per:', product.id);
+      return c.json({ error: 'Product specs_core_json not available or empty' }, 400);
     }
+    
+    console.log('✅ [METRICS] specs_core_json trovato,', specs_core_json.length, 'specs');
     
     // Per ogni purpose, trova prodotti con QUEL purpose specifico (non tutti insieme)
     // Se il prodotto ha SPRAY e SPREAD, facciamo due confronti separati
@@ -722,10 +728,13 @@ app.get('/:id/metrics', async (c) => {
           p.specs_core_json
         FROM products p
         JOIN product_purposes pp ON p.id = pp.product_id
-        WHERE pp.purpose = $1
+        WHERE pp.purpose = $1::"ServiceType"
           AND p.status = 'ACTIVE'
           AND p.specs_core_json IS NOT NULL
+          AND jsonb_array_length(p.specs_core_json::jsonb) > 0
       `, [purpose]);
+      
+      console.log(`🔍 [METRICS] Trovati ${allProductsResult.rows.length} prodotti con purpose ${purpose}`);
       
       // Normalizza specs_core_json di tutti i prodotti con questo purpose
       allMetricsByPurpose[purpose] = allProductsResult.rows.map(row => {
@@ -735,7 +744,7 @@ app.get('/:id/metrics', async (c) => {
             ? JSON.parse(row.specs_core_json)
             : row.specs_core_json;
         } catch (e) {
-          console.warn(`Errore parsing specs_core_json per ${row.id}:`, e);
+          console.warn(`❌ [METRICS] Errore parsing specs_core_json per ${row.id}:`, e);
         }
         
         return {
@@ -748,23 +757,11 @@ app.get('/:id/metrics', async (c) => {
     // Se il prodotto ha più purpose, prendiamo il primo per il grafico principale
     // (in futuro si potrebbero fare grafici multipli)
     const primaryPurpose = purposes[0];
+    const allProductsMetrics = allMetricsByPurpose[primaryPurpose] || [];
     
-    // Normalizza specs di tutti i prodotti
-    const allProductsMetrics = allProductsResult.rows.map(row => {
-      let specs = null;
-      try {
-        specs = typeof row.specs_core_json === 'string'
-          ? JSON.parse(row.specs_core_json)
-          : row.specs_core_json;
-      } catch (e) {
-        console.warn(`Errore parsing specs per ${row.id}:`, e);
-      }
-      
-      return {
-        productId: row.id,
-        metrics: normalizeProductSpecs(specs || [])
-      };
-    });
+    if (allProductsMetrics.length === 0) {
+      return c.json({ error: `No products found with purpose ${primaryPurpose} for comparison` }, 404);
+    }
     
     // Calcola min/max per ogni metrica
     const minMax = calculateMinMax(allProductsMetrics);
@@ -802,12 +799,25 @@ app.get('/:id/metrics', async (c) => {
       }
     });
     
+    // Prepara dati per il grafico a ragnatela (formato richiesto da ProductRadarChart)
+    const radarChartData = Object.entries(clusterMetrics)
+      .filter(([_, metrics]) => metrics.length > 0)
+      .slice(0, 6) // Massimo 6 cluster
+      .map(([cluster, metrics]) => {
+        // Calcola media delle metriche per questo cluster
+        const avgValue = metrics.reduce((sum, m) => sum + m.value, 0) / metrics.length;
+        return {
+          metric: cluster,
+          value: avgValue,
+          fullMark: 100
+        };
+      });
+    
     return c.json({
-      productId: product.id,
       productName: product.name,
       purposes,
       clusters: clusterMetrics,
-      minMax
+      radarChartData: radarChartData
     });
     
   } catch (error: any) {
