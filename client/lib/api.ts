@@ -158,6 +158,26 @@ export const fetchDrones = (): Promise<Drone[]> =>
 export const fetchDroneById = (id: string): Promise<Drone> =>
   apiRequest<Drone>(`/drones/${id}`);
 
+export interface ProductMetric {
+  key: string;
+  label: string;
+  value: number; // Normalizzato 0-100
+  rawValue: number | null;
+  min: number;
+  max: number;
+}
+
+export interface ProductMetricsResponse {
+  productId: string;
+  productName: string;
+  purposes: string[];
+  clusters: Record<string, ProductMetric[]>;
+  minMax: Record<string, { min: number; max: number }>;
+}
+
+export const fetchProductMetrics = (id: string): Promise<ProductMetricsResponse> =>
+  apiRequest<ProductMetricsResponse>(`/drones/${id}/metrics`);
+
 // Crops API
 export const fetchCrops = (): Promise<Crop[]> =>
   apiRequest<Crop[]>('/crops');

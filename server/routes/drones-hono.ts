@@ -5,6 +5,14 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 
+import { 
+  METRIC_CLUSTERS, 
+  normalizeProductSpecs, 
+  calculateMinMax, 
+  normalizeValue,
+  METRIC_LABELS 
+} from '../utils/product-metrics';
+
 const app = new Hono();
 
 // GET /api/drones - Lista prodotti (per compatibilità)
@@ -650,6 +658,126 @@ app.get('/:id', async (c) => {
     console.error('Errore get product by id:', error);
     console.error('Stack:', error.stack);
     return c.json({ error: error.message }, 500);
+  }
+});
+
+// GET /api/drones/:id/metrics - Metriche normalizzate per grafico a ragnatela
+app.get('/:id/metrics', async (c) => {
+  try {
+    const param = c.req.param('id');
+    
+    // Trova prodotto per product_id o sku_code
+    const productResult = await query(`
+      SELECT 
+        p.id,
+        p.name,
+        p.specs_core_json,
+        array_agg(pp.purpose) as purposes
+      FROM products p
+      LEFT JOIN product_purposes pp ON p.id = pp.product_id
+      WHERE (p.id = $1 OR EXISTS (
+        SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.sku_code = $1
+      ))
+        AND p.status = 'ACTIVE'
+      GROUP BY p.id, p.name, p.specs_core_json
+      LIMIT 1
+    `, [param]);
+    
+    if (productResult.rows.length === 0) {
+      return c.json({ error: 'Product not found' }, 404);
+    }
+    
+    const product = productResult.rows[0];
+    const purposes = product.purposes.filter((p: any) => p !== null);
+    
+    if (purposes.length === 0) {
+      return c.json({ error: 'Product has no purpose defined' }, 400);
+    }
+    
+    // Parse specs del prodotto corrente
+    let specs_core_json = null;
+    try {
+      specs_core_json = typeof product.specs_core_json === 'string'
+        ? JSON.parse(product.specs_core_json)
+        : product.specs_core_json;
+    } catch (e) {
+      console.warn('Errore parsing specs_core_json:', e);
+    }
+    
+    if (!Array.isArray(specs_core_json)) {
+      return c.json({ error: 'Product specs not available' }, 400);
+    }
+    
+    // Trova tutti i prodotti con gli stessi purpose
+    const allProductsResult = await query(`
+      SELECT DISTINCT
+        p.id,
+        p.name,
+        p.specs_core_json
+      FROM products p
+      JOIN product_purposes pp ON p.id = pp.product_id
+      WHERE pp.purpose = ANY($1::text[])
+        AND p.status = 'ACTIVE'
+        AND p.specs_core_json IS NOT NULL
+    `, [purposes]);
+    
+    // Normalizza specs di tutti i prodotti
+    const allProductsMetrics = allProductsResult.rows.map(row => {
+      let specs = null;
+      try {
+        specs = typeof row.specs_core_json === 'string'
+          ? JSON.parse(row.specs_core_json)
+          : row.specs_core_json;
+      } catch (e) {
+        console.warn(`Errore parsing specs per ${row.id}:`, e);
+      }
+      
+      return {
+        productId: row.id,
+        metrics: normalizeProductSpecs(specs || [])
+      };
+    });
+    
+    // Calcola min/max per ogni metrica
+    const minMax = calculateMinMax(allProductsMetrics);
+    
+    // Normalizza metriche del prodotto corrente
+    const currentProductMetrics = normalizeProductSpecs(specs_core_json);
+    const normalizedMetrics: Record<string, number> = {};
+    
+    Object.entries(currentProductMetrics).forEach(([key, value]) => {
+      if (value !== null && minMax[key]) {
+        normalizedMetrics[key] = normalizeValue(value, minMax[key].min, minMax[key].max);
+      }
+    });
+    
+    // Raggruppa per cluster
+    const clusterMetrics: Record<string, Array<{ key: string; label: string; value: number; rawValue: number | null; min: number; max: number }>> = {};
+    
+    Object.entries(METRIC_CLUSTERS).forEach(([cluster, fields]) => {
+      clusterMetrics[cluster] = fields
+        .filter(key => normalizedMetrics[key] !== undefined)
+        .map(key => ({
+          key,
+          label: METRIC_LABELS[key] || key,
+          value: normalizedMetrics[key],
+          rawValue: currentProductMetrics[key],
+          min: minMax[key]?.min || 0,
+          max: minMax[key]?.max || 100
+        }));
+    });
+    
+    return c.json({
+      productId: product.id,
+      productName: product.name,
+      purposes,
+      clusters: clusterMetrics,
+      minMax
+    });
+    
+  } catch (error: any) {
+    console.error('Errore get product metrics:', error);
+    return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
 });
 

@@ -343,54 +343,76 @@ app.post('/:orgId', authMiddleware, validateBody(CreateOperatorSchema), async (c
       }
     }
 
-    // Inserisci il nuovo operatore
-    const insertQuery = `
-      INSERT INTO operator_profiles (
-        org_id,
-        user_id,
-        home_location_id,
-        max_hours_per_day,
-        max_ha_per_day,
-        service_tags,
-        default_service_area_set_id,
-        service_area_mode,
-        status
-      ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9)
-      RETURNING id
-    `;
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://') || !!process.env.PGHOST;
 
-    // PostgreSQL: Ensure service_tags is properly formatted JSON
+    // PostgreSQL: service_tags è text[] nel DB, quindi costruiamo ARRAY[...]::text[]
     // Handle both array and string inputs
-    let serviceTagsJson: string;
+    let serviceTagsArray: string[];
     if (Array.isArray(service_tags)) {
-      serviceTagsJson = JSON.stringify(service_tags);
+      serviceTagsArray = service_tags;
     } else if (typeof service_tags === 'string') {
-      // If it's already a string, try to parse and re-stringify to ensure valid JSON
       try {
         const parsed = JSON.parse(service_tags);
-        serviceTagsJson = JSON.stringify(parsed);
+        serviceTagsArray = Array.isArray(parsed) ? parsed : [parsed];
       } catch {
-        // If parsing fails, treat as array literal and wrap
-        serviceTagsJson = JSON.stringify([service_tags]);
+        serviceTagsArray = [service_tags];
       }
     } else {
-      serviceTagsJson = '[]';
+      serviceTagsArray = [];
     }
     
+    // Genera ID manualmente per compatibilità
+    const operatorId = `opr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Inserisci il nuovo operatore
+    // PostgreSQL: usa ARRAY[...]::text[] per service_tags
+    const insertQuery = isPostgreSQL
+      ? `
+        INSERT INTO operator_profiles (
+          id,
+          org_id,
+          user_id,
+          home_location_id,
+          max_hours_per_day,
+          max_ha_per_day,
+          service_tags,
+          default_service_area_set_id,
+          service_area_mode,
+          status
+        ) VALUES ($1, $2, $3, $4, $5, $6::text[], $7, $8, $9, $10)
+        RETURNING id
+      `
+      : `
+        INSERT INTO operator_profiles (
+          id,
+          org_id,
+          user_id,
+          home_location_id,
+          max_hours_per_day,
+          max_ha_per_day,
+          service_tags,
+          default_service_area_set_id,
+          service_area_mode,
+          status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id
+      `;
+    
     const values = [
+      operatorId,
       orgId,
       user_id || null,
       home_location_id || null,
       max_hours_per_day || null,
       max_ha_per_day || null,
-      serviceTagsJson,
+      isPostgreSQL ? serviceTagsArray : JSON.stringify(serviceTagsArray),
       default_service_area_set_id || null,
       'ORG_DEFAULT', // Default: usa area organizzazione
       'ACTIVE'
     ];
 
     const result = await query(insertQuery, values);
-    const operatorId = result.rows[0].id;
 
     console.log('✅ Operatore creato con ID:', operatorId);
 

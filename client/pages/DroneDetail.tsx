@@ -21,7 +21,8 @@ import {
   Heart,
   Loader2
 } from 'lucide-react';
-import { fetchDroneById, type Drone, addToCart, addToWishlist, getCart, fetchProductVendors, type ProductVendor } from '@/lib/api';
+import { fetchDroneById, type Drone, addToCart, addToWishlist, getCart, fetchProductVendors, type ProductVendor, fetchProductMetrics, type ProductMetricsResponse } from '@/lib/api';
+import { ProductRadarChart } from '@/components/ProductRadarChart';
 import { translateSpecKey, translateSection } from '@/lib/specs-translations';
 import { Layout } from '@/components/Layout';
 import { toast } from 'sonner';
@@ -51,6 +52,13 @@ const DroneDetail = () => {
   });
 
   const vendors = vendorsData?.vendors || [];
+
+  // Carica metriche per grafico a ragnatela
+  const { data: metricsData, isLoading: metricsLoading } = useQuery({
+    queryKey: ['productMetrics', id],
+    queryFn: () => fetchProductMetrics(id!),
+    enabled: !!id
+  });
 
   // Ottieni dati utente/org dal localStorage
   useEffect(() => {
@@ -555,6 +563,18 @@ const DroneDetail = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Grafico a ragnatela - Confronto con altri prodotti */}
+                {metricsLoading ? (
+                  <div className="bg-white rounded-xl border border-slate-200 p-8">
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 size={24} className="animate-spin text-emerald-600" />
+                      <span className="ml-3 text-slate-600">Caricamento metriche...</span>
+                    </div>
+                  </div>
+                ) : metricsData ? (
+                  <ProductRadarChart metrics={metricsData} />
+                ) : null}
 
                 {/* Features */}
                 <div>

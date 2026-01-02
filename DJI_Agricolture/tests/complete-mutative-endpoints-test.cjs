@@ -990,15 +990,20 @@ const mutativeEndpoints = [
     },
     verifyWrite: async (db, recordId, writeData) => {
       // Cerca in offer_messages o messages table
-      const { data } = await db.from('offer_messages').select('message').eq('id', recordId).single()
-        .catch(() => ({ data: null }));
-      if (!data) {
+      let data = null;
+      try {
+        const result = await db.from('offer_messages').select('message').eq('id', recordId).single();
+        data = result.data;
+      } catch (e) {
         // Prova altre tabelle
-        const { data: alt } = await db.from('messages').select('content').eq('id', recordId).single()
-          .catch(() => ({ data: null }));
-        if (!alt) return { match: false, field: 'id', expected: recordId, actual: null };
-        return { match: true };
+        try {
+          const altResult = await db.from('messages').select('content').eq('id', recordId).single();
+          data = altResult.data;
+        } catch (e2) {
+          // Nessuna tabella trovata
+        }
       }
+      if (!data) return { match: false, field: 'id', expected: recordId, actual: null };
       return { match: true };
     }
   },
