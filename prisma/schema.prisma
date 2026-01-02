@@ -341,6 +341,7 @@ model Product {
   brand                  String        @map("brand")
   model                  String        @map("model")
   name                   String        @map("name")
+  purpose                String?       @map("purpose") // Array JSON di ServiceType: ["SPRAY", "SPREAD"] o ["MAPPING"]
   specs_json             String?       @map("specs_json")
   specs_core_json        String?       @map("specs_core_json") // Core specs per scheda drone
   specs_extra_json       String?       @map("specs_extra_json") // Extra specs per pagina dettaglio
