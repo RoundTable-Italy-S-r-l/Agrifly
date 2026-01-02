@@ -1039,12 +1039,18 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     }
 
     // Upload file
+    // Assicurati che fileBuffer sia un Buffer o Uint8Array valido
     const contentType = fileType || (fileExt === 'png' ? 'image/png' : fileExt === 'webp' ? 'image/webp' : 'image/jpeg');
+    
+    // Converti Uint8Array in Buffer se necessario (Supabase preferisce Buffer)
+    const uploadBuffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucketName)
-      .upload(filePath, fileBuffer, {
+      .upload(filePath, uploadBuffer, {
         contentType,
-        upsert: true
+        upsert: true,
+        cacheControl: '3600'
       });
 
     if (uploadError) {
@@ -1068,6 +1074,7 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     return c.json({
       success: true,
       message: 'Logo uploaded successfully',
+      logo_url: updateResult.rows[0].logo_url,
       data: {
         organization: {
           id: updateResult.rows[0].id,

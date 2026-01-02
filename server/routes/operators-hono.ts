@@ -355,7 +355,7 @@ app.post('/:orgId', authMiddleware, validateBody(CreateOperatorSchema), async (c
         default_service_area_set_id,
         service_area_mode,
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9)
       RETURNING id
     `;
 

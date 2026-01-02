@@ -67,16 +67,16 @@ export async function handler(event: any, context: any) {
       if (contentType.includes('application/json')) {
         requestBody = event.body;
       }
-      // Se è multipart/form-data, passa il body così com'è (Hono gestirà il parsing)
-      // Netlify potrebbe passarlo come stringa base64 o come stringa raw
+      // Se è multipart/form-data, gestisci correttamente il body
+      // Netlify passa multipart come stringa base64 quando isBase64Encoded è true
       else if (contentType.includes('multipart/form-data')) {
-        // Se è base64 encoded (isBase64Encoded flag), decodificalo in Buffer
-        // Hono ha bisogno del body come stringa o Buffer per multipart
+        // Se è base64, convertilo in Buffer per Hono
+        // Hono ha bisogno del body come Buffer o stringa per multipart
         if (event.isBase64Encoded) {
-          // Converti base64 in Buffer, poi in stringa binary per Hono
-          const buffer = Buffer.from(event.body, 'base64');
-          requestBody = buffer.toString('binary');
+          // Converti base64 in Buffer - Hono lo gestirà correttamente
+          requestBody = Buffer.from(event.body, 'base64');
         } else {
+          // Se non è base64, passa come stringa
           requestBody = event.body;
         }
       }

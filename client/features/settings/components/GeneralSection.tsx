@@ -139,8 +139,12 @@ export function GeneralSection() {
         throw new Error(result.error || 'Errore durante l\'upload')
       }
 
-      form.setValue('logo_url', result.logo_url)
-      setCurrentLogoUrl(result.logo_url)
+      // Il backend restituisce logo_url direttamente o in data.organization.logoUrl
+      const logoUrl = result.logo_url || result.data?.organization?.logoUrl || ''
+      if (logoUrl) {
+        form.setValue('logo_url', logoUrl)
+        setCurrentLogoUrl(logoUrl)
+      }
 
       toast({
         title: 'Successo',

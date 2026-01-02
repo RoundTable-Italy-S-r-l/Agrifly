@@ -491,7 +491,7 @@ app.put('/:orderId/status', authMiddleware, validateBody(UpdateOrderStatusSchema
     const orderResult = await query(`
       SELECT o.id, o.order_number, o.buyer_org_id, o.seller_org_id, o.status, o.payment_status,
              o.subtotal_cents, o.tax_cents, o.shipping_cents, o.total_cents, o.currency,
-             o.shipping_address, o.billing_address, o.customer_notes, o.tracking_number,
+             o.shipping_address, o.billing_address, o.tracking_number,
              o.created_at, o.shipped_at, o.delivered_at,
              buyer_org.legal_name as buyer_org_name,
              seller_org.legal_name as seller_org_name
@@ -550,7 +550,6 @@ app.put('/:orderId/status', authMiddleware, validateBody(UpdateOrderStatusSchema
       currency: order.currency || 'EUR',
       shipping_address: parsedShippingAddress,
       billing_address: parsedBillingAddress,
-      customer_notes: order.customer_notes,
       tracking_number: order.tracking_number,
       created_at: order.created_at,
       shipped_at: order.shipped_at,
@@ -659,7 +658,6 @@ app.get('/:orderId', async (c) => {
       currency: order.currency || 'EUR',
       shipping_address: parsedShippingAddress,
       billing_address: parsedBillingAddress,
-      customer_notes: order.customer_notes,
       tracking_number: order.tracking_number,
       created_at: order.created_at,
       shipped_at: order.shipped_at,
