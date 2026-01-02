@@ -137,11 +137,17 @@ app.get('/:orgId', authMiddleware, async (c) => {
 
     // Format bookings to match frontend expectations
     const bookings = bookingsResult.rows.map((row: any) => {
-      const siteSnapshot = row.site_snapshot_json 
-        ? (typeof row.site_snapshot_json === 'string' 
+      let siteSnapshot = null;
+      try {
+        if (row.site_snapshot_json) {
+          siteSnapshot = typeof row.site_snapshot_json === 'string' 
             ? JSON.parse(row.site_snapshot_json) 
-            : row.site_snapshot_json)
-        : null;
+            : row.site_snapshot_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [GET BOOKINGS] Error parsing site_snapshot_json for booking ${row.id}:`, e);
+        siteSnapshot = null;
+      }
 
       return {
         id: row.id,

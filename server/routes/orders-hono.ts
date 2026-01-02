@@ -117,53 +117,67 @@ app.get('/', async (c) => {
     
     // Per ogni ordine, recupera le righe
     const orders = await Promise.all(result.rows.map(async (order) => {
-      const linesQuery = `
-        SELECT ol.id, ol.sku_id, ol.quantity, ol.unit_price_cents, ol.line_total_cents,
-               s.sku_code, p.name as product_name, p.model as product_model, p.brand
-        FROM order_lines ol
-        LEFT JOIN skus s ON ol.sku_id = s.id
-        LEFT JOIN products p ON s.product_id = p.id
-        WHERE ol.order_id = $1
-      `;
-      const linesResult = await query(linesQuery, [order.id]);
-      
-      // Parse JSON addresses
-      let parsedShippingAddress = null;
-      let parsedBillingAddress = null;
       try {
-        parsedShippingAddress = typeof order.shipping_address === 'string' 
-          ? JSON.parse(order.shipping_address) 
-          : order.shipping_address;
-        parsedBillingAddress = typeof order.billing_address === 'string'
-          ? JSON.parse(order.billing_address)
-          : order.billing_address;
-      } catch (e) {
-        console.warn('⚠️ Errore parsing indirizzi per ordine', order.id, ':', e);
+        const linesQuery = `
+          SELECT ol.id, ol.sku_id, ol.quantity, ol.unit_price_cents, ol.line_total_cents,
+                 s.sku_code, p.name as product_name, p.model as product_model, p.brand
+          FROM order_lines ol
+          LEFT JOIN skus s ON ol.sku_id = s.id
+          LEFT JOIN products p ON s.product_id = p.id
+          WHERE ol.order_id = $1
+        `;
+        const linesResult = await query(linesQuery, [order.id]);
+        
+        // Parse JSON addresses
+        let parsedShippingAddress = null;
+        let parsedBillingAddress = null;
+        try {
+          parsedShippingAddress = typeof order.shipping_address === 'string' 
+            ? JSON.parse(order.shipping_address) 
+            : order.shipping_address;
+        } catch (e) {
+          console.warn(`⚠️ [GET ORDERS] Error parsing shipping_address for order ${order.id}:`, e);
+        }
+        
+        try {
+          parsedBillingAddress = typeof order.billing_address === 'string'
+            ? JSON.parse(order.billing_address)
+            : order.billing_address;
+        } catch (e) {
+          console.warn(`⚠️ [GET ORDERS] Error parsing billing_address for order ${order.id}:`, e);
+        }
+        
+        return {
+          id: order.id,
+          order_number: order.id, // Usa ID come order_number se la colonna non esiste
+          buyer_org_id: order.buyer_org_id,
+          seller_org_id: order.seller_org_id,
+          buyer_org_name: order.buyer_org_name,
+          seller_org_name: order.seller_org_name,
+          status: order.status,
+          payment_status: order.payment_status,
+          total_cents: parseInt(order.total_cents) || 0,
+          currency: order.currency || 'EUR',
+          shipping_address: parsedShippingAddress,
+          billing_address: parsedBillingAddress,
+          created_at: order.created_at,
+          shipped_at: order.shipped_at,
+          delivered_at: order.delivered_at,
+          order_lines: linesResult.rows || []
+        };
+      } catch (orderError: any) {
+        console.error(`❌ [GET ORDERS] Error processing order ${order.id}:`, orderError);
+        // Return null to filter out this order
+        return null;
       }
-      
-      return {
-        id: order.id,
-        order_number: order.id, // Usa ID come order_number se la colonna non esiste
-        buyer_org_id: order.buyer_org_id,
-        seller_org_id: order.seller_org_id,
-        buyer_org_name: order.buyer_org_name,
-        seller_org_name: order.seller_org_name,
-        status: order.status,
-        payment_status: order.payment_status,
-        total_cents: parseInt(order.total_cents) || 0,
-        currency: order.currency || 'EUR',
-        shipping_address: parsedShippingAddress,
-        billing_address: parsedBillingAddress,
-        created_at: order.created_at,
-        shipped_at: order.shipped_at,
-        delivered_at: order.delivered_at,
-        order_lines: linesResult.rows || []
-      };
     }));
 
-    console.log('✅ Recuperati', orders.length, 'ordini');
+    // Filter out null results (orders that failed to process)
+    const validOrders = orders.filter((order): order is NonNullable<typeof order> => order !== null);
 
-    return c.json(orders);
+    console.log('✅ Recuperati', validOrders.length, 'ordini');
+
+    return c.json(validOrders);
 
   } catch (error: any) {
     console.error('❌ Errore get orders:', error);

@@ -92,7 +92,17 @@ app.get('/', authMiddleware, async (c) => {
 
     // Deserialize location_json for frontend and add field_polygon
     const jobs = result.rows.map(job => {
-      const locJson = job.location_json ? (typeof job.location_json === 'string' ? JSON.parse(job.location_json) : job.location_json) : null;
+      let locJson = null;
+      try {
+        if (job.location_json) {
+          locJson = typeof job.location_json === 'string' 
+            ? JSON.parse(job.location_json) 
+            : job.location_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [GET JOBS] Error parsing location_json for job ${job.id}:`, e);
+        locJson = null;
+      }
       return {
       ...job,
         location_json: locJson,
@@ -536,7 +546,17 @@ app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true })
     const newJob = result.rows[0];
 
       // Deserialize location_json for frontend and add field_polygon
-      const locJson = newJob.location_json ? (typeof newJob.location_json === 'string' ? JSON.parse(newJob.location_json) : newJob.location_json) : null;
+      let locJson = null;
+      try {
+        if (newJob.location_json) {
+          locJson = typeof newJob.location_json === 'string' 
+            ? JSON.parse(newJob.location_json) 
+            : newJob.location_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [CREATE JOB] Error parsing location_json for job ${newJob.id}:`, e);
+        locJson = null;
+      }
     const jobResponse = {
       ...newJob,
         location_json: locJson,
@@ -589,7 +609,17 @@ app.post('/', authMiddleware, validateBody(CreateJobSchema, { transform: true })
       const newJob = result.rows[0];
 
       // Deserialize location_json for frontend and add field_polygon
-      const locJson = newJob.location_json ? (typeof newJob.location_json === 'string' ? JSON.parse(newJob.location_json) : newJob.location_json) : null;
+      let locJson = null;
+      try {
+        if (newJob.location_json) {
+          locJson = typeof newJob.location_json === 'string' 
+            ? JSON.parse(newJob.location_json) 
+            : newJob.location_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [CREATE JOB] Error parsing location_json for job ${newJob.id}:`, e);
+        locJson = null;
+      }
     const jobResponse = {
       ...newJob,
         location_json: locJson,
@@ -900,7 +930,19 @@ app.get('/:jobId/offers', authMiddleware, async (c) => {
       job_id: row.job_id,
       operator_org_id: row.operator_org_id,
       status: row.status,
-      pricing_snapshot_json: row.pricing_snapshot_json ? (typeof row.pricing_snapshot_json === 'string' ? JSON.parse(row.pricing_snapshot_json) : row.pricing_snapshot_json) : null,
+      pricing_snapshot_json: (() => {
+        try {
+          if (row.pricing_snapshot_json) {
+            return typeof row.pricing_snapshot_json === 'string' 
+              ? JSON.parse(row.pricing_snapshot_json) 
+              : row.pricing_snapshot_json;
+          }
+          return null;
+        } catch (e) {
+          console.warn(`⚠️ [GET OFFERS] Error parsing pricing_snapshot_json for offer ${row.id}:`, e);
+          return null;
+        }
+      })(),
       total_cents: parseInt(row.total_cents) || 0,
       currency: row.currency || 'EUR',
       proposed_start: row.proposed_start,
@@ -1760,13 +1802,37 @@ app.get('/offers/:orgId', authMiddleware, async (c) => {
 
     // Format received offers
     const received = receivedOffersResult.rows.map((row: any) => {
-      const locJson = row.location_json ? (typeof row.location_json === 'string' ? JSON.parse(row.location_json) : row.location_json) : null;
+      let locJson = null;
+      let pricingSnapshot = null;
+      
+      try {
+        if (row.location_json) {
+          locJson = typeof row.location_json === 'string' 
+            ? JSON.parse(row.location_json) 
+            : row.location_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [GET OFFERS] Error parsing location_json for offer ${row.id}:`, e);
+        locJson = null;
+      }
+      
+      try {
+        if (row.pricing_snapshot_json) {
+          pricingSnapshot = typeof row.pricing_snapshot_json === 'string' 
+            ? JSON.parse(row.pricing_snapshot_json) 
+            : row.pricing_snapshot_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [GET OFFERS] Error parsing pricing_snapshot_json for offer ${row.id}:`, e);
+        pricingSnapshot = null;
+      }
+      
       return {
         id: row.id,
         job_id: row.job_id,
         operator_org_id: row.operator_org_id,
         status: row.status,
-        pricing_snapshot_json: row.pricing_snapshot_json ? (typeof row.pricing_snapshot_json === 'string' ? JSON.parse(row.pricing_snapshot_json) : row.pricing_snapshot_json) : null,
+        pricing_snapshot_json: pricingSnapshot,
         total_cents: parseInt(row.total_cents) || 0,
         currency: row.currency || 'EUR',
         proposed_start: row.proposed_start,
@@ -1799,13 +1865,37 @@ app.get('/offers/:orgId', authMiddleware, async (c) => {
 
     // Format made offers
     const made = madeOffersResult.rows.map((row: any) => {
-      const locJson = row.location_json ? (typeof row.location_json === 'string' ? JSON.parse(row.location_json) : row.location_json) : null;
+      let locJson = null;
+      let pricingSnapshot = null;
+      
+      try {
+        if (row.location_json) {
+          locJson = typeof row.location_json === 'string' 
+            ? JSON.parse(row.location_json) 
+            : row.location_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [GET OFFERS] Error parsing location_json for offer ${row.id}:`, e);
+        locJson = null;
+      }
+      
+      try {
+        if (row.pricing_snapshot_json) {
+          pricingSnapshot = typeof row.pricing_snapshot_json === 'string' 
+            ? JSON.parse(row.pricing_snapshot_json) 
+            : row.pricing_snapshot_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [GET OFFERS] Error parsing pricing_snapshot_json for offer ${row.id}:`, e);
+        pricingSnapshot = null;
+      }
+      
         return {
         id: row.id,
         job_id: row.job_id,
         operator_org_id: row.operator_org_id,
         status: row.status,
-        pricing_snapshot_json: row.pricing_snapshot_json ? (typeof row.pricing_snapshot_json === 'string' ? JSON.parse(row.pricing_snapshot_json) : row.pricing_snapshot_json) : null,
+        pricing_snapshot_json: pricingSnapshot,
         total_cents: parseInt(row.total_cents) || 0,
         currency: row.currency || 'EUR',
         proposed_start: row.proposed_start,
