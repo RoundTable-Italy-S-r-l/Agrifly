@@ -240,23 +240,24 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
     // Also check for existing offers by this operator
     const jobsWithOfferStatus = await Promise.all(
       result.rows.map(async (job) => {
-        // Check if this operator already submitted an ACTIVE offer for this job
-        // OFFERED e AWARDED sono considerati "attivi" e bloccano nuove offerte
-        // WITHDRAWN e DECLINED permettono di rifare un'offerta
-        const existingOfferResult = await query(`
-          SELECT id, status FROM job_offers
-          WHERE job_id = $1 AND operator_org_id = $2
-          AND status IN ('OFFERED', 'AWARDED')
-          LIMIT 1
-        `, [job.id, user.organizationId]);
+        try {
+          // Check if this operator already submitted an ACTIVE offer for this job
+          // OFFERED e AWARDED sono considerati "attivi" e bloccano nuove offerte
+          // WITHDRAWN e DECLINED permettono di rifare un'offerta
+          const existingOfferResult = await query(`
+            SELECT id, status FROM job_offers
+            WHERE job_id = $1 AND operator_org_id = $2
+            AND status IN ('OFFERED', 'AWARDED')
+            LIMIT 1
+          `, [job.id, user.organizationId]);
 
-        // Check anche per offerte ritirate/rifiutate per mostrare lo stato
-        const anyOfferResult = await query(`
-          SELECT id, status FROM job_offers
-          WHERE job_id = $1 AND operator_org_id = $2
-          ORDER BY created_at DESC
-          LIMIT 1
-        `, [job.id, user.organizationId]);
+          // Check anche per offerte ritirate/rifiutate per mostrare lo stato
+          const anyOfferResult = await query(`
+            SELECT id, status FROM job_offers
+            WHERE job_id = $1 AND operator_org_id = $2
+            ORDER BY created_at DESC
+            LIMIT 1
+          `, [job.id, user.organizationId]);
 
         const hasActiveOffer = existingOfferResult.rows.length > 0;
         const hasAnyOffer = anyOfferResult.rows.length > 0;
@@ -278,12 +279,13 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
       })
     );
 
-    return c.json({ jobs: jobsWithOfferStatus });
+    return c.json({ jobs: validJobs });
   } catch (error: any) {
-    console.error('Error fetching operator jobs:', error);
+    console.error('❌ Error fetching operator jobs:', error);
+    console.error('❌ Error stack:', error.stack);
     return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
-});
+}););
 
 
 // GET /api/jobs/:jobId - Get a specific job by ID (buyer can see their own jobs, operators can see open jobs)
