@@ -259,23 +259,38 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
             LIMIT 1
           `, [job.id, user.organizationId]);
 
-        const hasActiveOffer = existingOfferResult.rows.length > 0;
-        const hasAnyOffer = anyOfferResult.rows.length > 0;
-        const existingOfferStatus = hasAnyOffer ? anyOfferResult.rows[0].status : null;
-        const canOffer = !hasActiveOffer; // Can offer if no active offer (OFFERED/AWARDED)
+          const hasActiveOffer = existingOfferResult.rows.length > 0;
+          const hasAnyOffer = anyOfferResult.rows.length > 0;
+          const existingOfferStatus = hasAnyOffer ? anyOfferResult.rows[0].status : null;
+          const canOffer = !hasActiveOffer; // Can offer if no active offer (OFFERED/AWARDED)
 
-        const locJson = job.location_json ? (typeof job.location_json === 'string' ? JSON.parse(job.location_json) : job.location_json) : null;
-        return {
-          ...job,
-          location_json: locJson,
-          field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
-          buyer_org: {
-            legal_name: job.buyer_org_legal_name || 'Organizzazione sconosciuta'
-          },
-          can_offer: canOffer,
-          has_existing_offer: hasActiveOffer,
-          existing_offer_status: existingOfferStatus
-        };
+          // Parse location_json safely
+          let locJson = null;
+          try {
+            if (job.location_json) {
+              if (typeof job.location_json === 'string') {
+                locJson = JSON.parse(job.location_json);
+              } else {
+                locJson = job.location_json;
+              }
+            }
+          } catch (parseError: any) {
+            console.warn(`⚠️ [OPERATOR JOBS] Error parsing location_json for job ${job.id}:`, parseError.message);
+            locJson = null;
+          }
+
+          return {
+            ...job,
+            location_json: locJson,
+            field_polygon: locJson?.polygon || (Array.isArray(locJson) ? locJson : null),
+            buyer_org: {
+              id: job.buyer_org_id,
+              legal_name: job.buyer_org_legal_name || 'Organizzazione sconosciuta'
+            },
+            can_offer: canOffer,
+            has_existing_offer: hasActiveOffer,
+            existing_offer_status: existingOfferStatus
+          };
       })
     );
 
