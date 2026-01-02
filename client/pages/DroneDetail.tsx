@@ -353,26 +353,24 @@ const DroneDetail = () => {
                       <div className="text-right flex flex-col items-end space-y-2">
                         {/* Prezzo con offerta */}
                         {vendor.offer ? (
-                          <div className="text-center">
-                            {/* Badge sconto */}
-                            <div className="mb-1">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                ⚡ -{vendor.offer.discountPercent}% OFFERTA
+                          <div className="text-right space-y-1">
+                            {/* Tag offerta sopra il prezzo */}
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                -{vendor.offer.discountPercent}% SCONTO
+                              </span>
+                              <span className="text-xs text-slate-500">
+                                Da €{vendor.offer.originalPrice.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
-                            {/* Prezzi */}
-                            <div className="space-y-1">
-                              <div className="text-lg font-bold text-emerald-600">
-                                €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
-                              <div className="text-sm text-slate-500 line-through">
-                                €{vendor.offer.originalPrice.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
+                            {/* Prezzo scontato */}
+                            <div className="text-xl font-bold text-emerald-600">
+                              €{vendor.price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             {/* Nome offerta */}
-                            <div className="mt-2 px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-200">
+                            <div className="mt-1 px-2 py-1 bg-emerald-50 rounded border border-emerald-200">
                               <p className="text-xs font-medium text-emerald-800">
-                                🎯 {vendor.offer.name}
+                                {vendor.offer.name}
                               </p>
                             </div>
                           </div>
@@ -390,7 +388,7 @@ const DroneDetail = () => {
                               ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
                           }`}>
-                            {vendor.availableStock > 0 ? '✅' : '❌'} {vendor.availableStock} disponibili
+                            {vendor.availableStock} disponibili
                           </span>
                         </div>
                       </div>

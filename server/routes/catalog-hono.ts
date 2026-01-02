@@ -787,20 +787,19 @@ app.get('/product/:productId/vendors', async (c) => {
     const result = await query(querySql, [productId]);
 
     let vendors = result.rows.map(row => {
-      // Costruisci indirizzo completo
-      const addressParts = [
-        row.address_line,
-        row.city,
-        row.province,
-        row.postal_code
-      ].filter(Boolean);
-      const fullAddress = addressParts.join(', ') || 'Indirizzo non disponibile';
+      // Costruisci indirizzo formato: città (provincia)
+      const cityProvince = [row.city, row.province].filter(Boolean);
+      const locationDisplay = cityProvince.length > 0 
+        ? `${cityProvince[0]}${cityProvince[1] ? ` (${cityProvince[1]})` : ''}`
+        : 'Indirizzo non disponibile';
 
       return {
         vendorId: row.vendor_id,
         vendorName: row.vendor_name,
         vendorLogo: row.vendor_logo_url,
-        vendorAddress: fullAddress,
+        vendorAddress: locationDisplay,
+        vendorCity: row.city || '',
+        vendorProvince: row.province || '',
         skuId: row.sku_id,
         skuCode: row.sku_code,
         leadTimeDays: row.lead_time_days,

@@ -1132,11 +1132,14 @@ app.get('/notifications', authMiddleware, async (c) => {
         inapp_messages: true
       };
 
+      // Generate ID manually for PostgreSQL compatibility
+      const prefsId = `pref_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const insertResult = await query(`
         INSERT INTO user_notification_preferences (id, user_id, email_orders, email_payments, email_updates, inapp_orders, inapp_messages, created_at, updated_at)
-        VALUES (cuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
         RETURNING id, user_id, email_orders, email_payments, email_updates, inapp_orders, inapp_messages, created_at, updated_at
       `, [
+        prefsId,
         defaultPrefs.user_id,
         defaultPrefs.email_orders,
         defaultPrefs.email_payments,

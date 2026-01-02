@@ -303,10 +303,10 @@ class TestDataFactory {
     const offer = {
       id: offerId,
       job_id: jobId,
-      provider_org_id: vendorOrgId,
+      operator_org_id: vendorOrgId, // Backend usa operator_org_id, non provider_org_id
       total_cents: overrides.total_cents || 50000,
       currency: overrides.currency || 'EUR',
-      status: overrides.status || 'PENDING',
+      status: overrides.status || 'OFFERED', // Default OFFERED per match backend
       ...overrides
     };
 

@@ -18,11 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useToast } from '@/components/ui/use-toast' // <-- IMPORT MANCANTE!
+import { useToast } from '@/components/ui/use-toast'
 import {
   useOrganizationGeneral,
   useUpdateOrganizationGeneral,
 } from '../hooks'
+import { provinces, majorCities, type ProvinceData } from '@/lib/italian-addresses'
 
 const organizationSchema = z.object({
   legal_name: z.string().min(1, 'Nome legale obbligatorio'),
@@ -37,8 +38,10 @@ const organizationSchema = z.object({
   tax_code: z.string().optional(),
   // org_type è determinato automaticamente dalle capabilities, non modificabile
   address_line: z.string().min(1, 'Indirizzo obbligatorio'),
-  // Rimossi campi non usati nel submit: city, province, region, postal_code, country
-  // se servono nel backend, aggiungili qui e nel form
+  region: z.string().optional(),
+  province: z.string().optional(),
+  city: z.string().optional(),
+  postal_code: z.string().optional(),
 })
 
 type OrganizationForm = z.infer<typeof organizationSchema>
@@ -51,6 +54,24 @@ export function GeneralSection() {
 
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>('')
+  
+  // Filtri a cascata per indirizzo
+  const [selectedRegion, setSelectedRegion] = useState<string>('')
+  const [selectedProvince, setSelectedProvince] = useState<string>('')
+  const [selectedCity, setSelectedCity] = useState<string>('')
+  
+  // Ottieni regioni uniche
+  const regions = Array.from(new Set(provinces.map(p => p.region))).sort()
+  
+  // Province filtrate per regione
+  const filteredProvinces = selectedRegion
+    ? provinces.filter(p => p.region === selectedRegion).sort((a, b) => a.name.localeCompare(b.name))
+    : []
+  
+  // Città filtrate per provincia
+  const filteredCities = selectedProvince && majorCities[selectedProvince]
+    ? majorCities[selectedProvince].sort()
+    : []
 
   const form = useForm<OrganizationForm>({
     resolver: zodResolver(organizationSchema),
@@ -61,14 +82,21 @@ export function GeneralSection() {
       support_email: '',
       vat_number: '',
       tax_code: '',
-      // org_type determinato automaticamente dalle capabilities
       address_line: '',
+      region: '',
+      province: '',
+      city: '',
+      postal_code: '',
     },
   })
 
   // Carica i dati quando organization è disponibile
   useEffect(() => {
     if (organization) {
+      const region = organization.region || ''
+      const province = organization.province || ''
+      const city = organization.city || ''
+      
       form.reset({
         legal_name: organization.legal_name || '',
         logo_url: organization.logo_url || '',
@@ -78,10 +106,37 @@ export function GeneralSection() {
         tax_code: organization.tax_code || '',
         org_type: (organization.org_type as any) || 'FARM',
         address_line: organization.address_line || '',
+        region: region,
+        province: province,
+        city: city,
+        postal_code: organization.postal_code || '',
       })
       setCurrentLogoUrl(organization.logo_url || '')
+      
+      // Imposta i filtri a cascata
+      setSelectedRegion(region)
+      setSelectedProvince(province)
+      setSelectedCity(city)
     }
   }, [organization, form])
+  
+  // Reset province quando cambia regione
+  useEffect(() => {
+    if (!selectedRegion) {
+      setSelectedProvince('')
+      setSelectedCity('')
+      form.setValue('province', '')
+      form.setValue('city', '')
+    }
+  }, [selectedRegion, form])
+  
+  // Reset città quando cambia provincia
+  useEffect(() => {
+    if (!selectedProvince) {
+      setSelectedCity('')
+      form.setValue('city', '')
+    }
+  }, [selectedProvince, form])
 
   const handleLogoUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -314,19 +369,118 @@ export function GeneralSection() {
               />
             </div>
 
-            {/* Indirizzo */}
+            {/* Indirizzo - Via */}
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="address_line">Indirizzo *</Label>
+              <Label htmlFor="address_line">Via / Indirizzo *</Label>
               <Input
                 id="address_line"
                 {...form.register('address_line')}
-                placeholder="Via Example 123, 20100 Milano MI"
+                placeholder="Via Example 123"
               />
               {form.formState.errors.address_line && (
                 <p className="text-sm text-red-600">
                   {form.formState.errors.address_line.message}
                 </p>
               )}
+            </div>
+
+            {/* Regione */}
+            <div className="space-y-2">
+              <Label htmlFor="region">Regione</Label>
+              <Select
+                value={selectedRegion}
+                onValueChange={(value) => {
+                  setSelectedRegion(value)
+                  form.setValue('region', value)
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona regione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {regions.map((region) => (
+                    <SelectItem key={region} value={region}>
+                      {region}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Provincia */}
+            <div className="space-y-2">
+              <Label htmlFor="province">Provincia</Label>
+              <Select
+                value={selectedProvince}
+                onValueChange={(value) => {
+                  setSelectedProvince(value)
+                  form.setValue('province', value)
+                }}
+                disabled={!selectedRegion}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={selectedRegion ? "Seleziona provincia" : "Prima seleziona regione"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredProvinces.map((province) => (
+                    <SelectItem key={province.code} value={province.code}>
+                      {province.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Città */}
+            <div className="space-y-2">
+              <Label htmlFor="city">Città</Label>
+              <Select
+                value={selectedCity}
+                onValueChange={(value) => {
+                  setSelectedCity(value)
+                  form.setValue('city', value)
+                }}
+                disabled={!selectedProvince}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={selectedProvince ? "Seleziona città" : "Prima seleziona provincia"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredCities.length > 0 ? (
+                    filteredCities.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))
+                  ) : selectedProvince ? (
+                    <SelectItem value="" disabled>
+                      Nessuna città disponibile
+                    </SelectItem>
+                  ) : null}
+                </SelectContent>
+              </Select>
+              {selectedProvince && filteredCities.length === 0 && (
+                <Input
+                  id="city"
+                  {...form.register('city')}
+                  placeholder="Inserisci città manualmente"
+                  onChange={(e) => {
+                    setSelectedCity(e.target.value)
+                    form.setValue('city', e.target.value)
+                  }}
+                />
+              )}
+            </div>
+
+            {/* CAP */}
+            <div className="space-y-2">
+              <Label htmlFor="postal_code">CAP</Label>
+              <Input
+                id="postal_code"
+                {...form.register('postal_code')}
+                placeholder="20100"
+                maxLength={5}
+              />
             </div>
           </div>
 

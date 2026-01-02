@@ -524,25 +524,12 @@ const mutativeEndpoints = [
       const me = await meResponse.json();
       const orgId = me.organization?.id || me.organizationId;
       
-      // Crea operator di test
-      const createResponse = await fetch(`${API_BASE}/operators/${orgId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authTokens.vendor}`
-        },
-        body: JSON.stringify({
-          first_name: 'Original',
-          last_name: 'Operator',
-          email: `op-${Date.now()}@test.com`,
-          service_tags: ['SPRAY']
-        })
+      // Usa factory per creare operator (più affidabile)
+      const operator = await factory.createOperator(orgId, {
+        service_tags: ['SPRAY']
       });
-      if (createResponse.ok) {
-        const created = await createResponse.json();
-        return { orgId, operatorId: created.id };
-      }
-      return { orgId, operatorId: 'test-operator-id' };
+      
+      return { orgId, operatorId: operator.id };
     },
     invalidBody: { service_tags: 'invalid' },
     validBody: {
@@ -1520,7 +1507,10 @@ async function testEndpoint(endpoint) {
           // Read-back dal DB
           await new Promise(r => setTimeout(r, 500));
           
-          const verifyResult = await endpoint.verifyWrite(supabase, recordId, validBody);
+          // Pass pathParams se verifyWrite li accetta
+          const verifyResult = endpoint.verifyWrite.length > 3
+            ? await endpoint.verifyWrite(supabase, recordId, validBody, pathParams)
+            : await endpoint.verifyWrite(supabase, recordId, validBody);
           
           if (verifyResult.match) {
             endpointPassed++;
