@@ -1257,6 +1257,16 @@ const mutativeEndpoints = [
       const product = await factory.createProduct();
       const inventory = await factory.createInventory(orgId, product.id, { qty_on_hand: 100 });
       
+      // Recupera o crea cart
+      const cartResponse = await fetch(`${API_BASE}/ecommerce/cart`, {
+        headers: { 'Authorization': `Bearer ${authTokens.buyer}` }
+      });
+      let cartId = 'default-cart';
+      if (cartResponse.ok) {
+        const cart = await cartResponse.json();
+        cartId = cart.id || cart.cartId || cartId;
+      }
+      
       // Aggiungi al cart
       await fetch(`${API_BASE}/ecommerce/cart/items`, {
         method: 'POST',
@@ -1265,12 +1275,14 @@ const mutativeEndpoints = [
           'Authorization': `Bearer ${authTokens.buyer}`
         },
         body: JSON.stringify({
+          cartId: cartId,
           skuId: inventory.sku_id,
           quantity: 1
         })
       });
       
       return {
+        cartId: cartId,
         items: [{
           skuId: inventory.sku_id,
           quantity: 1

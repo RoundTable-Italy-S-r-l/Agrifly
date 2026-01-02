@@ -143,7 +143,9 @@ async function testCatalogPublic() {
     if (priceResult.rows.length > 0) {
       console.log(`  ✅ ${priceResult.rows.length} prodotti con prezzi`);
       priceResult.rows.forEach(row => {
-        console.log(`     ${row.name}: €${row.min_price?.toFixed(2)} - €${row.max_price?.toFixed(2)} (${row.price_count} prezzi)`);
+        const minPrice = row.min_price ? (typeof row.min_price === 'number' ? row.min_price : parseFloat(row.min_price)) : null;
+        const maxPrice = row.max_price ? (typeof row.max_price === 'number' ? row.max_price : parseFloat(row.max_price)) : null;
+        console.log(`     ${row.name}: ${minPrice ? `€${minPrice.toFixed(2)}` : 'N/A'} - ${maxPrice ? `€${maxPrice.toFixed(2)}` : 'N/A'} (${row.price_count} prezzi)`);
       });
     } else {
       console.log('  ⚠️  Nessun prodotto con prezzi configurati');
