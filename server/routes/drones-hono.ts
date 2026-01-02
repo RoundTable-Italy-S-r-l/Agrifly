@@ -7,6 +7,7 @@ import path from 'path';
 
 import { 
   METRIC_CLUSTERS, 
+  CLUSTERS_BY_PURPOSE,
   normalizeProductSpecs, 
   calculateMinMax, 
   normalizeValue,
@@ -694,7 +695,7 @@ app.get('/:id/metrics', async (c) => {
       return c.json({ error: 'Product has no purpose defined' }, 400);
     }
     
-    // Parse specs del prodotto corrente
+    // Parse specs_core_json del prodotto corrente (SOLO specs_core_json, non specs_extra_json)
     let specs_core_json = null;
     try {
       specs_core_json = typeof product.specs_core_json === 'string'
@@ -705,21 +706,49 @@ app.get('/:id/metrics', async (c) => {
     }
     
     if (!Array.isArray(specs_core_json)) {
-      return c.json({ error: 'Product specs not available' }, 400);
+      return c.json({ error: 'Product specs_core_json not available' }, 400);
     }
     
-    // Trova tutti i prodotti con gli stessi purpose
-    const allProductsResult = await query(`
-      SELECT DISTINCT
-        p.id,
-        p.name,
-        p.specs_core_json
-      FROM products p
-      JOIN product_purposes pp ON p.id = pp.product_id
-      WHERE pp.purpose = ANY($1::text[])
-        AND p.status = 'ACTIVE'
-        AND p.specs_core_json IS NOT NULL
-    `, [purposes]);
+    // Per ogni purpose, trova prodotti con QUEL purpose specifico (non tutti insieme)
+    // Se il prodotto ha SPRAY e SPREAD, facciamo due confronti separati
+    const allMetricsByPurpose: Record<string, Array<{ productId: string; metrics: Record<string, number | null> }>> = {};
+    
+    for (const purpose of purposes) {
+      // Trova tutti i prodotti con QUESTO purpose specifico
+      const allProductsResult = await query(`
+        SELECT DISTINCT
+          p.id,
+          p.name,
+          p.specs_core_json
+        FROM products p
+        JOIN product_purposes pp ON p.id = pp.product_id
+        WHERE pp.purpose = $1
+          AND p.status = 'ACTIVE'
+          AND p.specs_core_json IS NOT NULL
+      `, [purpose]);
+      
+      // Normalizza specs_core_json di tutti i prodotti con questo purpose
+      allMetricsByPurpose[purpose] = allProductsResult.rows.map(row => {
+        let specs = null;
+        try {
+          specs = typeof row.specs_core_json === 'string'
+            ? JSON.parse(row.specs_core_json)
+            : row.specs_core_json;
+        } catch (e) {
+          console.warn(`Errore parsing specs_core_json per ${row.id}:`, e);
+        }
+        
+        return {
+          productId: row.id,
+          metrics: normalizeProductSpecs(specs || [])
+        };
+      });
+    }
+    
+    // Se il prodotto ha più purpose, prendiamo il primo per il grafico principale
+    // (in futuro si potrebbero fare grafici multipli)
+    const primaryPurpose = purposes[0];
+    const allProductsMetrics = allMetricsByPurpose[primaryPurpose] || [];
     
     // Normalizza specs di tutti i prodotti
     const allProductsMetrics = allProductsResult.rows.map(row => {
@@ -751,10 +780,12 @@ app.get('/:id/metrics', async (c) => {
       }
     });
     
-    // Raggruppa per cluster
+    // Raggruppa per cluster - solo cluster rilevanti per il purpose
+    const relevantClusters = CLUSTERS_BY_PURPOSE[primaryPurpose] || Object.keys(METRIC_CLUSTERS);
     const clusterMetrics: Record<string, Array<{ key: string; label: string; value: number; rawValue: number | null; min: number; max: number }>> = {};
     
-    Object.entries(METRIC_CLUSTERS).forEach(([cluster, fields]) => {
+    relevantClusters.forEach(cluster => {
+      const fields = METRIC_CLUSTERS[cluster] || [];
       clusterMetrics[cluster] = fields
         .filter(key => normalizedMetrics[key] !== undefined)
         .map(key => ({

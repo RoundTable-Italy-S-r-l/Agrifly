@@ -526,61 +526,65 @@ const DroneDetail = () => {
           {/* Tab Content */}
           <div className="p-8">
             {activeTab === 'overview' && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Descrizione</h3>
-                  <p className="text-slate-700 leading-relaxed">{drone.targetUse || drone.tagline}</p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Colonna sinistra (2/3) - Specs scrollabili */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Core Specs Grid - Raggruppate per sezione */}
+                  {coreSpecs.length > 0 && (
+                    <div>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-6">Specifiche Principali</h3>
+                      <div className="space-y-6">
+                        {getOrderedSections(coreSpecsGrouped).map(section => (
+                          <div key={section} className="bg-white rounded-lg border border-slate-200 p-6">
+                            <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                              <span className="w-1 h-6 bg-emerald-600 rounded"></span>
+                              {translateSection(section)}
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {coreSpecsGrouped[section].map((spec: any, idx: number) => (
+                                <div key={idx} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                  <p className="text-xs text-slate-500 mb-1 uppercase tracking-wide">
+                                    {translateSpecKey(spec.key)}
+                                  </p>
+                                  <p className="text-lg font-bold text-slate-900">
+                                    {spec.value} {spec.unit}
+                                  </p>
+                                  {spec.source_text && (
+                                    <p className="text-xs text-slate-400 mt-1">{spec.source_text}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Features */}
+                  {drone.features && (
+                    <div>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-4">Caratteristiche</h3>
+                      <div className="bg-emerald-50 rounded-lg p-6 border border-emerald-200">
+                        <p className="text-slate-800 font-medium">{drone.features}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Core Specs Grid - Raggruppate per sezione */}
-                {coreSpecs.length > 0 && (
-                  <div>
-                    <h3 className="text-2xl font-bold text-slate-900 mb-6">Specifiche Principali</h3>
-                    <div className="space-y-6">
-                      {getOrderedSections(coreSpecsGrouped).map(section => (
-                        <div key={section} className="bg-white rounded-lg border border-slate-200 p-6">
-                          <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <span className="w-1 h-6 bg-emerald-600 rounded"></span>
-                            {translateSection(section)}
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {coreSpecsGrouped[section].map((spec: any, idx: number) => (
-                              <div key={idx} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                                <p className="text-xs text-slate-500 mb-1 uppercase tracking-wide">
-                                  {translateSpecKey(spec.key)}
-                                </p>
-                                <p className="text-lg font-bold text-slate-900">
-                                  {spec.value} {spec.unit}
-                                </p>
-                                {spec.source_text && (
-                                  <p className="text-xs text-slate-400 mt-1">{spec.source_text}</p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                {/* Colonna destra (1/3) - Grafico fisso */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-24">
+                    {metricsLoading ? (
+                      <div className="bg-white rounded-xl border border-slate-200 p-8">
+                        <div className="flex items-center justify-center py-12">
+                          <Loader2 size={24} className="animate-spin text-emerald-600" />
+                          <span className="ml-3 text-slate-600">Caricamento metriche...</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Grafico a ragnatela - Confronto con altri prodotti */}
-                {metricsLoading ? (
-                  <div className="bg-white rounded-xl border border-slate-200 p-8">
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 size={24} className="animate-spin text-emerald-600" />
-                      <span className="ml-3 text-slate-600">Caricamento metriche...</span>
-                    </div>
-                  </div>
-                ) : metricsData ? (
-                  <ProductRadarChart metrics={metricsData} />
-                ) : null}
-
-                {/* Features */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Caratteristiche</h3>
-                  <div className="bg-emerald-50 rounded-lg p-6 border border-emerald-200">
-                    <p className="text-slate-800 font-medium">{drone.features}</p>
+                      </div>
+                    ) : metricsData ? (
+                      <ProductRadarChart metrics={metricsData} />
+                    ) : null}
                   </div>
                 </div>
               </div>

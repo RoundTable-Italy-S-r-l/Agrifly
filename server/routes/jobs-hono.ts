@@ -704,10 +704,10 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
     const insertQuery = isPostgreSQL
       ? `
         INSERT INTO job_offers (
-          job_id, operator_org_id, status, pricing_snapshot_json,
+          id, job_id, operator_org_id, status, pricing_snapshot_json,
           total_cents, currency, proposed_start, proposed_end, provider_note,
           created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id
       `
       : `
@@ -722,22 +722,38 @@ app.post('/:jobId/offers', authMiddleware, validateBody(CreateJobOfferSchema, { 
     const proposedStart = proposed_start && proposed_start.trim() !== '' ? proposed_start : null;
     const proposedEnd = proposed_end && proposed_end.trim() !== '' ? proposed_end : null;
 
-    const insertValues = [
-      jobId,
-      user.organizationId,
-      'OFFERED',
-      pricingSnapshotStr,
-      total_cents, // Already validated and transformed by Zod
-      currency || 'EUR',
-      proposedStart,
-      proposedEnd,
-      provider_note || null,
-      now,
-      now
-    ];
+    const insertValues = isPostgreSQL
+      ? [
+          offerId,
+          jobId,
+          user.organizationId,
+          'OFFERED',
+          pricingSnapshotStr,
+          total_cents, // Already validated and transformed by Zod
+          currency || 'EUR',
+          proposedStart,
+          proposedEnd,
+          provider_note || null,
+          now,
+          now
+        ]
+      : [
+          offerId,
+          jobId,
+          user.organizationId,
+          'OFFERED',
+          pricingSnapshotStr,
+          total_cents, // Already validated and transformed by Zod
+          currency || 'EUR',
+          proposedStart,
+          proposedEnd,
+          provider_note || null,
+          now,
+          now
+        ];
 
-    // For SQLite, we need to add the offerId to the values array
-    const finalInsertValues = isPostgreSQL ? insertValues : [offerId, ...insertValues];
+    // Use insertValues directly (already includes offerId for PostgreSQL)
+    const finalInsertValues = insertValues;
 
     console.log('📤 [CREATE OFFER] Esecuzione INSERT query...');
     console.log('📤 [CREATE OFFER] Query:', insertQuery.substring(0, 200));

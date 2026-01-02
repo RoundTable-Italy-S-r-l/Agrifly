@@ -282,8 +282,8 @@ app.post('/create-from-cart', authMiddleware, validateBody(CreateOrderFromCartSc
       cartData.org_id, // buyer_org_id
       sellerOrgId,
       null, // quote_id
-      'PENDING', // order_status - inizia come PENDING
-      'PENDING', // status (duplicato per sicurezza)
+      'PAID', // order_status - default PAID
+      'PAID', // status (duplicato per sicurezza)
       'PAID', // payment_status - Mock Stripe
       totalCents,
       'EUR',

@@ -3,6 +3,7 @@
  */
 
 // Mapping cluster -> campi normalizzati
+// NOTA: Sistema Irrorazione solo per SPRAY, Sistema Spandimento solo per SPREAD
 export const METRIC_CLUSTERS = {
   'Velivolo': [
     'mtow_spreading_kg',
@@ -34,6 +35,13 @@ export const METRIC_CLUSTERS = {
   'Radar': [
     'radar_detection_range_m'
   ]
+};
+
+// Cluster per purpose specifico (massimo 6 cluster per grafico)
+export const CLUSTERS_BY_PURPOSE: Record<string, string[]> = {
+  'SPRAY': ['Velivolo', 'Sistema Irrorazione', 'Batteria', 'Caricatore', 'Generatore', 'Radar'],
+  'SPREAD': ['Velivolo', 'Sistema Spandimento', 'Batteria', 'Caricatore', 'Generatore', 'Radar'],
+  'MAPPING': ['Velivolo', 'Batteria', 'Caricatore', 'Radar', 'RGB_CAMERA', 'FLIGHT_PERFORMANCE']
 };
 
 // Mapping chiavi normalizzate -> label display

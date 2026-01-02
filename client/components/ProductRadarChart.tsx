@@ -119,43 +119,6 @@ export function ProductRadarChart({ metrics }: ProductRadarChartProps) {
             </RadarChart>
           </ResponsiveContainer>
         </div>
-        
-        {/* Legenda dettagliata per cluster */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-          {Object.entries(metrics.clusters).map(([cluster, clusterMetrics]) => {
-            if (clusterMetrics.length === 0) return null;
-            
-            return (
-              <div key={cluster} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <h4 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
-                  <span 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: clusterColors[cluster] || '#94a3b8' }}
-                  />
-                  {cluster}
-                </h4>
-                <div className="space-y-1">
-                  {clusterMetrics.map(metric => (
-                    <div key={metric.key} className="text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-600">{metric.label}:</span>
-                        <span className="font-medium text-slate-900">
-                          {metric.rawValue !== null 
-                            ? formatMetricValue(metric.rawValue, metric.key)
-                            : 'N/A'
-                          }
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        Range: {formatMetricValue(metric.min, metric.key)} - {formatMetricValue(metric.max, metric.key)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </CardContent>
     </Card>
   );
