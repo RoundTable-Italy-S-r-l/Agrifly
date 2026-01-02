@@ -11,11 +11,11 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# Zod tests
-echo "✅ Running Zod validation tests..."
-node test-zod-complete.cjs > /dev/null 2>&1
+# Test suite
+echo "✅ Running test suite..."
+npm test > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-  echo "❌ Zod tests failed!"
+  echo "❌ Tests failed!"
   exit 1
 fi
 
