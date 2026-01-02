@@ -308,7 +308,7 @@ app.get('/operator/jobs', authMiddleware, async (c) => {
     console.error('❌ Error stack:', error.stack);
     return c.json({ error: 'Internal server error', message: error.message }, 500);
   }
-}););
+});
 
 
 // GET /api/jobs/:jobId - Get a specific job by ID (buyer can see their own jobs, operators can see open jobs)
