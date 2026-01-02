@@ -447,11 +447,13 @@ export function GeneralSection() {
                 </SelectTrigger>
                 <SelectContent>
                   {filteredCities.length > 0 ? (
-                    filteredCities.map((city) => (
-                      <SelectItem key={city} value={city}>
-                        {city}
-                      </SelectItem>
-                    ))
+                    filteredCities
+                      .filter(city => city && city.trim() !== '') // Filtra città vuote
+                      .map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))
                   ) : null}
                 </SelectContent>
               </Select>

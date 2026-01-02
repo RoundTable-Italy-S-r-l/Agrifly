@@ -812,9 +812,16 @@ const mutativeEndpoints = [
       total_cents: 55000,
       provider_note: 'Updated offer'
     },
-    verifyWrite: async (db, recordId, writeData) => {
-      const { data } = await db.from('job_offers').select('total_cents, provider_note').eq('id', recordId).single();
-      if (!data) return { match: false, field: 'id', expected: recordId, actual: null };
+    verifyWrite: async (db, recordId, writeData, pathParams) => {
+      // recordId è l'offerId dal pathParams
+      const offerId = pathParams?.offerId || recordId;
+      const { data, error } = await db.from('job_offers')
+        .select('total_cents, provider_note, id')
+        .eq('id', offerId)
+        .maybeSingle();
+      if (error || !data) {
+        return { match: false, field: 'id', expected: offerId, actual: null };
+      }
       if (parseInt(data.total_cents) !== writeData.total_cents) {
         return { match: false, field: 'total_cents', expected: writeData.total_cents, actual: data.total_cents };
       }

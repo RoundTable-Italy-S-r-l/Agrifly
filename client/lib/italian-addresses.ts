@@ -203,6 +203,10 @@ export const majorCities: { [provinceCode: string]: string[] } = {
   // Toscana
   'FI': ['Firenze', 'Scandicci', 'Sesto Fiorentino', 'Campi Bisenzio', 'Bagno a Ripoli'],
 
+  // Trentino-Alto Adige
+  'BZ': ['Bolzano', 'Merano', 'Bressanone', 'Brunico', 'Vipiteno'],
+  'TN': ['Trento', 'Rovereto', 'Pergine Valsugana', 'Arco', 'Riva del Garda'],
+
   // Puglia
   'BA': ['Bari', 'Bitonto', 'Molfetta', 'Corato', 'Ruvo di Puglia'],
   'LE': ['Lecce', 'Nardò', 'Gallipoli', 'Casarano', 'Copertino'],
