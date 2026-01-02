@@ -711,6 +711,28 @@ export const initializeVendorCatalog = (orgId: string): Promise<any> =>
     method: 'POST'
   });
 
+// Stock by location
+export interface StockByLocation {
+  locationId: string;
+  locationName: string;
+  qtyOnHand: number;
+  qtyReserved: number;
+  qtyAvailable: number;
+}
+
+export interface StockByLocationResponse {
+  skuId: string;
+  stockByLocation: StockByLocation[];
+  totals: {
+    totalStock: number;
+    totalReserved: number;
+    totalAvailable: number;
+  };
+}
+
+export const fetchStockByLocation = (orgId: string, skuId: string): Promise<StockByLocationResponse> =>
+  apiRequest<StockByLocationResponse>(`/catalog/vendor/${orgId}/stock/${skuId}`);
+
 export const initializeLenziCatalog = (): Promise<any> =>
   apiRequest<any>('/catalog/initialize/lenzi', {
     method: 'POST'

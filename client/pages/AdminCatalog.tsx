@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/AdminLayout';
-import { fetchVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, VendorCatalogItem, fetchOffers, createOffer, updateOffer, deleteOffer, Offer } from '@/lib/api';
+import { fetchVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, VendorCatalogItem, fetchOffers, createOffer, updateOffer, deleteOffer, Offer, fetchStockByLocation, StockByLocationResponse } from '@/lib/api';
 import {
   Package,
   Edit,
@@ -17,7 +17,8 @@ import {
   MapPin,
   Box,
   Trash2,
-  Save
+  Save,
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +59,7 @@ export default function AdminCatalog() {
   const [offerSheetOpen, setOfferSheetOpen] = useState(false);
   const [editingBundle, setEditingBundle] = useState<Offer | null>(null);
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
+  const [stockDetailSkuId, setStockDetailSkuId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -166,6 +168,15 @@ export default function AdminCatalog() {
   });
 
   const catalog = catalogData?.catalog || [];
+
+  // Query per stock per location (quando necessario)
+  const { data: stockDetail } = useQuery({
+    queryKey: ['stockByLocation', currentOrgId, stockDetailSkuId],
+    queryFn: () => currentOrgId && stockDetailSkuId 
+      ? fetchStockByLocation(currentOrgId, stockDetailSkuId) 
+      : Promise.resolve(null),
+    enabled: !!currentOrgId && !!stockDetailSkuId
+  });
 
   const handleToggleProduct = async (skuId: string, currentStatus: boolean) => {
     try {
@@ -354,6 +365,11 @@ export default function AdminCatalog() {
                                     skuId: product.id, 
                                     updates: { stock: newStock } 
                                   });
+                                  // Ricarica dettaglio stock se aperto
+                                  if (stockDetailSkuId === product.id) {
+                                    setStockDetailSkuId(null);
+                                    setTimeout(() => setStockDetailSkuId(product.id), 100);
+                                  }
                                 } catch (error) {
                                   console.error('Errore aggiornamento stock:', error);
                                 }
@@ -362,9 +378,24 @@ export default function AdminCatalog() {
                             >
                               -
                             </Button>
-                            <span className="text-sm font-medium text-slate-900 min-w-[3rem] text-center">
-                              {product.stock || 0} unità
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-medium text-slate-900 min-w-[3rem] text-center">
+                                {product.stock || 0} unità
+                              </span>
+                              <button
+                                onClick={() => {
+                                  if (stockDetailSkuId === product.id) {
+                                    setStockDetailSkuId(null);
+                                  } else {
+                                    setStockDetailSkuId(product.id);
+                                  }
+                                }}
+                                className="p-0.5 hover:bg-slate-100 rounded transition-colors"
+                                title="Dettaglio stock per location"
+                              >
+                                <Info className="w-3.5 h-3.5 text-slate-500" />
+                              </button>
+                            </div>
                             <Button
                               variant="outline"
                               size="sm"
@@ -376,6 +407,11 @@ export default function AdminCatalog() {
                                     skuId: product.id, 
                                     updates: { stock: newStock } 
                                   });
+                                  // Ricarica dettaglio stock se aperto
+                                  if (stockDetailSkuId === product.id) {
+                                    setStockDetailSkuId(null);
+                                    setTimeout(() => setStockDetailSkuId(product.id), 100);
+                                  }
                                 } catch (error) {
                                   console.error('Errore aggiornamento stock:', error);
                                 }
@@ -386,6 +422,38 @@ export default function AdminCatalog() {
                             </Button>
                           </div>
                         </div>
+                        {/* Dettaglio stock per location */}
+                        {stockDetailSkuId === product.id && stockDetail && (
+                          <div className="mt-2 p-2 bg-slate-50 rounded border border-slate-200">
+                            <div className="text-xs font-semibold text-slate-700 mb-1.5">Stock per location:</div>
+                            {stockDetail.stockByLocation.length > 0 ? (
+                              <div className="space-y-1">
+                                {stockDetail.stockByLocation.map((loc) => (
+                                  <div key={loc.locationId} className="flex items-center justify-between text-xs">
+                                    <span className="text-slate-600">{loc.locationName}:</span>
+                                    <span className="font-medium text-slate-900">
+                                      {loc.qtyOnHand} disponibili
+                                      {loc.qtyReserved > 0 && (
+                                        <span className="text-slate-500 ml-1">({loc.qtyReserved} riservati)</span>
+                                      )}
+                                    </span>
+                                  </div>
+                                ))}
+                                <div className="pt-1 mt-1 border-t border-slate-200 flex items-center justify-between text-xs font-semibold">
+                                  <span className="text-slate-700">Totale:</span>
+                                  <span className="text-slate-900">
+                                    {stockDetail.totals.totalStock} unità
+                                    {stockDetail.totals.totalReserved > 0 && (
+                                      <span className="text-slate-500 ml-1">({stockDetail.totals.totalReserved} riservati)</span>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-slate-500">Nessuno stock registrato</div>
+                            )}
+                          </div>
+                        )}
                         {product.location && (
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-slate-600 flex items-center gap-1">

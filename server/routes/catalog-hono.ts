@@ -193,40 +193,85 @@ app.put('/vendor/:orgId/product', authMiddleware, validateBody(UpdateVendorProdu
       }
     }
 
-    // Aggiorna stock (inventario)
+    // Aggiorna stock (inventario) - Gestione multi-location
     if (stock !== undefined) {
+      // Calcola stock totale attuale da tutte le location
+      const currentStockResult = await query(`
+        SELECT COALESCE(SUM(qty_on_hand), 0) as total_stock
+        FROM inventories
+        WHERE vendor_org_id = $1 AND sku_id = $2
+      `, [orgId, actualSkuId]);
+
+      const currentTotalStock = parseInt(currentStockResult.rows[0]?.total_stock || '0');
+      const newTotalStock = stock;
+      const stockDifference = newTotalStock - currentTotalStock;
+
+      console.log('📦 Stock update:', {
+        currentTotal: currentTotalStock,
+        newTotal: newTotalStock,
+        difference: stockDifference
+      });
+
       // Trova location principale del vendor (o crea una default)
       let locationResult = await query(`
-        SELECT id FROM locations
+        SELECT id, name FROM locations
         WHERE org_id = $1
+        ORDER BY is_hub DESC, name ASC
         LIMIT 1
       `, [orgId]);
 
       let locationId: string;
+      let locationName: string;
 
       if (locationResult.rows.length > 0) {
         locationId = locationResult.rows[0].id;
+        locationName = locationResult.rows[0].name;
       } else {
         // Crea una location di default se non esiste
         console.log('📍 Creazione location di default per vendor:', orgId);
         const newLocationResult = await query(`
           INSERT INTO locations (id, org_id, name, address_json, is_hub)
           VALUES (gen_random_uuid(), $1, 'Magazzino Principale', '{}'::json, false)
-          RETURNING id
+          RETURNING id, name
         `, [orgId]);
         locationId = newLocationResult.rows[0].id;
+        locationName = newLocationResult.rows[0].name;
         console.log('✅ Location di default creata:', locationId);
       }
 
-      // Upsert inventory (usa il constraint UNIQUE corretto)
-      await query(`
-        INSERT INTO inventories (id, vendor_org_id, location_id, sku_id, qty_on_hand, qty_reserved)
-        VALUES (gen_random_uuid(), $1, $2, $3, $4, 0)
-        ON CONFLICT (vendor_org_id, location_id, sku_id)
-        DO UPDATE SET qty_on_hand = $4
-      `, [orgId, locationId, actualSkuId, stock]);
+      // Se c'è una differenza, aggiorna la prima location
+      if (stockDifference !== 0) {
+        // Ottieni stock attuale nella prima location
+        const firstLocationStockResult = await query(`
+          SELECT qty_on_hand
+          FROM inventories
+          WHERE vendor_org_id = $1 AND location_id = $2 AND sku_id = $3
+        `, [orgId, locationId, actualSkuId]);
 
-      console.log('✅ Stock aggiornato:', { orgId, locationId, skuId: actualSkuId, stock });
+        const firstLocationCurrentStock = parseInt(firstLocationStockResult.rows[0]?.qty_on_hand || '0');
+        const firstLocationNewStock = Math.max(0, firstLocationCurrentStock + stockDifference);
+
+        // Upsert inventory nella prima location
+        await query(`
+          INSERT INTO inventories (id, vendor_org_id, location_id, sku_id, qty_on_hand, qty_reserved)
+          VALUES (gen_random_uuid(), $1, $2, $3, $4, 0)
+          ON CONFLICT (vendor_org_id, location_id, sku_id)
+          DO UPDATE SET qty_on_hand = $4
+        `, [orgId, locationId, actualSkuId, firstLocationNewStock]);
+
+        console.log('✅ Stock aggiornato nella location principale:', {
+          orgId,
+          locationId,
+          locationName,
+          skuId: actualSkuId,
+          oldStock: firstLocationCurrentStock,
+          newStock: firstLocationNewStock,
+          difference: stockDifference,
+          totalStock: newTotalStock
+        });
+      } else {
+        console.log('ℹ️  Nessuna differenza stock, nessun aggiornamento necessario');
+      }
     }
 
     return c.json({ 
@@ -840,6 +885,69 @@ app.get('/product/:productId/vendors', async (c) => {
       error: 'Errore interno',
       message: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 10) : undefined
+    }, 500);
+  }
+});
+
+// ============================================================================
+// GET STOCK BY LOCATION (Stock per location di un SKU)
+// ============================================================================
+
+app.get('/vendor/:orgId/stock/:skuId', authMiddleware, async (c) => {
+  try {
+    const orgId = c.req.param('orgId');
+    const skuId = c.req.param('skuId');
+    
+    // @ts-ignore - Hono context typing issue
+    const user = c.get('user') as any;
+    const userOrgId = user?.organizationId;
+
+    // Verifica che l'utente possa accedere solo al proprio catalogo
+    if (userOrgId && userOrgId !== orgId && !user?.isAdmin) {
+      return c.json({ error: 'Forbidden: Cannot access another organization stock' }, 403);
+    }
+
+    // Query per ottenere stock per location
+    const stockResult = await query(`
+      SELECT 
+        i.location_id,
+        l.name as location_name,
+        i.qty_on_hand,
+        i.qty_reserved,
+        (i.qty_on_hand - i.qty_reserved) as qty_available
+      FROM inventories i
+      JOIN locations l ON i.location_id = l.id
+      WHERE i.vendor_org_id = $1 AND i.sku_id = $2
+      ORDER BY l.is_hub DESC, l.name ASC
+    `, [orgId, skuId]);
+
+    const stockByLocation = stockResult.rows.map(row => ({
+      locationId: row.location_id,
+      locationName: row.location_name,
+      qtyOnHand: parseInt(row.qty_on_hand) || 0,
+      qtyReserved: parseInt(row.qty_reserved) || 0,
+      qtyAvailable: parseInt(row.qty_available) || 0
+    }));
+
+    const totalStock = stockByLocation.reduce((sum, loc) => sum + loc.qtyOnHand, 0);
+    const totalReserved = stockByLocation.reduce((sum, loc) => sum + loc.qtyReserved, 0);
+    const totalAvailable = totalStock - totalReserved;
+
+    return c.json({
+      skuId,
+      stockByLocation,
+      totals: {
+        totalStock,
+        totalReserved,
+        totalAvailable
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ Errore recupero stock per location:', error);
+    return c.json({ 
+      error: 'Errore interno', 
+      message: error.message
     }, 500);
   }
 });

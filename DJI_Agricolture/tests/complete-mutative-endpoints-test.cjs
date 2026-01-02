@@ -1257,29 +1257,66 @@ const mutativeEndpoints = [
       const product = await factory.createProduct();
       const inventory = await factory.createInventory(orgId, product.id, { qty_on_hand: 100 });
       
-      // Recupera o crea cart
-      const cartResponse = await fetch(`${API_BASE}/ecommerce/cart`, {
+      // Recupera orgId per il buyer
+      const buyerMeResponse = await fetch(`${API_BASE}/auth/me`, {
         headers: { 'Authorization': `Bearer ${authTokens.buyer}` }
       });
-      let cartId = 'default-cart';
+      const buyerMe = await buyerMeResponse.json();
+      const buyerOrgId = buyerMe.organization?.id || buyerMe.organizationId;
+      
+      // Recupera o crea cart
+      const cartResponse = await fetch(`${API_BASE}/ecommerce/cart?orgId=${buyerOrgId}`, {
+        headers: { 'Authorization': `Bearer ${authTokens.buyer}` }
+      });
+      let cartId;
       if (cartResponse.ok) {
-        const cart = await cartResponse.json();
-        cartId = cart.id || cart.cartId || cartId;
+        const cartData = await cartResponse.json();
+        cartId = cartData.cart?.id || cartData.id || cartData.cartId;
       }
       
-      // Aggiungi al cart
-      await fetch(`${API_BASE}/ecommerce/cart/items`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authTokens.buyer}`
-        },
-        body: JSON.stringify({
-          cartId: cartId,
-          skuId: inventory.sku_id,
-          quantity: 1
-        })
-      });
+      // Se non abbiamo un cartId, crealo aggiungendo un item
+      if (!cartId) {
+        // Aggiungi item - questo creerà il cart se non esiste
+        const addItemResponse = await fetch(`${API_BASE}/ecommerce/cart/items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authTokens.buyer}`
+          },
+          body: JSON.stringify({
+            orgId: buyerOrgId,
+            skuId: inventory.sku_id,
+            quantity: 1
+          })
+        });
+        
+        // Ricarica il cart per ottenere l'ID
+        const cartReload = await fetch(`${API_BASE}/ecommerce/cart?orgId=${buyerOrgId}`, {
+          headers: { 'Authorization': `Bearer ${authTokens.buyer}` }
+        });
+        if (cartReload.ok) {
+          const cartData2 = await cartReload.json();
+          cartId = cartData2.cart?.id || cartData2.id || cartData2.cartId;
+        }
+      } else {
+        // Cart esiste, aggiungi item
+        await fetch(`${API_BASE}/ecommerce/cart/items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authTokens.buyer}`
+          },
+          body: JSON.stringify({
+            cartId: cartId,
+            skuId: inventory.sku_id,
+            quantity: 1
+          })
+        });
+      }
+      
+      if (!cartId) {
+        throw new Error('Impossibile creare o recuperare cart');
+      }
       
       return {
         cartId: cartId,
