@@ -819,8 +819,8 @@ app.post('/organization/invitations/revoke/:invitationId', authMiddleware, valid
         // Buyer org: solo admin possono revocare
         canRevoke = memberRole === 'admin';
         console.log('🏢 [REVOKE] Org buyer - ruolo richiesto: admin, ruolo attuale:', memberRole, 'canRevoke:', canRevoke);
-      } else if (inviteData.org_type === 'vendor' || inviteData.org_type === 'operator') {
-        // Vendor/Operator org: admin/vendor/operator/dispatcher possono revocare
+      } else if (inviteData.org_type === 'provider' || inviteData.org_type === 'vendor' || inviteData.org_type === 'operator') {
+        // Provider org: admin/vendor/operator/dispatcher possono revocare (con fallback per retrocompatibilità)
         const allowedRoles = ['admin', 'vendor', 'operator', 'dispatcher'];
         canRevoke = allowedRoles.includes(memberRole);
         console.log('🏭 [REVOKE] Org vendor/operator - ruoli permessi:', allowedRoles, 'ruolo attuale:', memberRole, 'canRevoke:', canRevoke);

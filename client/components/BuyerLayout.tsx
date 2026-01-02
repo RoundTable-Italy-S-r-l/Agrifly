@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, History, Settings, BarChart3, Pin, PinOff, User, LogOut, ShoppingCart } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, FileText, History, Settings, BarChart3, Pin, PinOff, User, LogOut, ShoppingCart, Globe } from 'lucide-react';
+import { authAPI } from '@/lib/auth';
 
 interface BuyerLayoutProps {
   children: React.ReactNode;
@@ -8,6 +9,7 @@ interface BuyerLayoutProps {
 
 export function BuyerLayout({ children }: BuyerLayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isPinned, setIsPinned] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -23,7 +25,7 @@ export function BuyerLayout({ children }: BuyerLayoutProps) {
 
   const handleLogout = () => {
     authAPI.logout();
-    window.location.href = '/login';
+    navigate('/login');
   };
 
   return (
@@ -105,36 +107,64 @@ export function BuyerLayout({ children }: BuyerLayoutProps) {
           </nav>
 
           {/* User section */}
-          <div className={`border-t border-slate-200 p-4 ${isExpanded ? 'block' : 'hidden'}`}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-slate-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-slate-900 truncate">
-                  {(() => {
-                    try {
-                      const orgData = localStorage.getItem('organization');
-                      if (orgData) {
-                        const org = JSON.parse(orgData);
-                        return org.name || 'Buyer';
-                      }
-                      return 'Buyer';
-                    } catch {
-                      return 'Buyer';
-                    }
-                  })()}
+          <div className="border-t border-slate-200 p-4">
+            {isExpanded ? (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-slate-900 truncate">
+                      {(() => {
+                        try {
+                          const orgData = localStorage.getItem('organization');
+                          if (orgData) {
+                            const org = JSON.parse(orgData);
+                            return org.name || 'Buyer';
+                          }
+                          return 'Buyer';
+                        } catch {
+                          return 'Buyer';
+                        }
+                      })()}
+                    </div>
+                    <div className="text-xs text-slate-500 truncate">Cliente</div>
+                  </div>
                 </div>
-                <div className="text-xs text-slate-500 truncate">Cliente</div>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Esci</span>
-            </button>
+                <Link
+                  to="/"
+                  className="w-full flex items-center gap-2 px-3 py-2 mb-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>Vai al sito</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Esci</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/"
+                  className="w-full flex items-center justify-center px-2 py-2 mb-3 text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
+                  title="Vai al sito"
+                >
+                  <Globe className="w-5 h-5" />
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center px-2 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
+                  title="Esci"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

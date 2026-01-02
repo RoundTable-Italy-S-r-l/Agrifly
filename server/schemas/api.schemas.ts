@@ -75,7 +75,13 @@ export const RegisterOrganizationSchema = z.object({
   lastName: z.string().min(1, 'Cognome obbligatorio'),
   phone: z.string().optional(),
   organizationName: z.string().min(1, 'Nome organizzazione obbligatorio'),
-  accountType: z.enum(['buyer', 'vendor', 'operator'])
+  accountType: z.enum(['buyer', 'provider', 'vendor', 'operator']).transform((val) => {
+    // Mappa vendor/operator legacy a provider per retrocompatibilità
+    if (val === 'vendor' || val === 'operator') {
+      return 'provider';
+    }
+    return val;
+  })
 });
 
 // User login schema

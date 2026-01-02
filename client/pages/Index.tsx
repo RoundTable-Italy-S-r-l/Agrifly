@@ -1,7 +1,78 @@
-import { Link } from 'react-router-dom';
-import { Package, MapPin, Target, Zap, TrendingUp, Phone } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Package, MapPin, Target, Zap, TrendingUp, Phone, LogOut } from 'lucide-react';
+import { authAPI } from '@/lib/auth';
+import { saveCurrentPathAsRedirect } from '@/lib/auth-redirect';
 
 export default function Index() {
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [orgType, setOrgType] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Verifica autenticazione
+    const token = localStorage.getItem('auth_token');
+    const orgData = localStorage.getItem('organization');
+    
+    if (token && orgData) {
+      try {
+        const org = JSON.parse(orgData);
+        setIsAuthenticated(true);
+        setOrgType(org.type || org.org_type || null);
+      } catch {
+        setIsAuthenticated(false);
+      }
+    } else {
+      setIsAuthenticated(false);
+    }
+
+    // Ascolta eventi di cambio autenticazione
+    const handleAuthChange = () => {
+      const token = localStorage.getItem('auth_token');
+      const orgData = localStorage.getItem('organization');
+      setIsAuthenticated(!!(token && orgData));
+      if (orgData) {
+        try {
+          const org = JSON.parse(orgData);
+          setOrgType(org.type || org.org_type || null);
+        } catch {
+          setOrgType(null);
+        }
+      }
+    };
+
+    window.addEventListener('authChanged', handleAuthChange);
+    return () => window.removeEventListener('authChanged', handleAuthChange);
+  }, []);
+
+  const handleLoginClick = () => {
+    saveCurrentPathAsRedirect();
+    navigate('/login');
+  };
+
+  const handleLogout = () => {
+    authAPI.logout();
+    setIsAuthenticated(false);
+    setOrgType(null);
+    navigate('/');
+  };
+
+  const getDashboardPath = () => {
+    if (orgType === 'buyer') return '/buyer';
+    if (orgType === 'provider') return '/admin';
+    // Fallback per retrocompatibilità
+    if (orgType === 'vendor' || orgType === 'operator') return '/admin';
+    return '/dashboard';
+  };
+
+  const getDashboardLabel = () => {
+    if (orgType === 'buyer') return 'Dashboard Buyer';
+    if (orgType === 'provider') return 'Dashboard Admin';
+    // Fallback per retrocompatibilità
+    if (orgType === 'vendor' || orgType === 'operator') return 'Dashboard Admin';
+    return 'Dashboard';
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       {/* Navigation Header */}
@@ -46,16 +117,36 @@ export default function Index() {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
-            <Link
-              to="/login"
-              className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
-            >
-              <span>Login</span>
-            </Link>
-            <button className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black">
-              Contattaci
-                      </button>
-                    </div>
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={handleLogout}
+                  className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>Logout</span>
+                </button>
+                <Link
+                  to={getDashboardPath()}
+                  className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black transition-colors"
+                >
+                  {getDashboardLabel()}
+                </Link>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleLoginClick}
+                  className="hidden sm:inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                >
+                  <span>Login</span>
+                </button>
+                <button className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black">
+                  Contattaci
+                </button>
+              </>
+            )}
+          </div>
                         </div>
       </header>
 

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { authAPI } from "@/lib/auth";
-import { migrateCart } from "@/lib/api";
+import { handlePostAuthRedirect, saveCurrentPathAsRedirect } from "@/lib/auth-redirect";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export default function Login() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [organizationName, setOrganizationName] = useState("");
-  const [accountType, setAccountType] = useState<"buyer" | "vendor" | "operator">("buyer");
+  const [accountType, setAccountType] = useState<"buyer" | "provider">("buyer");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,9 +43,14 @@ export default function Login() {
     }
 
     // Store redirect information for post-login navigation
+    // Se c'è un redirect esplicito nell'URL, usa quello
+    // Altrimenti usa il path corrente (salvato da RequireAuth o Index)
     if (redirect) {
       localStorage.setItem('post_login_redirect', redirect);
-      console.log('💾 Stored post_login_redirect:', redirect);
+      console.log('💾 Stored post_login_redirect from URL:', redirect);
+    } else {
+      // Se non c'è redirect nell'URL, salva il path corrente
+      saveCurrentPathAsRedirect();
     }
 
     // Store wishlist action if present
@@ -97,98 +102,29 @@ export default function Login() {
       }
 
       setError(
-        `Registrazione completata come ${accountType === 'buyer' ? 'Acquirente' : accountType === 'vendor' ? 'Fornitore' : 'Operatore'}! Accesso automatico effettuato.`
+        `Registrazione completata come ${accountType === 'buyer' ? 'Acquirente' : 'Provider'}! Accesso automatico effettuato.`
       );
 
-      // Controlla se c'è un redirect speciale (es. da flusso anonimo)
       await queryClient.invalidateQueries();
 
+      // Gestisci transfer temp_field_data per nuovo-preventivo
       const postLoginRedirect = localStorage.getItem('post_login_redirect');
-      console.log('🔄 Checking redirect after registration:', { postLoginRedirect, canBuy: (data.organization.type || data.organization.org_type) === 'buyer', emailVerified: data.user?.email_verified });
-
-      // Se l'email non è verificata, redirect a verifica email
-      // NON migrare il carrello ora - sarà migrato dopo la verifica email
-      // MANTIENI session_id e post_login_redirect per dopo
-      if (!data.user?.email_verified) {
-        console.log(`📧 Email non verificata, redirect a /verify-email (mantenendo session_id e post_login_redirect: ${postLoginRedirect})`);
-        navigate('/verify-email', { replace: true });
-        return;
-      }
-
-      // Se l'email è già verificata, migra il carrello ora
-      const sessionId = localStorage.getItem('session_id');
-      if (sessionId && data.user?.id && data.organization?.id) {
-        try {
-          console.log('🛒 Migrazione carrello guest dopo registrazione (email già verificata)...');
-          const migrateResult = await migrateCart(sessionId, data.user.id, data.organization.id);
-          console.log('📦 Risultato migrazione:', migrateResult);
-          localStorage.removeItem('session_id');
-          localStorage.removeItem('guest_org_id');
-          console.log('✅ Carrello migrato con successo');
-          // Invalida specificamente le query del carrello
-          await queryClient.invalidateQueries({ queryKey: ['cart'] });
-        } catch (err) {
-          console.error('⚠️ Errore migrazione carrello (non critico):', err);
-          // Non bloccare il flusso se la migrazione fallisce
-        }
-      }
-
-      if (postLoginRedirect === 'nuovo-preventivo' && (data.organization.type || data.organization.org_type) === 'buyer') {
-        // Trasferisci dati campo temporanei ai dati utente
+      if (postLoginRedirect === 'nuovo-preventivo') {
         const tempFieldData = localStorage.getItem('temp_field_data');
-        console.log('📋 Temp field data before transfer:', tempFieldData);
-
         if (tempFieldData) {
           localStorage.setItem('pending_field_data', tempFieldData);
           localStorage.removeItem('temp_field_data');
           console.log('✅ Field data transferred to pending for nuovo-preventivo');
-
-          // Verifica che il trasferimento sia avvenuto
-          const pendingData = localStorage.getItem('pending_field_data');
-          console.log('🔍 Pending field data after transfer:', pendingData);
-        } else {
-          console.log('⚠️ No temp field data found to transfer');
         }
-
-        localStorage.removeItem('post_login_redirect');
-        console.log(`🚀 Redirect speciale dopo registrazione: /buyer/nuovo-preventivo`);
-        navigate('/buyer/nuovo-preventivo', { replace: true });
-        return;
       }
 
-      // Gestisci redirect al carrello (sia 'carrello' che '/buyer/carrello')
-      // Solo se l'email è già verificata
-      if ((postLoginRedirect === 'carrello' || postLoginRedirect === '/buyer/carrello' || postLoginRedirect?.includes('carrello')) && (data.organization.type || data.organization.org_type) === 'buyer') {
-        localStorage.removeItem('post_login_redirect');
-        console.log(`🛒 Redirect speciale dopo registrazione: /buyer/carrello`);
-        navigate('/buyer/carrello', { replace: true });
-        return;
-      }
-      
-      // Gestisci altri redirect diretti (percorsi completi)
-      // Solo se l'email è già verificata
-      if (postLoginRedirect && postLoginRedirect.startsWith('/')) {
-        localStorage.removeItem('post_login_redirect');
-        console.log(`🔄 Redirect a percorso specifico: ${postLoginRedirect}`);
-        navigate(postLoginRedirect, { replace: true });
-        return;
-      }
-
-      // NUOVA LOGICA: Determina dashboard in base al tipo organizzazione
-      const orgType = data.organization.type || data.organization.org_type;
-      if (orgType === 'buyer') {
-        // Buyer → dashboard buyer
-        console.log('🛒 Redirect buyer dopo registrazione');
-        navigate('/buyer', { replace: true });
-      } else if (orgType === 'vendor' || orgType === 'operator') {
-        // Vendor/Operator → dashboard admin
-        console.log('🏪 Redirect vendor/operator dopo registrazione');
-        navigate('/admin', { replace: true });
-      } else {
-        // Fallback
-        console.log('📊 Redirect dashboard generica dopo registrazione');
-        navigate('/dashboard', { replace: true });
-      }
+      // Usa utility centralizzata per redirect
+      await handlePostAuthRedirect({
+        organization: data.organization,
+        user: data.user,
+        queryClient,
+        navigate
+      });
 
     } catch (err: any) {
       console.error('❌ Registration error:', err);
@@ -232,116 +168,26 @@ export default function Login() {
       // Notifica il cambio di autenticazione
       window.dispatchEvent(new Event('authChanged'));
 
-      // Migra carrello guest se esiste
-      const sessionId = localStorage.getItem('session_id');
-      if (sessionId && data.user?.id && data.organization?.id) {
-        try {
-          console.log('🛒 Migrazione carrello guest...', { sessionId, userId: data.user.id, orgId: data.organization.id });
-          const migrateResult = await migrateCart(sessionId, data.user.id, data.organization.id);
-          console.log('📦 Risultato migrazione:', migrateResult);
-          localStorage.removeItem('session_id');
-          localStorage.removeItem('guest_org_id');
-          console.log('✅ Carrello migrato con successo');
-          // Invalida specificamente le query del carrello
-          await queryClient.invalidateQueries({ queryKey: ['cart'] });
-        } catch (err) {
-          console.error('⚠️ Errore migrazione carrello (non critico):', err);
-          // Non bloccare il flusso se la migrazione fallisce
-        }
-      }
-
       await queryClient.invalidateQueries();
 
-      // Check for special redirect PRIMA di determinare la dashboard
+      // Gestisci transfer temp_field_data per nuovo-preventivo
       const postLoginRedirect = localStorage.getItem('post_login_redirect');
-      const organization = data.organization;
-      const user = data.user;
-
-      console.log('🔄 Checking post_login_redirect:', { postLoginRedirect, canBuy: (organization.type || organization.org_type) === 'buyer' });
-
-      // Gestisci redirect al carrello (sia 'carrello' che '/buyer/carrello')
-      if ((postLoginRedirect === 'carrello' || postLoginRedirect === '/buyer/carrello' || postLoginRedirect?.includes('carrello')) && (organization.type || organization.org_type) === 'buyer') {
-        localStorage.removeItem('post_login_redirect');
-        console.log(`🛒 Navigazione speciale a: /buyer/carrello`);
-        navigate('/buyer/carrello', { replace: true });
-        return;
-      }
-
-      // Gestisci redirect a nuovo-preventivo
-      if (postLoginRedirect === 'nuovo-preventivo' && organization.type === 'buyer') {
-        // Transfer temporary field data to user session
+      if (postLoginRedirect === 'nuovo-preventivo') {
         const tempFieldData = localStorage.getItem('temp_field_data');
         if (tempFieldData) {
           localStorage.setItem('pending_field_data', tempFieldData);
-          localStorage.removeItem('temp_field_data'); // Clean up temp data
+          localStorage.removeItem('temp_field_data');
           console.log('📋 Field data transferred to pending for nuovo-preventivo');
         }
-
-        localStorage.removeItem('post_login_redirect');
-        console.log(`🚀 Navigazione speciale a: /buyer/nuovo-preventivo`);
-        navigate('/buyer/nuovo-preventivo', { replace: true });
-        return;
-      }
-      
-      // Gestisci altri redirect diretti (percorsi completi)
-      if (postLoginRedirect && postLoginRedirect.startsWith('/')) {
-        localStorage.removeItem('post_login_redirect');
-        console.log(`🔄 Navigazione a percorso specifico: ${postLoginRedirect}`);
-        navigate(postLoginRedirect, { replace: true });
-        return;
       }
 
-      // Se non c'è redirect speciale, determina la dashboard in base al ruolo dell'utente e tipo organizzazione
-      let selectedRole;
-      let dashboardPath;
-
-      // Logica basata su TYPE organizzazione + ROLE utente
-      if (organization.type === 'buyer') {
-        // 🛒 BUYER organization - tutti i ruoli vanno alla dashboard buyer
-        selectedRole = 'BUYER';
-        dashboardPath = '/buyer';
-        console.log('🛒 Redirect a dashboard buyer (type buyer)');
-
-      } else if (organization.type === 'vendor' || organization.type === 'operator') {
-        // 🏪/👷‍♂️ VENDOR/OPERATOR organization - logica basata su role utente
-        if (user.role === 'admin') {
-          selectedRole = 'ADMIN';
-          dashboardPath = '/admin/catalogo'; // Admin di vendor/operator
-          console.log('👑 Redirect a dashboard admin (vendor/operator)');
-        } else if (user.role === 'operator') {
-          selectedRole = 'OPERATOR';
-          dashboardPath = '/admin/prenotazioni';
-          console.log('👷‍♂️ Redirect a dashboard operator');
-        } else if (user.role === 'vendor') {
-          selectedRole = 'VENDOR';
-          dashboardPath = '/admin/catalogo';
-          console.log('🏪 Redirect a dashboard vendor');
-        } else if (user.role === 'dispatcher') {
-          selectedRole = 'DISPATCHER';
-          dashboardPath = '/admin';
-          console.log('🚛 Redirect a dashboard dispatcher');
-        } else {
-          // Ruolo sconosciuto - default admin
-          selectedRole = 'ADMIN';
-          dashboardPath = '/admin/catalogo';
-          console.log('❓ Redirect a dashboard admin (ruolo sconosciuto)');
-        }
-
-      } else {
-        // Tipo organizzazione sconosciuto
-        console.error('❌ Tipo organizzazione non riconosciuto:', organization.type);
-        setError('Tipo organizzazione non supportato. Contatta l\'amministratore.');
-        return;
-      }
-
-      const roleData = {
-        role: selectedRole,
-        organization: organization
-      };
-      localStorage.setItem('selected_role', JSON.stringify(roleData));
-
-      console.log(`🚀 Navigazione a dashboard:`, dashboardPath);
-      navigate(dashboardPath, { replace: true });
+      // Usa utility centralizzata per redirect
+      await handlePostAuthRedirect({
+        organization: data.organization,
+        user: data.user,
+        queryClient,
+        navigate
+      });
 
     } catch (err: any) {
       setError(err?.message || "Errore nel login");
@@ -547,31 +393,16 @@ export default function Login() {
 
                   <button
                     type="button"
-                    onClick={() => setAccountType("vendor")}
+                    onClick={() => setAccountType("provider")}
                     className={`px-4 py-3 border rounded-lg text-sm font-medium transition-colors ${
-                      accountType === "vendor"
+                      accountType === "provider"
                         ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                         : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
-                    🏢 Fornitore
+                    🏢 Provider
                     <div className="text-xs mt-1 opacity-75">
-                      Vendo droni
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setAccountType("operator")}
-                    className={`px-4 py-3 border rounded-lg text-sm font-medium transition-colors ${
-                      accountType === "operator"
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    ✈️ Operatore
-                    <div className="text-xs mt-1 opacity-75">
-                      Eseguo servizi
+                      Vendo prodotti e offro servizi
                     </div>
                   </button>
                 </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { saveCurrentPathAsRedirect } from "@/lib/auth-redirect";
 
 type Props = {
   children: React.ReactNode;
@@ -87,8 +88,8 @@ export default function RequireAuth({ children }: Props) {
 
   if (!isAuthed) {
     // Salva il percorso corrente come redirect per dopo il login
-    const redirectPath = location.pathname + location.search;
-    return <Navigate to={`/login?redirect=${encodeURIComponent(redirectPath)}`} replace />;
+    saveCurrentPathAsRedirect();
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
 import { validateBody } from '../middleware/validation';
+import { authMiddleware } from '../middleware/auth';
 import { CreateOrderFromCartSchema, UpdateOrderStatusSchema, CreateMessageSchema, MarkMessagesReadSchema } from '../schemas/api.schemas';
 
 const app = new Hono();
@@ -74,12 +75,13 @@ app.get('/', async (c) => {
     } else if (role === 'buyer') {
       isSeller = false;
     } else {
-      // NUOVA LOGICA: determina se è vendor/operator dal tipo organizzazione
+      // NUOVA LOGICA: determina se è provider dal tipo organizzazione
       const orgCheck = await query('SELECT type, org_type FROM organizations WHERE id = $1', [orgId]);
       if (orgCheck.rows.length > 0) {
         const org = orgCheck.rows[0];
         const orgType = (org.type || org.org_type || '').toLowerCase();
-        isSeller = orgType === 'vendor' || orgType === 'operator';
+        // Provider è seller, con fallback per retrocompatibilità
+        isSeller = orgType === 'provider' || orgType === 'vendor' || orgType === 'operator';
         console.log('🔍 Organization type check:', { orgId, orgType, isSeller });
       }
     }
@@ -176,7 +178,7 @@ app.get('/', async (c) => {
 // CREATE ORDER FROM CART
 // ============================================================================
 
-app.post('/create-from-cart', validateBody(CreateOrderFromCartSchema), async (c) => {
+app.post('/create-from-cart', authMiddleware, validateBody(CreateOrderFromCartSchema), async (c) => {
   try {
     const validatedBody = c.get('validatedBody') as any;
     const { cartId, shippingAddress, billingAddress, customerNotes } = validatedBody;
@@ -397,7 +399,7 @@ app.post('/create-from-cart', validateBody(CreateOrderFromCartSchema), async (c)
 // UPDATE ORDER STATUS
 // ============================================================================
 
-app.put('/:orderId/status', validateBody(UpdateOrderStatusSchema), async (c) => {
+app.put('/:orderId/status', authMiddleware, validateBody(UpdateOrderStatusSchema), async (c) => {
   try {
     const orderId = c.req.param('orderId');
     const { order_status, tracking_number } = await c.req.json();
@@ -446,7 +448,14 @@ app.put('/:orderId/status', validateBody(UpdateOrderStatusSchema), async (c) => 
       WHERE id = $${paramIndex + 1}
     `;
 
-    await query(updateQuery, updateValues);
+    const updateResult = await query(updateQuery, updateValues);
+    
+    // Guardrail: Se nessuna riga è stata aggiornata, ritorna 404
+    // PostgreSQL restituisce rowCount, SQLite restituisce changes
+    const affectedRows = updateResult.rowCount !== undefined ? updateResult.rowCount : (updateResult.changes || 0);
+    if (affectedRows === 0) {
+      return c.json({ error: 'Order not found or already in this status' }, 404);
+    }
 
     // AGGIORNA INVENTORY quando l'ordine viene spedito o consegnato
     if (order_status === 'SHIPPED' || order_status === 'DELIVERED' || order_status === 'FULFILLED') {
@@ -726,7 +735,7 @@ app.get('/:orderId/messages', async (c) => {
 });
 
 // POST MESSAGE
-app.post('/:orderId/messages', validateBody(CreateMessageSchema), async (c) => {
+app.post('/:orderId/messages', authMiddleware, validateBody(CreateMessageSchema), async (c) => {
   try {
     const orderId = c.req.param('orderId');
     const { sender_org_id, sender_user_id, message_text } = c.get('validatedBody');
@@ -797,7 +806,7 @@ app.post('/:orderId/messages', validateBody(CreateMessageSchema), async (c) => {
 });
 
 // MARK MESSAGES AS READ
-app.put('/:orderId/messages/read', validateBody(MarkMessagesReadSchema), async (c) => {
+app.put('/:orderId/messages/read', authMiddleware, validateBody(MarkMessagesReadSchema), async (c) => {
   try {
     const orderId = c.req.param('orderId');
     const { reader_org_id } = c.get('validatedBody');

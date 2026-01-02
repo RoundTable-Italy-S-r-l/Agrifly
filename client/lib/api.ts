@@ -3,8 +3,7 @@ import {
   Crop,
   Treatment,
   Affiliate,
-  GisCategory,
-  SavedField
+  GisCategory
 } from "@shared/api";
 import { getAuthHeaders } from "./auth";
 
@@ -14,8 +13,7 @@ export type {
   Crop,
   Treatment,
   Affiliate,
-  GisCategory,
-  SavedField
+  GisCategory
 };
 
 // Service Management Types

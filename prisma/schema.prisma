@@ -71,7 +71,7 @@ model Organization {
   kind          OrgKind   @map("kind")
   // NUOVA LOGICA: capabilities calcolate dinamicamente dal ruolo utente - non più hardcoded
   // can_buy, can_sell, can_operate, can_dispatch sono stati RIMOSSI
-  type          String?   @default("buyer") @map("type") // Tipo organizzazione: buyer/vendor/operator
+  type          String?   @default("buyer") @map("type") // Tipo organizzazione: buyer/provider
   address_line  String    @map("address_line")
   city          String    @map("city")
   province      String    @map("province")
@@ -158,7 +158,7 @@ model OrgMembership {
 enum OrgRole {
   ADMIN        // Admin generale dell'organizzazione
   BUYER        // Può comprare prodotti e servizi
-  SELLER       // Può vendere prodotti
+  VENDOR       // Può vendere prodotti
   OPERATOR     // Può eseguire servizi/operatori
   DISPATCHER   // Può assegnare e coordinare servizi
 }

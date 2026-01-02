@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { query } from '../utils/database';
+import { authMiddleware } from '../middleware/auth';
 import { validateBody, validateParams } from '../middleware/validation';
 import { AddCartItemSchema, UpdateCartItemSchema, CreateAddressSchema, UpdateAddressSchema, AddWishlistItemSchema, CreateAddressLegacySchema, UpdateAddressLegacySchema, DeleteItemParamsSchema, DeleteAddressParamsSchema, MigrateCartSchema } from '../schemas/api.schemas';
 
@@ -559,7 +560,7 @@ async function ensureWishlistProductIdColumn() {
 }
 
 // POST /api/ecommerce/wishlist - Aggiungi item alla wishlist
-app.post('/wishlist', validateBody(AddWishlistItemSchema), async (c) => {
+app.post('/wishlist', authMiddleware, validateBody(AddWishlistItemSchema), async (c) => {
   try {
     // Assicurati che product_id esista
     await ensureWishlistProductIdColumn();
@@ -709,7 +710,7 @@ app.get('/addresses', async (c) => {
 });
 
 // POST /api/ecommerce/addresses - Crea nuovo indirizzo
-app.post('/addresses', validateBody(CreateAddressLegacySchema), async (c) => {
+app.post('/addresses', authMiddleware, validateBody(CreateAddressLegacySchema), async (c) => {
   try {
     const addressData = c.get('validatedBody');
     const { orgId, type, name, company, address_line, city, province, postal_code, country, phone, is_default } = addressData;
@@ -726,10 +727,19 @@ app.post('/addresses', validateBody(CreateAddressLegacySchema), async (c) => {
       );
     }
 
+    // Generate ID (cuid format)
+    const generateId = () => {
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substring(2, 15);
+      return `addr_${timestamp}${random}`.substring(0, 30);
+    };
+    
+    const addressId = generateId();
+    
     const result = await query(
-      `INSERT INTO addresses (org_id, type, name, company, address_line, city, province, postal_code, country, phone, is_default)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-      [orgId, type, name, company, address_line, city, province, postal_code, country || 'IT', phone, is_default || false]
+      `INSERT INTO addresses (id, org_id, type, name, company, address_line, city, province, postal_code, country, phone, is_default)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [addressId, orgId, type, name, company, address_line, city, province, postal_code, country || 'IT', phone, is_default || false]
     );
 
     return c.json(result.rows[0]);

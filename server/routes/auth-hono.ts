@@ -19,7 +19,7 @@ import {
 //
 // ORGANIZZAZIONI (type scelto alla registrazione):
 // - buyer: compra prodotti/servizi → tutti membri vanno a /buyer
-// - vendor/operator: vende e "opera" prodotti → membri a /admin
+// - provider: vende prodotti e offre servizi → membri a /admin
 //
 // RUOLI UTENTE (gerarchia - PERMESSI TOTALMENTE SUGLI UTENTI):
 // - admin: grado gerarchico - ACCESSO COMPLETO A TUTTO
@@ -29,7 +29,7 @@ import {
 //
 // LOGICA INVITI:
 // - Buyer org: possono invitare solo admin (per sicurezza)
-// - Vendor/Operator org: possono invitare admin/vendor/operator/dispatcher
+// - Provider org: possono invitare admin/vendor/operator/dispatcher
 //
 // LOGICA PERMESSI (COMPLETAMENTE SUGLI UTENTI):
 // ✅ can_buy, can_sell, can_operate derivano dal RUOLO UTENTE, non dall'organizzazione!
@@ -80,7 +80,11 @@ app.post('/register', validateBody(RegisterOrganizationSchema, { transform: true
     const userId = generateId();
 
     // Determina tipo organizzazione basato su accountType
-    const orgType = accountType; // 'buyer', 'vendor', o 'operator'
+    // Mappa vendor/operator legacy a provider per retrocompatibilità
+    let orgType = accountType; // 'buyer' o 'provider'
+    if (orgType === 'vendor' || orgType === 'operator') {
+      orgType = 'provider';
+    }
     const orgTypeLower = orgType.toLowerCase();
     
     // NUOVA LOGICA COMPLETA: Capabilities calcolate dinamicamente dal ruolo utente

@@ -5,7 +5,7 @@
  * 
  * ORGANIZZAZIONI (type scelto alla registrazione - SOLO per routing):
  * - buyer: compra prodotti/servizi → tutti membri vanno a /buyer
- * - vendor/operator: vende e "opera" prodotti → membri vanno a /admin
+ * - provider: vende prodotti e offre servizi → membri vanno a /admin
  * 
  * RUOLI UTENTE (gerarchia - PERMESSI TOTALMENTE SUGLI UTENTI):
  * - admin: grado gerarchico - ACCESSO COMPLETO A TUTTO
@@ -17,13 +17,13 @@
  * 
  * LOGICA INVITI:
  * - Buyer org: possono invitare solo admin (per sicurezza)
- * - Vendor/Operator org: possono invitare admin/vendor/operator/dispatcher
+ * - Provider org: possono invitare admin/vendor/operator/dispatcher
  */
 
 /**
  * Mappa ruolo legacy (dal database) al nuovo ruolo standardizzato
  * @param legacyRole Ruolo legacy dal database (es. "VENDOR_ADMIN", "PILOT", ecc.)
- * @param orgType Tipo organizzazione (es. "vendor", "buyer", "operator")
+ * @param orgType Tipo organizzazione (es. "provider", "buyer")
  * @returns Ruolo standardizzato: "admin" | "vendor" | "operator" | "dispatcher"
  */
 export function mapLegacyRoleToNewRole(legacyRole: string | null | undefined, orgType?: string): string {
@@ -47,8 +47,8 @@ export function mapLegacyRoleToNewRole(legacyRole: string | null | undefined, or
     'PILOT': 'operator',
     'OPERATOR': 'operator',
     
-    // Ruoli vendor/sales (SALES → vendor per org vendor)
-    'SALES': orgType === 'vendor' ? 'vendor' : 'admin', // Se org vendor, mappa a vendor, altrimenti admin
+    // Ruoli vendor/sales (SALES → vendor per org provider/vendor)
+    'SALES': (orgType === 'provider' || orgType === 'vendor') ? 'vendor' : 'admin', // Se org provider/vendor, mappa a vendor, altrimenti admin
     'VENDOR': 'vendor',
   };
 

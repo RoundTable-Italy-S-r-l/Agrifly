@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { authAPI } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { addToWishlist, migrateCart } from '@/lib/api';
+import { addToWishlist } from '@/lib/api';
+import { handlePostAuthRedirect, migrateGuestCart } from '@/lib/auth-redirect';
 import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function VerifyEmail() {
@@ -47,118 +48,46 @@ export default function VerifyEmail() {
 
       // Attendi 2 secondi prima del redirect
       setTimeout(async () => {
-        // Controlla se c'è un redirect salvato
-        const postLoginRedirect = localStorage.getItem('post_login_redirect');
-        const wishlistAction = localStorage.getItem('wishlist_action');
-        const wishlistProductId = localStorage.getItem('wishlist_product_id');
-        
-        // Migra carrello guest se esiste (potrebbe non essere stato migrato durante la registrazione)
-        const sessionId = localStorage.getItem('session_id');
         const orgData = localStorage.getItem('organization');
         const userData = localStorage.getItem('user');
         
-        if (sessionId && orgData && userData) {
-          try {
-            const org = JSON.parse(orgData);
-            const user = JSON.parse(userData);
-            if (org.id && user.id) {
-              console.log('🛒 Migrazione carrello guest dopo verifica email...', { sessionId, userId: user.id, orgId: org.id });
-              const migrateResult = await migrateCart(sessionId, user.id, org.id);
-              console.log('📦 Risultato migrazione:', migrateResult);
-              localStorage.removeItem('session_id');
-              localStorage.removeItem('guest_org_id');
-              console.log('✅ Carrello migrato con successo dopo verifica email');
-              // Invalida specificamente le query del carrello
-              await queryClient.invalidateQueries({ queryKey: ['cart'] });
-            }
-          } catch (err) {
-            console.error('⚠️ Errore migrazione carrello dopo verifica email (non critico):', err);
-            // Non bloccare il flusso se la migrazione fallisce
-          }
-        }
-        
-        // Se c'è un'azione wishlist, aggiungi il prodotto ai preferiti
-        if (wishlistAction === 'true' && wishlistProductId) {
-          try {
-            if (orgData) {
-              const org = JSON.parse(orgData);
-              await addToWishlist(org.id, wishlistProductId);
-              console.log('✅ Prodotto aggiunto automaticamente ai preferiti dopo verifica email');
-            }
-          } catch (error) {
-            console.error('⚠️ Errore aggiunta automatica ai preferiti:', error);
-            // Non bloccare il flusso se fallisce
-          }
-          localStorage.removeItem('wishlist_action');
-          localStorage.removeItem('wishlist_product_id');
-        }
-        
-        // Invalida tutte le query per assicurarsi che i dati siano aggiornati
-        await queryClient.invalidateQueries();
-        
-        // Gestisci redirect al carrello (sia 'carrello' che '/buyer/carrello')
-        if ((postLoginRedirect === 'carrello' || postLoginRedirect === '/buyer/carrello' || postLoginRedirect?.includes('carrello')) && orgData) {
-          try {
-            const org = JSON.parse(orgData);
-            // NUOVA LOGICA: controlla tipo organizzazione invece di capabilities
-            if ((org.type || org.org_type) === 'buyer') {
-              localStorage.removeItem('post_login_redirect');
-              console.log(`🛒 Redirect a /buyer/carrello dopo verifica email`);
-              navigate('/buyer/carrello', { replace: true });
-              return;
-            }
-          } catch (error) {
-            console.error('Errore parsing org data:', error);
-          }
-        }
-        
-        // Gestisci redirect a nuovo-preventivo
-        if (postLoginRedirect === 'nuovo-preventivo' && orgData) {
-          try {
-            const org = JSON.parse(orgData);
-            // NUOVA LOGICA: controlla tipo organizzazione invece di capabilities
-            if ((org.type || org.org_type) === 'buyer') {
-              localStorage.removeItem('post_login_redirect');
-              console.log(`🚀 Redirect a /buyer/nuovo-preventivo dopo verifica email`);
-              navigate('/buyer/nuovo-preventivo', { replace: true });
-              return;
-            }
-          } catch (error) {
-            console.error('Errore parsing org data:', error);
-          }
-        }
-        
-        // Gestisci altri redirect diretti (percorsi completi)
-        if (postLoginRedirect && postLoginRedirect.startsWith('/')) {
-          localStorage.removeItem('post_login_redirect');
-          console.log(`🔄 Redirect a percorso specifico dopo verifica email: ${postLoginRedirect}`);
-          navigate(postLoginRedirect, { replace: true });
+        if (!orgData || !userData) {
+          navigate('/dashboard', { replace: true });
           return;
         }
-        
-        localStorage.removeItem('post_login_redirect');
-        
-        // Determina dashboard in base alle capabilities dell'organizzazione
-        if (orgData) {
-          try {
-            const org = JSON.parse(orgData);
-            // NUOVA LOGICA: usa solo il tipo organizzazione
-            const orgType = org.type || org.org_type;
-            if (orgType === 'buyer') {
-              // Buyer → dashboard buyer
-              navigate('/buyer', { replace: true });
-            } else if (orgType === 'vendor' || orgType === 'operator') {
-              // Vendor/Operator → dashboard admin
-              navigate('/admin', { replace: true });
-            } else {
-              // Fallback alla dashboard generica
-              navigate('/dashboard', { replace: true });
+
+        try {
+          const org = JSON.parse(orgData);
+          const user = JSON.parse(userData);
+          
+          // Migra carrello guest se esiste
+          await migrateGuestCart(org, user, queryClient);
+          
+          // Gestisci wishlist action se presente
+          const wishlistAction = localStorage.getItem('wishlist_action');
+          const wishlistProductId = localStorage.getItem('wishlist_product_id');
+          if (wishlistAction === 'true' && wishlistProductId) {
+            try {
+              await addToWishlist(org.id, wishlistProductId);
+              console.log('✅ Prodotto aggiunto automaticamente ai preferiti dopo verifica email');
+            } catch (error) {
+              console.error('⚠️ Errore aggiunta automatica ai preferiti:', error);
             }
-          } catch (error) {
-            console.error('Errore parsing org data:', error);
-            navigate('/dashboard', { replace: true });
+            localStorage.removeItem('wishlist_action');
+            localStorage.removeItem('wishlist_product_id');
           }
-        } else {
+          
+          await queryClient.invalidateQueries();
+          
+          // Usa utility centralizzata per redirect
+          await handlePostAuthRedirect({
+            organization: org,
+            user: user,
+            queryClient,
+            navigate
+          });
+        } catch (error) {
+          console.error('Errore parsing org/user data:', error);
           navigate('/dashboard', { replace: true });
         }
       }, 2000);

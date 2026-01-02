@@ -1,7 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Organization, OrgMembership, User } from '@prisma/client'
 
-// Type definitions for API responses
+// Type definitions for API responses (local types, not from Prisma)
+type Organization = {
+  id: string;
+  legal_name: string;
+  type?: string;
+  org_type?: string;
+  [key: string]: any;
+}
+
+type User = {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  [key: string]: any;
+}
+
+type OrgMembership = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  role: string;
+  [key: string]: any;
+}
+
 type OrganizationWithUsers = Organization & {
   memberships?: Array<OrgMembership & { user: User }>
 }

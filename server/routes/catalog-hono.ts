@@ -12,7 +12,7 @@ const app = new Hono();
 // Route specifica prima della route generica per evitare conflitti
 // ============================================================================
 
-app.post('/vendor/:orgId/toggle', validateBody(ToggleProductSchema), async (c) => {
+app.post('/vendor/:orgId/toggle', authMiddleware, validateBody(ToggleProductSchema), async (c) => {
   try {
     const orgId = c.req.param('orgId');
     const { skuId, catalogItemId, isForSale } = c.get('validatedBody');

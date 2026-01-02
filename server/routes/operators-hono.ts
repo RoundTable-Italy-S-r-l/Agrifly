@@ -359,13 +359,16 @@ app.post('/:orgId', authMiddleware, validateBody(CreateOperatorSchema), async (c
       RETURNING id
     `;
 
+    // PostgreSQL: Ensure service_tags is properly formatted JSON
+    const serviceTagsJson = Array.isArray(service_tags) ? JSON.stringify(service_tags || []) : (service_tags || '[]');
+    
     const values = [
       orgId,
       user_id || null,
       home_location_id || null,
       max_hours_per_day || null,
       max_ha_per_day || null,
-      JSON.stringify(service_tags),
+      serviceTagsJson,
       default_service_area_set_id || null,
       'ORG_DEFAULT', // Default: usa area organizzazione
       'ACTIVE'
@@ -448,8 +451,11 @@ app.put('/:orgId/:operatorId', validateBody(UpdateOperatorSchema), async (c) => 
       WHERE id = $8 AND org_id = $9
     `;
 
+    // PostgreSQL: Cast to jsonb for proper array handling
+    const serviceTagsJson = Array.isArray(service_tags) ? JSON.stringify(service_tags || []) : (service_tags || '[]');
+    
     await query(updateQuery, [
-      JSON.stringify(service_tags || []),
+      serviceTagsJson,
       max_hours_per_day || null,
       max_ha_per_day || null,
       home_location_id || null,

@@ -21,21 +21,30 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
   const queryClient = useQueryClient();
 
   // Query per messaggi
-  const { data: messages = [], isLoading } = useQuery({
+  const { data: messagesData, isLoading, error: queryError } = useQuery<JobOfferMessage[]>({
     queryKey: ['jobOfferMessages', offerId],
     queryFn: () => {
       console.log('💬 [CHAT QUERY] Fetching messages for offerId:', offerId);
       return fetchJobOfferMessages(offerId);
     },
     refetchInterval: 3000, // Auto-refresh ogni 3 secondi
-    enabled: !!offerId,
-    onSuccess: (data) => {
-      console.log('💬 [CHAT QUERY] Messages loaded:', data?.length || 0, 'messages');
-    },
-    onError: (error) => {
-      console.error('💬 [CHAT QUERY] Error loading messages:', error);
-    }
+    enabled: !!offerId
   });
+
+  const messages = messagesData || [];
+
+  // Gestisci success/error con useEffect
+  useEffect(() => {
+    if (messages.length > 0) {
+      console.log('💬 [CHAT QUERY] Messages loaded:', messages.length, 'messages');
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (queryError) {
+      console.error('💬 [CHAT QUERY] Error loading messages:', queryError);
+    }
+  }, [queryError]);
 
   // Mutation per inviare messaggio
   const sendMessageMutation = useMutation({
@@ -44,18 +53,25 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
       return sendJobOfferMessage(offerId, {
         content: text
       });
-    },
-    onSuccess: () => {
+    }
+  });
+
+  // Gestisci success/error con useEffect
+  useEffect(() => {
+    if (sendMessageMutation.isSuccess) {
       console.log('💬 [CHAT SEND] Message sent successfully');
       setMessageText('');
       queryClient.invalidateQueries({ queryKey: ['jobOfferMessages', offerId] });
       // Marca messaggi come letti dopo l'invio
       markJobOfferMessagesAsRead(offerId, currentOrgId).catch(console.error);
-    },
-    onError: (error) => {
-      console.error('💬 [CHAT SEND] Error sending message:', error);
     }
-  });
+  }, [sendMessageMutation.isSuccess, offerId, currentOrgId, queryClient]);
+
+  useEffect(() => {
+    if (sendMessageMutation.error) {
+      console.error('💬 [CHAT SEND] Error sending message:', sendMessageMutation.error);
+    }
+  }, [sendMessageMutation.error]);
 
   // Marca messaggi come letti quando si caricano
   useEffect(() => {

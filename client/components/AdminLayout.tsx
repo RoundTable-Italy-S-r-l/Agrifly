@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, Calendar, Users, Settings, BarChart3, Package, Truck, CreditCard, Pin, PinOff, ClipboardList, Lock, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Calendar, Users, Settings, BarChart3, Package, Truck, CreditCard, Pin, PinOff, ClipboardList, Lock, LogOut, Globe } from 'lucide-react';
 import { authAPI } from '@/lib/auth';
 
 interface AdminLayoutProps {
@@ -271,6 +271,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* User info */}
           <div className={`p-4 border-t border-slate-200 transition-all duration-300 ease-in-out ${isExpanded ? 'px-4' : 'px-2'}`}>
+            <Link
+              to="/"
+              className={`w-full flex items-center gap-2 px-3 py-2 mb-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors ${
+                isExpanded ? 'justify-start' : 'justify-center'
+              }`}
+              title={!isExpanded ? 'Vai al sito' : undefined}
+            >
+              <Globe className="w-4 h-4 flex-shrink-0" />
+              {isExpanded && <span>Vai al sito</span>}
+            </Link>
             <button
               onClick={handleLogout}
               className={`w-full flex items-center gap-2 px-3 py-2 mb-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors ${

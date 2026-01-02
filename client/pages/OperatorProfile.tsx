@@ -114,7 +114,7 @@ export default function OperatorProfile() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-sm">
-                    {org.type === 'operator' ? 'Operatore' : org.type === 'vendor' ? 'Vendor' : 'Organizzazione'}
+                    {org.type === 'provider' ? 'Provider' : org.type === 'operator' ? 'Operatore' : org.type === 'vendor' ? 'Vendor' : 'Organizzazione'}
                   </Badge>
                 </div>
               </div>
