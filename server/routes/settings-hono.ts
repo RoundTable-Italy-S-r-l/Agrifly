@@ -928,7 +928,7 @@ app.post('/organization/upload-logo', authMiddleware, async (c) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media File';
+    const bucketName = process.env.SUPABASE_STORAGE_BUCKET || 'Media FIle';
 
     // Genera nome file univoco
     const fileExt = logoFile.name.split('.').pop() || 'jpg';

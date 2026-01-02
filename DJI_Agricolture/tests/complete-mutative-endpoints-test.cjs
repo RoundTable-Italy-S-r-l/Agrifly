@@ -532,9 +532,10 @@ const mutativeEndpoints = [
           'Authorization': `Bearer ${authTokens.vendor}`
         },
         body: JSON.stringify({
-          name: 'Original Operator',
-          license_number: `LIC-${Date.now()}`,
-          phone: '+39 111 222 3333'
+          first_name: 'Original',
+          last_name: 'Operator',
+          email: `op-${Date.now()}@test.com`,
+          service_tags: ['SPRAY']
         })
       });
       if (createResponse.ok) {
@@ -543,16 +544,17 @@ const mutativeEndpoints = [
       }
       return { orgId, operatorId: 'test-operator-id' };
     },
-    invalidBody: { name: '' },
+    invalidBody: { first_name: '' },
     validBody: {
-      name: 'Updated Operator',
+      first_name: 'Updated',
+      last_name: 'Operator',
       phone: '+39 999 888 7777'
     },
     verifyWrite: async (db, recordId, writeData) => {
-      const { data } = await db.from('operators').select('name').eq('id', recordId).single();
+      const { data } = await db.from('operator_profiles').select('first_name, last_name').eq('id', recordId).single();
       if (!data) return { match: false, field: 'id', expected: recordId, actual: null };
-      if (data.name !== writeData.name) {
-        return { match: false, field: 'name', expected: writeData.name, actual: data.name };
+      if (data.first_name !== writeData.first_name) {
+        return { match: false, field: 'first_name', expected: writeData.first_name, actual: data.first_name };
       }
       return { match: true };
     }
