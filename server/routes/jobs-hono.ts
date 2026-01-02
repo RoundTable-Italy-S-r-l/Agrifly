@@ -357,8 +357,18 @@ app.get('/:jobId', authMiddleware, async (c) => {
       return c.json({ error: 'Non hai i permessi per visualizzare questo job' }, 403);
     }
 
-    // Deserialize location_json
-    const locJson = job.location_json ? (typeof job.location_json === 'string' ? JSON.parse(job.location_json) : job.location_json) : null;
+    // Deserialize location_json safely
+    let locJson = null;
+    try {
+      if (job.location_json) {
+        locJson = typeof job.location_json === 'string' 
+          ? JSON.parse(job.location_json) 
+          : job.location_json;
+      }
+    } catch (e) {
+      console.warn(`⚠️ [GET JOB] Error parsing location_json for job ${jobId}:`, e);
+      locJson = null;
+    }
 
     // Fetch offers for this job
     const offersResult = await query(`
@@ -369,24 +379,38 @@ app.get('/:jobId', authMiddleware, async (c) => {
       ORDER BY jo.created_at DESC
     `, [jobId]);
 
-    const offers = offersResult.rows.map((offer: any) => ({
-      id: offer.id,
-      job_id: offer.job_id,
-      operator_org_id: offer.operator_org_id,
-      status: offer.status,
-      pricing_snapshot_json: offer.pricing_snapshot_json ? (typeof offer.pricing_snapshot_json === 'string' ? JSON.parse(offer.pricing_snapshot_json) : offer.pricing_snapshot_json) : null,
-      total_cents: parseInt(offer.total_cents) || 0,
-      currency: offer.currency || 'EUR',
-      proposed_start: offer.proposed_start,
-      proposed_end: offer.proposed_end,
-      provider_note: offer.provider_note,
-      created_at: offer.created_at,
-      updated_at: offer.updated_at,
-      operator_org: {
-        id: offer.operator_org_id,
-        legal_name: offer.operator_org_legal_name || 'Operatore sconosciuto'
+    const offers = offersResult.rows.map((offer: any) => {
+      let pricingSnapshot = null;
+      try {
+        if (offer.pricing_snapshot_json) {
+          pricingSnapshot = typeof offer.pricing_snapshot_json === 'string' 
+            ? JSON.parse(offer.pricing_snapshot_json) 
+            : offer.pricing_snapshot_json;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [GET JOB] Error parsing pricing_snapshot_json for offer ${offer.id}:`, e);
+        pricingSnapshot = null;
       }
-    }));
+      
+      return {
+        id: offer.id,
+        job_id: offer.job_id,
+        operator_org_id: offer.operator_org_id,
+        status: offer.status,
+        pricing_snapshot_json: pricingSnapshot,
+        total_cents: parseInt(offer.total_cents) || 0,
+        currency: offer.currency || 'EUR',
+        proposed_start: offer.proposed_start,
+        proposed_end: offer.proposed_end,
+        provider_note: offer.provider_note,
+        created_at: offer.created_at,
+        updated_at: offer.updated_at,
+        operator_org: {
+          id: offer.operator_org_id,
+          legal_name: offer.operator_org_legal_name || 'Operatore sconosciuto'
+        }
+      };
+    });
 
     return c.json({
       id: job.id,

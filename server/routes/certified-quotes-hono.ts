@@ -145,29 +145,53 @@ app.get('/', validateQueryMiddleware(CertifiedQuotesRequestSchema), async (c) =>
           const has_obstacles = false; // Could be extracted from job constraints if needed
 
           // Parse JSON fields
-          const seasonalMultipliers = org.seasonal_multipliers_json
-            ? (typeof org.seasonal_multipliers_json === 'string'
+          let seasonalMultipliers = {};
+          try {
+            if (org.seasonal_multipliers_json) {
+              seasonalMultipliers = typeof org.seasonal_multipliers_json === 'string'
                 ? JSON.parse(org.seasonal_multipliers_json)
-                : org.seasonal_multipliers_json)
-            : {};
+                : org.seasonal_multipliers_json;
+            }
+          } catch (e) {
+            console.warn(`⚠️ [CERTIFIED QUOTES] Error parsing seasonal_multipliers_json for org ${org.id}:`, e);
+            seasonalMultipliers = {};
+          }
 
-          const riskMultipliers = org.risk_multipliers_json
-            ? (typeof org.risk_multipliers_json === 'string'
+          let riskMultipliers = {};
+          try {
+            if (org.risk_multipliers_json) {
+              riskMultipliers = typeof org.risk_multipliers_json === 'string'
                 ? JSON.parse(org.risk_multipliers_json)
-                : org.risk_multipliers_json)
-            : {};
+                : org.risk_multipliers_json;
+            }
+          } catch (e) {
+            console.warn(`⚠️ [CERTIFIED QUOTES] Error parsing risk_multipliers_json for org ${org.id}:`, e);
+            riskMultipliers = {};
+          }
 
-          const storedCustomMultipliers = org.custom_multipliers_json
-            ? (typeof org.custom_multipliers_json === 'string'
+          let storedCustomMultipliers = {};
+          try {
+            if (org.custom_multipliers_json) {
+              storedCustomMultipliers = typeof org.custom_multipliers_json === 'string'
                 ? JSON.parse(org.custom_multipliers_json)
-                : org.custom_multipliers_json)
-            : {};
+                : org.custom_multipliers_json;
+            }
+          } catch (e) {
+            console.warn(`⚠️ [CERTIFIED QUOTES] Error parsing custom_multipliers_json for org ${org.id}:`, e);
+            storedCustomMultipliers = {};
+          }
 
-          const storedCustomSurcharges = org.custom_surcharges_json
-            ? (typeof org.custom_surcharges_json === 'string'
+          let storedCustomSurcharges = {};
+          try {
+            if (org.custom_surcharges_json) {
+              storedCustomSurcharges = typeof org.custom_surcharges_json === 'string'
                 ? JSON.parse(org.custom_surcharges_json)
-                : org.custom_surcharges_json)
-            : {};
+                : org.custom_surcharges_json;
+            }
+          } catch (e) {
+            console.warn(`⚠️ [CERTIFIED QUOTES] Error parsing custom_surcharges_json for org ${org.id}:`, e);
+            storedCustomSurcharges = {};
+          }
 
           // Calculate base service cost (area × base_rate_per_ha)
           // Assicurati che base_rate_per_ha_cents sia un numero valido
