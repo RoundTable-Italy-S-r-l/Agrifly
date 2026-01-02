@@ -27,6 +27,7 @@ function formatMetricValue(value: number | null, key: string): string {
 
 export function ProductRadarChart({ metrics }: ProductRadarChartProps) {
   // Raccogli tutte le metriche da tutti i cluster in un array per il grafico
+  // Limita a massimo 6 cluster (uno per asse del grafico)
   const allMetrics: Array<{ 
     metric: string; 
     value: number; 
@@ -36,16 +37,23 @@ export function ProductRadarChart({ metrics }: ProductRadarChartProps) {
     max: number;
   }> = [];
   
-  Object.entries(metrics.clusters).forEach(([cluster, clusterMetrics]) => {
-    clusterMetrics.forEach(metric => {
-      allMetrics.push({
-        metric: metric.label,
-        value: metric.value,
-        cluster,
-        rawValue: metric.rawValue,
-        min: metric.min,
-        max: metric.max
-      });
+  // Prendi solo i primi 6 cluster con metriche disponibili
+  // Per ogni cluster, calcola la media delle metriche normalizzate
+  const clustersWithMetrics = Object.entries(metrics.clusters)
+    .filter(([_, clusterMetrics]) => clusterMetrics.length > 0)
+    .slice(0, 6);
+  
+  clustersWithMetrics.forEach(([cluster, clusterMetrics]) => {
+    // Calcola media delle metriche normalizzate per questo cluster
+    const avgValue = clusterMetrics.reduce((sum, m) => sum + m.value, 0) / clusterMetrics.length;
+    
+    allMetrics.push({
+      metric: cluster, // Usa il nome del cluster come label
+      value: avgValue,
+      cluster,
+      rawValue: null, // Non mostriamo raw value per cluster aggregato
+      min: 0,
+      max: 100
     });
   });
   
@@ -83,26 +91,26 @@ export function ProductRadarChart({ metrics }: ProductRadarChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Confronto con altri prodotti ({metrics.purposes.join(', ')})</CardTitle>
-        <p className="text-sm text-slate-500 mt-2">
-          Il grafico mostra come questo prodotto si posiziona rispetto agli altri prodotti con lo stesso purpose.
-          I valori sono normalizzati su una scala 0-100 basata sui min/max del gruppo.
+        <CardTitle className="text-lg">Confronto prodotti</CardTitle>
+        <p className="text-xs text-slate-500 mt-1">
+          Posizionamento rispetto ad altri prodotti con purpose: {metrics.purposes.join(', ')}
         </p>
       </CardHeader>
       <CardContent>
-        <div className="w-full h-[500px]">
+        <div className="w-full h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={chartData}>
               <PolarGrid stroke="#e5e7eb" />
               <PolarAngleAxis 
                 dataKey="metric" 
-                tick={{ fill: '#64748b', fontSize: 12 }}
-                style={{ fontSize: '12px' }}
+                tick={{ fill: '#64748b', fontSize: 11 }}
+                style={{ fontSize: '11px' }}
               />
               <PolarRadiusAxis 
                 angle={90} 
                 domain={[0, 100]}
-                tick={{ fill: '#94a3b8', fontSize: 10 }}
+                tick={{ fill: '#94a3b8', fontSize: 9 }}
+                tickCount={5}
               />
               <Radar
                 name={metrics.productName}
@@ -111,10 +119,6 @@ export function ProductRadarChart({ metrics }: ProductRadarChartProps) {
                 fill="#4f46e5"
                 fillOpacity={0.6}
                 strokeWidth={2}
-              />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                formatter={(value) => <span className="text-sm text-slate-700">{value}</span>}
               />
             </RadarChart>
           </ResponsiveContainer>

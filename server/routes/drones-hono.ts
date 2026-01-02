@@ -748,7 +748,6 @@ app.get('/:id/metrics', async (c) => {
     // Se il prodotto ha più purpose, prendiamo il primo per il grafico principale
     // (in futuro si potrebbero fare grafici multipli)
     const primaryPurpose = purposes[0];
-    const allProductsMetrics = allMetricsByPurpose[primaryPurpose] || [];
     
     // Normalizza specs di tutti i prodotti
     const allProductsMetrics = allProductsResult.rows.map(row => {
@@ -780,13 +779,13 @@ app.get('/:id/metrics', async (c) => {
       }
     });
     
-    // Raggruppa per cluster - solo cluster rilevanti per il purpose
-    const relevantClusters = CLUSTERS_BY_PURPOSE[primaryPurpose] || Object.keys(METRIC_CLUSTERS);
+    // Raggruppa per cluster - solo cluster rilevanti per il purpose (max 6)
+    const relevantClusters = (CLUSTERS_BY_PURPOSE[primaryPurpose] || Object.keys(METRIC_CLUSTERS)).slice(0, 6);
     const clusterMetrics: Record<string, Array<{ key: string; label: string; value: number; rawValue: number | null; min: number; max: number }>> = {};
     
     relevantClusters.forEach(cluster => {
       const fields = METRIC_CLUSTERS[cluster] || [];
-      clusterMetrics[cluster] = fields
+      const clusterMetricData = fields
         .filter(key => normalizedMetrics[key] !== undefined)
         .map(key => ({
           key,
@@ -796,6 +795,11 @@ app.get('/:id/metrics', async (c) => {
           min: minMax[key]?.min || 0,
           max: minMax[key]?.max || 100
         }));
+      
+      // Solo aggiungi cluster se ha almeno una metrica
+      if (clusterMetricData.length > 0) {
+        clusterMetrics[cluster] = clusterMetricData;
+      }
     });
     
     return c.json({
