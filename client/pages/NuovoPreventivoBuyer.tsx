@@ -23,10 +23,10 @@ interface JobFormData {
 }
 
 const SERVICE_TYPES = [
-  { value: "IRRORAZIONE", label: "Irrorazione", icon: "🌿" },
-  { value: "SPANDIMENTO", label: "Spandimento", icon: "🌱" },
-  { value: "RILIEVO_AEREO", label: "Rilievo aereo", icon: "🗺️" },
-  { value: "SOLLEVAMENTO", label: "Sollevamento", icon: "🚁" },
+  { value: "IRRORAZIONE", label: "Irrorazione" },
+  { value: "SPANDIMENTO", label: "Spandimento" },
+  { value: "RILIEVO_AEREO", label: "Rilievo aereo" },
+  { value: "SOLLEVAMENTO", label: "Sollevamento" },
 ];
 
 const CROP_TYPES = [
@@ -60,9 +60,9 @@ const TREATMENT_TYPES = {
 };
 
 const TERRAIN_CONDITIONS = [
-  { value: "FLAT", label: "Terreno pianeggiante", icon: "🏞️" },
-  { value: "HILLY", label: "Terreno collinare", icon: "🏔️" },
-  { value: "MOUNTAINOUS", label: "Terreno montuoso", icon: "⛰️" },
+  { value: "FLAT", label: "Terreno pianeggiante" },
+  { value: "HILLY", label: "Terreno collinare" },
+  { value: "MOUNTAINOUS", label: "Terreno montuoso" },
 ];
 
 export default function NuovoPreventivoBuyer() {
@@ -461,7 +461,7 @@ export default function NuovoPreventivoBuyer() {
               <label className="block text-sm font-semibold text-slate-700 mb-3">
                 Tipo di Servizio *
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {SERVICE_TYPES.map((service) => (
                   <button
                     key={service.value}
@@ -480,13 +480,12 @@ export default function NuovoPreventivoBuyer() {
                         return newData;
                       });
                     }}
-                    className={`p-4 border rounded-lg text-left transition-colors ${
+                    className={`p-4 border rounded-lg text-center transition-colors ${
                       jobData.service_type === service.value
                         ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                         : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
-                    <div className="text-2xl mb-2">{service.icon}</div>
                     <div className="font-medium">{service.label}</div>
                   </button>
                 ))}
