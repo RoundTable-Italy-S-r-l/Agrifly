@@ -612,23 +612,27 @@ const DroneDetail = () => {
                 {/* Core Specs Grid - Raggruppate per sezione */}
                 {coreSpecs.length > 0 && (
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900 mb-6">
-                      Specifiche Principali
-                    </h3>
                     <div className="space-y-6">
                       {(() => {
                         const orderedSections = getOrderedSections(coreSpecsGrouped);
                         console.log('Ordered sections:', orderedSections);
                         console.log('Core specs grouped:', coreSpecsGrouped);
-                        return orderedSections.map((section) => (
-                        <div
-                          key={section}
-                          className="bg-white rounded-lg border border-slate-200 p-6"
-                        >
-                          <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <span className="w-1 h-6 bg-emerald-600 rounded"></span>
-                            {translateSection(section)}
-                          </h4>
+                        return orderedSections.map((section) => {
+                          const sectionSpecs = coreSpecsGrouped[section] || [];
+                          console.log(`Section ${section}:`, sectionSpecs.length, 'specs');
+                          if (sectionSpecs.length === 0) {
+                            console.log(`Skipping empty section: ${section}`);
+                            return null;
+                          }
+                          return (
+                          <div
+                            key={section}
+                            className="bg-white rounded-lg border border-slate-200 p-6"
+                          >
+                            <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                              <span className="w-1 h-6 bg-emerald-600 rounded"></span>
+                              {translateSection(section)}
+                            </h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {coreSpecsGrouped[section].map(
                               (spec: any, idx: number) => (
@@ -652,7 +656,8 @@ const DroneDetail = () => {
                             )}
                           </div>
                         </div>
-                        ));
+                          );
+                        });
                       })()}
                     </div>
                   </div>

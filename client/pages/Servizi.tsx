@@ -1396,7 +1396,7 @@ function ServiceConfigSheet({
   };
 
   const [formData, setFormData] = useState({
-    service_type: (rateCard?.service_type || "SPRAY") as ServiceType,
+    service_type: (rateCard?.service_type || "IRRORAZIONE") as ServiceType,
     base_rate_per_ha_cents: rateCard?.base_rate_per_ha_cents || 1800,
     min_charge_cents: rateCard?.min_charge_cents || 25000,
     travel_fixed_cents: rateCard?.travel_fixed_cents || 0,

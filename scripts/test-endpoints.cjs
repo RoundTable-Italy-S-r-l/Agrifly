@@ -105,6 +105,9 @@ async function runEndpointTests() {
   // 9. Test Categories/Tags
   await testEndpoint('GET', '/categories', null, 'Recupero Categorie');
 
+  // 10. Test Certified Quotes (il problema dell'utente)
+  await testEndpoint('GET', '/certified-quotes?service_type=IRRORAZIONE&area_ha=119.38846976143269&location_lat=46.00673927828152&location_lng=10.892189025878908&terrain_conditions=HILLY&crop_type=OLIVE_GROVE&treatment_type=FUNGICIDE', null, 'Test Certified Quotes IRRORAZIONE');
+
   console.log('\n📊 Test Endpoints Completato!');
   console.log('====================================');
   console.log('✅ Verifica i risultati sopra per eventuali errori');

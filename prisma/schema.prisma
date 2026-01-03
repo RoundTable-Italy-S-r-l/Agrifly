@@ -229,9 +229,10 @@ model OrgServicePolicy {
 }
 
 enum ServiceType {
-  SPRAY
-  SPREAD
-  MAPPING
+  IRRORAZIONE
+  SPANDIMENTO
+  RILIEVO_AEREO
+  SOLLEVAMENTO
 }
 
 // ENUM ITALIANI - Disponibili solo in Supabase PostgreSQL
