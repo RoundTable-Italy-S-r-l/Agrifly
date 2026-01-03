@@ -586,8 +586,8 @@ const mutativeEndpoints = [
       min_charge_cents: 35000
     },
     verifyWrite: async (db, recordId, writeData) => {
-      const pathParts = recordId.split('/');
-      const rateCardId = pathParts[pathParts.length - 1];
+      // recordId è rateCardId dall'endpoint
+      const rateCardId = recordId;
       const { data } = await db.from('rate_cards')
         .select('base_rate_per_ha_cents')
         .eq('id', rateCardId)
@@ -995,22 +995,21 @@ const mutativeEndpoints = [
       content: 'Test message for offer',
       sender_role: 'BUYER'
     },
-    verifyWrite: async (db, recordId, writeData) => {
-      // Cerca in offer_messages o messages table
-      let data = null;
-      try {
-        const result = await db.from('offer_messages').select('message').eq('id', recordId).single();
-        data = result.data;
-      } catch (e) {
-        // Prova altre tabelle
-        try {
-          const altResult = await db.from('messages').select('content').eq('id', recordId).single();
-          data = altResult.data;
-        } catch (e2) {
-          // Nessuna tabella trovata
-        }
+    verifyWrite: async (db, recordId, writeData, pathParams) => {
+      // recordId è l'offerId, cerca i messaggi per questa offerta
+      const offerId = pathParams?.offerId || recordId;
+      // Aspetta sincronizzazione
+      await new Promise(r => setTimeout(r, 1000));
+      // Cerca in job_offer_messages table
+      const { data, error } = await db.from('job_offer_messages')
+        .select('id, body')
+        .eq('job_offer_id', offerId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) {
+        return { match: false, field: 'id', expected: 'message for offer ' + offerId, actual: null };
       }
-      if (!data) return { match: false, field: 'id', expected: recordId, actual: null };
       return { match: true };
     }
   },

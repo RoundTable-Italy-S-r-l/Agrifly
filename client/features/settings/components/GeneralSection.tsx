@@ -60,6 +60,10 @@ export function GeneralSection() {
   const [selectedProvince, setSelectedProvince] = useState<string>('')
   const [selectedCity, setSelectedCity] = useState<string>('')
   
+  // Stato per input città con autocomplete
+  const [cityInputValue, setCityInputValue] = useState<string>('')
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false)
+  
   // Ottieni regioni uniche
   const regions = Array.from(new Set(provinces.map(p => p.region))).sort()
   
@@ -68,10 +72,17 @@ export function GeneralSection() {
     ? provinces.filter(p => p.region === selectedRegion).sort((a, b) => a.name.localeCompare(b.name))
     : []
   
-  // Città filtrate per provincia
-  const filteredCities = selectedProvince && majorCities[selectedProvince]
-    ? majorCities[selectedProvince].sort()
+  // Città filtrate per provincia (suggerimenti per autocomplete)
+  const citySuggestions = selectedProvince && majorCities[selectedProvince]
+    ? majorCities[selectedProvince].filter(city => city && city.trim() !== '').sort()
     : []
+  
+  // Filtra suggerimenti in base all'input
+  const filteredCitySuggestions = cityInputValue
+    ? citySuggestions.filter(city => 
+        city.toLowerCase().includes(cityInputValue.toLowerCase())
+      )
+    : citySuggestions
 
   const form = useForm<OrganizationForm>({
     resolver: zodResolver(organizationSchema),

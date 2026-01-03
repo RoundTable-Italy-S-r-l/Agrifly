@@ -265,8 +265,8 @@ app.post('/create-from-cart', authMiddleware, validateBody(CreateOrderFromCartSc
       subtotalCents += lineTotal;
 
       return {
-        sku_id: item.sku_id,
-        quantity: item.quantity,
+      sku_id: item.sku_id,
+      qty: item.quantity,
         unit_price_cents: unitPrice,
         line_total_cents: lineTotal
       };

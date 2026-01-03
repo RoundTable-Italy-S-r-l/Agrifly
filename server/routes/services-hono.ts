@@ -769,6 +769,18 @@ app.put('/:orgId/:rateCardId', authMiddleware, validateBody(UpdateServiceSchema)
 
     console.log('💰 PUT Update rate card by ID:', rateCardId, 'per org:', orgId, 'data:', body);
 
+    // Check if rate card exists first
+    const checkQuery = 'SELECT service_type FROM rate_cards WHERE id = $1 AND seller_org_id = $2';
+    const checkResult = await query(checkQuery, [rateCardId, orgId]);
+
+    if (checkResult.rows.length === 0) {
+      console.log('❌ PUT Rate card not found:', rateCardId);
+      return c.json({ error: 'Rate card not found' }, 404);
+    }
+
+    const existingServiceType = checkResult.rows[0].service_type;
+    console.log('✅ PUT Rate card exists with service_type:', existingServiceType);
+
     const dbUrl = process.env.DATABASE_URL || '';
     const isPostgreSQL = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
 
@@ -884,6 +896,9 @@ app.put('/:orgId/:rateCardId', authMiddleware, validateBody(UpdateServiceSchema)
     `;
 
     updateValues.push(rateCardId, orgId);
+
+    console.log('💰 PUT Update query:', updateQuery);
+    console.log('💰 PUT Update values:', updateValues);
 
     await query(updateQuery, updateValues);
 
