@@ -1088,13 +1088,13 @@ export default function OfferDetail() {
       case "AGRICULTURAL_SERVICES":
         return "Servizi Agricoli";
       case "SPRAY":
-        return "Trattamento fitosanitario";
+        return "Irrorazione";
       case "FERTILIZE":
         return "Spandimento fertilizzanti";
       case "SPREAD":
-        return "Spandimento fertilizzanti";
+        return "Spandimento";
       case "MAPPING":
-        return "Mappatura territoriale";
+        return "Rilievo aereo";
       default:
         return serviceType;
     }

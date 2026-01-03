@@ -12,14 +12,14 @@ async function callVoiceAssistantAPI(text) {
 Richiesta utente: "${text}"
 
 Opzioni disponibili per il modulo:
-• Tipo di servizio: irrorazione (SPRAY), distribuzione (SPREAD), mappatura (MAPPING)
+• Tipo di servizio: irrorazione (SPRAY), spandimento (SPREAD), rilievo aereo (MAPPING)
 • Tipo di coltivazione: vite (VINEYARD), olivo (OLIVE_GROVE), cereali (CEREAL), ortaggi (VEGETABLES), frutta (FRUIT), altro (OTHER)
-• Tipo di lavorazione: per irrorazione usa termini come protezione (FUNGICIDE), insetti (INSECTICIDE), erbe (HERBICIDE), nutrienti (FERTILIZER); per distribuzione usa organico (ORGANIC_FERTILIZER), chimicoICAL_FERTILIZER), calce (LIME); per mappatura usa vegetazione (NDVI), termico (THERMAL), spettri (MULTISPECTRAL), foto (ORTHOPHOTO)
+• Tipo di lavorazione: per irrorazione usa termini come fungicida (FUNGICIDE), insetticida (INSECTICIDE), erbicida (HERBICIDA), fertilizzante (FERTILIZER); per spandimento usa organico (ORGANIC_FERTILIZER), chimico (CHEMICAL_FERTILIZER), calce (LIME); per rilievo aereo usa NDVI (NDVI), termico (THERMAL), multispettrale (MULTISPECTRAL), ortofoto (ORTHOPHOTO)
 • Condizioni terreno: pianura (FLAT), collina (HILLY), montagna (MOUNTAINOUS)
 
 Restituisci un oggetto JSON con le categorie identificate:
 {
-  "service_type": "SPRAY/SPREAD/MAPPING o null",
+  "service_type": "IRRORAZIONE/SPANDIMENTO/RILIEVO_AEREO o null",
   "crop_type": "VINEYARD/OLIVE_GROVE/CEREAL/VEGETABLES/FRUIT/OTHER o null",
   "treatment_type": "valore appropriato o null",
   "terrain_conditions": "FLAT/HILLY/MOUNTAINOUS o null",

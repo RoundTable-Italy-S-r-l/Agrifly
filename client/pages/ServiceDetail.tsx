@@ -43,7 +43,7 @@ const serviceTypeConfig: Record<
   { label: string; icon: any; description: string; color: string }
 > = {
   SPRAY: {
-    label: "Trattamento fitosanitario",
+    label: "Irrorazione",
     icon: Droplet,
     description: "SPRAY",
     color: "text-blue-600",

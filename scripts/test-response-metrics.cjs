@@ -178,7 +178,7 @@ async function testResponseMetrics() {
     await client.query(
       `
       INSERT INTO messages (id, conversation_id, sender_user_id, body, created_at)
-      VALUES ($1, $2, $3, 'Trattamento fitosanitario per vigneto', $4)
+      VALUES ($1, $2, $3, 'Irrorazione per vigneto', $4)
     `,
       [`msg_${Date.now()}_4`, finalConvId, u1.id, msg4Time],
     );

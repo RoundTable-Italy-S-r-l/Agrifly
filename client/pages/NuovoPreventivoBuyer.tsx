@@ -23,9 +23,9 @@ interface JobFormData {
 }
 
 const SERVICE_TYPES = [
-  { value: "SPRAY", label: "Trattamento fitosanitario", icon: "🌿" },
-  { value: "SPREAD", label: "Spandimento fertilizzanti", icon: "🌱" },
-  { value: "MAPPING", label: "Mappatura territoriale", icon: "🗺️" },
+  { value: "SPRAY", label: "Irrorazione", icon: "🌿" },
+  { value: "SPREAD", label: "Spandimento", icon: "🌱" },
+  { value: "MAPPING", label: "Rilievo aereo", icon: "🗺️" },
 ];
 
 const CROP_TYPES = [
@@ -360,8 +360,8 @@ export default function NuovoPreventivoBuyer() {
 
   return (
     <BuyerLayout>
-      <div className="flex gap-6 max-w-7xl mx-auto">
-        <div className="flex-1 max-w-4xl">
+      <div className="max-w-7xl mx-auto">
+        <div className="max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">
             Dettagli del Job
@@ -768,20 +768,21 @@ export default function NuovoPreventivoBuyer() {
           </ul>
         </div>
         </div>
-        <div className="w-80 flex-shrink-0">
-          <VoiceAssistantPanel
-            onParsedFields={(fields) => {
-              console.log("🤖 Campi parsati dall'assistente AI:", fields);
-              setJobData((prev) => {
-                const newData = { ...prev, ...fields };
-                console.log("📝 Nuovo stato jobData dopo assistente AI:", newData);
-                return newData;
-              });
-              toast.success("Campi compilati automaticamente dall'AI! 🤖");
-            }}
-          />
-        </div>
       </div>
+
+      {/* Pannello assistente AI fisso a destra */}
+      <VoiceAssistantPanel
+        onParsedFields={(fields) => {
+          console.log("🤖 Campi parsati dall'assistente AI:", fields);
+          setJobData((prev) => {
+            const newData = { ...prev, ...fields };
+            console.log("📝 Nuovo stato jobData dopo assistente AI:", newData);
+            return newData;
+          });
+          toast.success("Campi compilati automaticamente dall'AI! 🤖");
+        }}
+        currentJobData={jobData}
+      />
     </BuyerLayout>
   );
 }

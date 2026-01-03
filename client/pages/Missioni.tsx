@@ -59,15 +59,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Mapping enum inglesi → italiani per DJI Agras/Mavic 3
 const serviceTypeConfig = {
-  SPRAY: { label: "SPRAY", icon: Droplet, color: "bg-blue-50 text-blue-700" },
+  SPRAY: { label: "IRRORAZIONE", icon: Droplet, color: "bg-blue-50 text-blue-700" },
   SPREAD: {
-    label: "SPREAD",
+    label: "SPANDIMENTO",
     icon: Package,
     color: "bg-purple-50 text-purple-700",
   },
   MAPPING: {
-    label: "MAPPING",
+    label: "RILIEVO AEREO",
     icon: MapIcon,
     color: "bg-green-50 text-green-700",
   },

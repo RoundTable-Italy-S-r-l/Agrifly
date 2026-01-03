@@ -234,6 +234,9 @@ enum ServiceType {
   MAPPING
 }
 
+// ENUM ITALIANI - Disponibili solo in Supabase PostgreSQL
+// Per SQLite manteniamo mapping hardcoded nel codice
+
 enum OperatorAssignmentMode {
   VENDOR_ONLY
   APPROVED_NETWORK
@@ -353,7 +356,6 @@ model Product {
   status                 ProductStatus @default(ACTIVE) @map("status")
 
   skus           Sku[]
-  assets         Asset[]
   productPurposes ProductPurpose[]
 
   @@map("products")
@@ -1535,4 +1537,7 @@ enum AddressType {
   SHIPPING
   BILLING
 }
+
+// NUOVI MODELLI - Disponibili solo in Supabase PostgreSQL
+// Per SQLite manteniamo il modello esistente con mapping hardcoded
 

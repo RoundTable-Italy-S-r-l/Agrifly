@@ -82,7 +82,7 @@ const serviceTypeConfig: Record<
   { label: string; icon: any; description: string }
 > = {
   SPRAY: {
-    label: "Trattamento fitosanitario",
+    label: "Irrorazione",
     icon: Droplet,
     description: "SPRAY",
   },
@@ -1038,7 +1038,7 @@ export default function Servizi() {
                               key: "SPREAD",
                               label: "Spandimento fertilizzanti",
                             },
-                            { key: "MAPPING", label: "Mappatura territoriale" },
+                            { key: "MAPPING", label: "Rilievo aereo" },
                           ].map((service) => (
                             <div
                               key={service.key}

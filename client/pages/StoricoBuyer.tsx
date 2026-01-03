@@ -134,11 +134,11 @@ export default function StoricoBuyer() {
   const getServiceLabel = (serviceType: string) => {
     switch (serviceType) {
       case "SPRAY":
-        return "Trattamento fitosanitario";
+        return "Irrorazione";
       case "SPREAD":
-        return "Spandimento fertilizzanti";
+        return "Spandimento";
       case "MAPPING":
-        return "Mappatura territoriale";
+        return "Rilievo aereo";
       default:
         return serviceType;
     }

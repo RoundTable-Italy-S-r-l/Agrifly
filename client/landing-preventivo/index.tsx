@@ -250,7 +250,7 @@ export default function PreventivoLanding() {
                 <ul className="space-y-2 text-sm text-slate-300">
                   <li>Trattamenti fitosanitari</li>
                   <li>Spandimento fertilizzanti</li>
-                  <li>Mappatura territoriale</li>
+                  <li>Rilievo aereo</li>
                   <li>Monitoraggio colture</li>
                 </ul>
               </div>

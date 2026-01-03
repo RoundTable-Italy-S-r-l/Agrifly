@@ -119,7 +119,7 @@ export const PREVENTIVO_COLORS = {
 
 export const PREVENTIVO_SERVICE_TYPES = {
   SPRAY: {
-    label: "Trattamento fitosanitario",
+    label: "Irrorazione",
     icon: "💧",
     color: "bg-blue-50 text-blue-700",
   },

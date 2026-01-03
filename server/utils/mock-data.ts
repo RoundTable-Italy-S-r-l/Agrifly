@@ -20,7 +20,7 @@ export const mockGisCategories = [
     id: "cat3",
     name: "Mappatura",
     icon: "🗺️",
-    description: "Mappatura territoriale e monitoraggio",
+    description: "Rilievo aereo e monitoraggio",
   },
 ];
 
@@ -86,7 +86,7 @@ export const mockTreatments = [
       id: "cat3",
       name: "Mappatura",
       icon: "🗺️",
-      description: "Mappatura territoriale e monitoraggio",
+      description: "Rilievo aereo e monitoraggio",
     },
   },
 ];
