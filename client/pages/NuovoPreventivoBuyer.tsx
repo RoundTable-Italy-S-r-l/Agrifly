@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { GisMapSelector } from "../landing-preventivo/components/GisMapSelector";
 import { fetchCertifiedQuotes, CertifiedQuote } from "@/lib/api";
 import { CheckCircle } from "lucide-react";
-import { VoiceAssistantModal } from "@/components/VoiceAssistantModal";
+import { VoiceAssistantPanel } from "@/components/VoiceAssistantPanel";
 
 interface JobFormData {
   field_name: string;
@@ -360,7 +360,8 @@ export default function NuovoPreventivoBuyer() {
 
   return (
     <BuyerLayout>
-      <div className="max-w-6xl mx-auto">
+      <div className="flex gap-6 max-w-7xl mx-auto">
+        <div className="flex-1 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">
             Dettagli del Job
@@ -417,21 +418,10 @@ export default function NuovoPreventivoBuyer() {
           <form onSubmit={handleServiceSubmit} className="space-y-6">
             {/* Campo selezionato info */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2">
                 <h3 className="font-medium text-emerald-900">
                   Campo Selezionato
                 </h3>
-                <VoiceAssistantModal
-                  onParsedFields={(fields) => {
-                    console.log("🎤 Campi parsati dall'assistente vocale:", fields);
-                    setJobData((prev) => {
-                      const newData = { ...prev, ...fields };
-                      console.log("📝 Nuovo stato jobData dopo assistente vocale:", newData);
-                      return newData;
-                    });
-                    toast.success("Campi compilati con l'assistente vocale! 🎤");
-                  }}
-                />
               </div>
               <div className="text-sm text-emerald-700">
                 <div>Area: {gisData?.area_ha?.toFixed(2)} ha</div>
@@ -776,6 +766,20 @@ export default function NuovoPreventivoBuyer() {
             <li>• Confronti le offerte e scegli quella migliore</li>
             <li>• Paghi solo quando accetti un'offerta</li>
           </ul>
+        </div>
+        </div>
+        <div className="w-80 flex-shrink-0">
+          <VoiceAssistantPanel
+            onParsedFields={(fields) => {
+              console.log("🤖 Campi parsati dall'assistente AI:", fields);
+              setJobData((prev) => {
+                const newData = { ...prev, ...fields };
+                console.log("📝 Nuovo stato jobData dopo assistente AI:", newData);
+                return newData;
+              });
+              toast.success("Campi compilati automaticamente dall'AI! 🤖");
+            }}
+          />
         </div>
       </div>
     </BuyerLayout>

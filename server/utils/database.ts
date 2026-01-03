@@ -7,7 +7,7 @@ const isNetlify =
   process.env.LAMBDA_TASK_ROOT;
 
 // Funzione per creare una nuova connessione per ogni richiesta (serverless-friendly)
-export const getClient = () => {
+export const getClient = async () => {
   // PRIORITÀ ASSOLUTA: se PGHOST è configurato, usa PostgreSQL SEMPRE
   // Solo se NON c'è PGHOST, considera DATABASE_URL per SQLite
   const hasPostgresConfig =
@@ -27,7 +27,8 @@ export const getClient = () => {
     // Lazy load better-sqlite3 solo se necessario (non su Netlify)
     if (!Database) {
       try {
-        Database = require("better-sqlite3");
+        const sqlite3 = await import("better-sqlite3");
+        Database = sqlite3.default;
       } catch (error: any) {
         throw new Error(
           `better-sqlite3 non disponibile. Usa PostgreSQL configurando PGHOST, PGUSER, PGPASSWORD. Errore: ${error.message}`,
@@ -97,7 +98,7 @@ export const getClient = () => {
 
 // Utility per query sicure - crea e chiude connessione per ogni query
 export const query = async (text: string, params?: any[]) => {
-  const client = getClient();
+  const client = await getClient();
 
   // Se è un client SQLite (ha metodo query ma non connect)
   if (client.query && !client.connect) {

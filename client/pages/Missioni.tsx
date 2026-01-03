@@ -24,6 +24,8 @@ import {
   AlertCircle,
   X,
   Loader2,
+  Edit,
+  Undo2,
 } from "lucide-react";
 import {
   Table,
@@ -789,29 +791,34 @@ export default function Missioni() {
                                   ? "In Attesa Risposta"
                                   : "Da Valutare",
                                 color: "text-yellow-600",
+                                icon: Clock,
                               };
                             case "AWARDED":
                               return {
                                 label: "Accettata",
                                 color: "text-green-600",
+                                icon: CheckCircle,
                               };
                             case "REJECTED":
                               return {
                                 label: "Rifiutata",
                                 color: "text-red-600",
+                                icon: XCircle,
                               };
                             case "DECLINED":
                               return {
                                 label: "Rifiutata",
                                 color: "text-red-600",
+                                icon: XCircle,
                               };
                             case "WITHDRAWN":
                               return {
                                 label: "Ritirata",
                                 color: "text-gray-600",
+                                icon: XCircle,
                               };
                             default:
-                              return { label: status, color: "text-slate-600" };
+                              return { label: status, color: "text-slate-600", icon: AlertCircle };
                           }
                         };
 
@@ -891,7 +898,9 @@ export default function Missioni() {
                               <Badge
                                 variant="secondary"
                                 className={`${offerStatus.color} whitespace-nowrap`}
+                                title={offerStatus.label}
                               >
+                                <offerStatus.icon className="w-3 h-3 mr-1" />
                                 {offerStatus.label}
                               </Badge>
                             </TableCell>
@@ -960,8 +969,9 @@ export default function Missioni() {
                                           });
                                         }}
                                         className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                        title="Ritira offerta"
                                       >
-                                        Ritira
+                                        <Undo2 className="w-4 h-4" />
                                       </Button>
                                       <Button
                                         size="sm"
@@ -970,8 +980,9 @@ export default function Missioni() {
                                           handleViewOfferDetails(offer)
                                         }
                                         className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                                        title="Modifica offerta"
                                       >
-                                        Modifica
+                                        <Edit className="w-4 h-4" />
                                       </Button>
                                     </>
                                   )}
@@ -1051,138 +1062,194 @@ export default function Missioni() {
                       acceptedOffersList.length === 0
                     ) {
                       return (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <CheckCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>Nessuna offerta accettata al momento</p>
-                        </div>
+                        <Card>
+                          <CardContent className="py-12 text-center">
+                            <p className="text-slate-600">
+                              Nessuna offerta accettata al momento
+                            </p>
+                          </CardContent>
+                        </Card>
                       );
                     }
 
                     return (
-                      <div className="space-y-4">
-                        {acceptedOffersList
-                          .filter(
-                            (offer) =>
-                              offer &&
-                              offer.total_cents != null &&
-                              offer.job &&
-                              offer.job.buyer_org,
-                          )
-                          .map((offer) => {
-                            const booking = (bookingsData.bookings || []).find(
-                              (b: any) => b.accepted_offer_id === offer.id,
-                            );
-                            const config =
-                              serviceTypeConfig[
-                                offer.job
-                                  ?.service_type as keyof typeof serviceTypeConfig
-                              ];
-                            const Icon = config?.icon || Package;
+                      <div className="space-y-2">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[250px]">Campo</TableHead>
+                              <TableHead className="hidden sm:table-cell">
+                                Servizio
+                              </TableHead>
+                              <TableHead className="hidden md:table-cell">
+                                Periodo
+                              </TableHead>
+                              <TableHead className="hidden lg:table-cell">
+                                Cliente
+                              </TableHead>
+                              <TableHead className="text-right w-[120px]">
+                                Preventivo
+                              </TableHead>
+                              <TableHead className="w-[140px]">Stato</TableHead>
+                              <TableHead className="w-[200px]">Azioni</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {acceptedOffersList
+                              .filter(
+                                (offer) =>
+                                  offer &&
+                                  offer.total_cents != null &&
+                                  offer.job &&
+                                  offer.job.buyer_org,
+                              )
+                              .map((offer) => {
+                                const booking = (bookingsData.bookings || []).find(
+                                  (b: any) => b.accepted_offer_id === offer.id,
+                                );
+                                const config =
+                                  serviceTypeConfig[
+                                    offer.job
+                                      ?.service_type as keyof typeof serviceTypeConfig
+                                  ];
+                                const Icon = config?.icon || Package;
 
-                            if (!offer.job) return null;
+                                const getAcceptedStatusLabel = (booking: any) => {
+                                  if (booking?.payment_status === "PAID") {
+                                    return {
+                                      label: "Pagata",
+                                      color: "text-blue-600",
+                                      icon: CheckCircle,
+                                    };
+                                  }
+                                  return {
+                                    label: "Accettata",
+                                    color: "text-green-600",
+                                    icon: CheckCircle,
+                                  };
+                                };
 
-                            return (
-                              <Card
-                                key={offer.id}
-                                className="p-4 hover:shadow-md transition-shadow"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <div
-                                        className={`p-2 rounded-lg ${config?.color || "bg-slate-50"}`}
-                                      >
-                                        <Icon className="w-4 h-4" />
+                                const statusConfig = getAcceptedStatusLabel(booking);
+                                const StatusIcon = statusConfig.icon;
+
+                                return (
+                                  <TableRow
+                                    key={offer.id}
+                                    className="hover:bg-slate-50"
+                                  >
+                                    {/* Campo e area */}
+                                    <TableCell>
+                                      <div className="flex items-center gap-3">
+                                        <div
+                                          className={`w-8 h-8 p-1.5 rounded ${config?.color || "bg-slate-50"}`}
+                                        >
+                                          <Icon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                          <div className="font-medium text-slate-900">
+                                            {offer.job?.field_name || "N/A"}
+                                          </div>
+                                          <div className="text-sm text-slate-500">
+                                            {offer.job?.area_ha || 0} ha
+                                          </div>
+                                        </div>
                                       </div>
-                                      <h3 className="font-semibold">
-                                        {offer.job.field_name || "N/A"}
-                                      </h3>
-                                      <Badge variant="outline">
+                                    </TableCell>
+
+                                    {/* Servizio */}
+                                    <TableCell className="hidden sm:table-cell">
+                                      <div className="text-sm font-medium text-slate-900">
                                         {config?.label ||
-                                          offer.job.service_type}
-                                      </Badge>
-                                      <Badge className="bg-green-100 text-green-800">
-                                        Accettata
-                                      </Badge>
-                                      {booking?.payment_status === "PAID" && (
-                                        <Badge className="bg-blue-100 text-blue-800">
-                                          Pagata
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground space-y-1">
-                                      <p>
-                                        Cliente:{" "}
-                                        {offer.job.buyer_org?.legal_name ||
+                                          offer.job?.service_type ||
                                           "N/A"}
-                                      </p>
-                                      <p>Area: {offer.job.area_ha || 0} ha</p>
-                                      <p className="font-semibold text-slate-900">
-                                        Preventivo accettato:{" "}
+                                      </div>
+                                      <div className="text-xs text-slate-500">
+                                        {formatDate(offer.created_at)}
+                                      </div>
+                                    </TableCell>
+
+                                    {/* Periodo */}
+                                    <TableCell className="hidden md:table-cell text-sm text-slate-600">
+                                      <div>
+                                        {offer.proposed_start
+                                          ? formatDate(offer.proposed_start)
+                                          : "N/A"}
+                                      </div>
+                                      <div className="text-xs">
+                                        a{" "}
+                                        {offer.proposed_end
+                                          ? formatDate(offer.proposed_end)
+                                          : "N/A"}
+                                      </div>
+                                    </TableCell>
+
+                                    {/* Cliente */}
+                                    <TableCell className="hidden lg:table-cell">
+                                      <div className="text-sm font-medium text-slate-900">
+                                        {offer.job?.buyer_org?.legal_name || "N/A"}
+                                      </div>
+                                    </TableCell>
+
+                                    {/* Prezzo */}
+                                    <TableCell className="text-right">
+                                      <div className="text-lg font-bold text-slate-900">
                                         {offer.total_cents != null
                                           ? `€${(offer.total_cents / 100).toFixed(2)}`
                                           : "N/A"}
-                                      </p>
-                                      <p>
-                                        Data accettazione:{" "}
-                                        {formatDate(
-                                          offer.updated_at || offer.created_at,
-                                        )}
-                                      </p>
-                                      {booking?.payment_status && (
-                                        <p>
-                                          Pagamento:{" "}
-                                          <span
-                                            className={
-                                              booking.payment_status === "PAID"
-                                                ? "text-green-600 font-medium"
-                                                : "text-yellow-600"
-                                            }
-                                          >
-                                            {booking.payment_status === "PAID"
-                                              ? "Pagato ✓"
-                                              : booking.payment_status ===
-                                                  "PENDING"
-                                                ? "In attesa"
-                                                : booking.payment_status}
-                                          </span>
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      onClick={() =>
-                                        navigate(`/admin/offer/${offer.id}`)
-                                      }
-                                    >
-                                      Vedi Dettagli
-                                    </Button>
-                                    {booking?.payment_status === "PAID" &&
-                                      booking?.job?.conversation?.id && (
+                                      </div>
+                                    </TableCell>
+
+                                    {/* Stato */}
+                                    <TableCell>
+                                      <Badge
+                                        variant="secondary"
+                                        className={`${statusConfig.color} whitespace-nowrap`}
+                                        title={statusConfig.label}
+                                      >
+                                        <StatusIcon className="w-3 h-3 mr-1" />
+                                        {statusConfig.label}
+                                      </Badge>
+                                    </TableCell>
+
+                                    {/* Azioni */}
+                                    <TableCell>
+                                      <div className="flex gap-2">
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() => {
-                                            const conversationId =
-                                              booking.job.conversation?.id;
-                                            if (conversationId) {
-                                              navigate(
-                                                `/chat/${conversationId}`,
-                                              );
-                                            }
-                                          }}
+                                          onClick={() =>
+                                            handleViewOfferDetails(offer)
+                                          }
+                                          className="text-slate-600 hover:text-slate-900"
                                         >
-                                          Apri Chat
+                                          Dettagli
                                         </Button>
-                                      )}
-                                  </div>
-                                </div>
-                              </Card>
-                            );
-                          })}
+                                        {booking?.payment_status === "PAID" &&
+                                          booking?.job?.conversation?.id && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => {
+                                                const conversationId =
+                                                  booking.job.conversation?.id;
+                                                if (conversationId) {
+                                                  navigate(
+                                                    `/chat/${conversationId}`,
+                                                  );
+                                                }
+                                              }}
+                                              className="text-slate-600 hover:text-slate-900"
+                                            >
+                                              Chat
+                                            </Button>
+                                          )}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
                       </div>
                     );
                   })()
@@ -1218,110 +1285,135 @@ export default function Missioni() {
 
                     if (completedBookings.length === 0) {
                       return (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <CheckCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>Nessuna missione completata al momento</p>
-                        </div>
+                        <Card>
+                          <CardContent className="py-12 text-center">
+                            <p className="text-slate-600">
+                              Nessuna missione completata al momento
+                            </p>
+                          </CardContent>
+                        </Card>
                       );
                     }
 
                     return (
-                      <div className="space-y-4">
-                        {completedBookings
-                          .filter((booking: any) => booking && booking.job)
-                          .map((booking: any) => {
-                            const config =
-                              serviceTypeConfig[
-                                booking.service_type as keyof typeof serviceTypeConfig
-                              ];
-                            const Icon = config?.icon || Package;
+                      <div className="space-y-2">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[250px]">Campo</TableHead>
+                              <TableHead className="hidden sm:table-cell">
+                                Servizio
+                              </TableHead>
+                              <TableHead className="hidden lg:table-cell">
+                                {userPermissions?.can_complete_missions
+                                  ? "Cliente"
+                                  : "Operatore"}
+                              </TableHead>
+                              <TableHead className="hidden md:table-cell">
+                                Area
+                              </TableHead>
+                              <TableHead className="text-right w-[120px]">
+                                Preventivo
+                              </TableHead>
+                              <TableHead className="w-[140px]">Stato</TableHead>
+                              <TableHead className="w-[120px]">Azioni</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {completedBookings
+                              .filter((booking: any) => booking && booking.job)
+                              .map((booking: any) => {
+                                const config =
+                                  serviceTypeConfig[
+                                    booking.service_type as keyof typeof serviceTypeConfig
+                                  ];
+                                const Icon = config?.icon || Package;
 
-                            return (
-                              <Card key={booking.id} className="p-4">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <div
-                                        className={`p-2 rounded-lg ${config?.color || "bg-slate-50"}`}
-                                      >
-                                        <Icon className="w-4 h-4" />
+                                return (
+                                  <TableRow
+                                    key={booking.id}
+                                    className="hover:bg-slate-50"
+                                  >
+                                    {/* Campo */}
+                                    <TableCell>
+                                      <div className="flex items-center gap-3">
+                                        <div
+                                          className={`w-8 h-8 p-1.5 rounded ${config?.color || "bg-slate-50"}`}
+                                        >
+                                          <Icon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                          <div className="font-medium text-slate-900">
+                                            {booking.job.field_name || "Missione"}
+                                          </div>
+                                        </div>
                                       </div>
-                                      <h3 className="font-semibold">
-                                        {booking.job.field_name || "Missione"}
-                                      </h3>
-                                      <Badge variant="outline">
+                                    </TableCell>
+
+                                    {/* Servizio */}
+                                    <TableCell className="hidden sm:table-cell">
+                                      <div className="text-sm font-medium text-slate-900">
                                         {config?.label || booking.service_type}
-                                      </Badge>
-                                      <Badge
-                                        variant="default"
-                                        className="bg-green-100 text-green-800"
-                                      >
-                                        Completata
-                                      </Badge>
-                                    </div>
-                                    <div className="text-sm text-muted-foreground space-y-1">
-                                      <p>
+                                      </div>
+                                    </TableCell>
+
+                                    {/* Cliente/Operatore */}
+                                    <TableCell className="hidden lg:table-cell">
+                                      <div className="text-sm font-medium text-slate-900">
                                         {userPermissions?.can_complete_missions
-                                          ? `Cliente: ${booking.buyer_org?.legal_name || "N/A"}`
-                                          : `Operatore: ${booking.executor_org?.legal_name || "N/A"}`}
-                                      </p>
-                                      <p>
-                                        Area:{" "}
+                                          ? booking.buyer_org?.legal_name || "N/A"
+                                          : booking.executor_org?.legal_name || "N/A"}
+                                      </div>
+                                    </TableCell>
+
+                                    {/* Area */}
+                                    <TableCell className="hidden md:table-cell">
+                                      <div className="text-sm text-slate-600">
                                         {booking.job?.area_ha
-                                          ? booking.job.area_ha.toFixed(1)
-                                          : "N/A"}{" "}
-                                        ha
-                                      </p>
-                                      <p>
-                                        Preventivo:{" "}
+                                          ? `${booking.job.area_ha.toFixed(1)} ha`
+                                          : "N/A"}
+                                      </div>
+                                    </TableCell>
+
+                                    {/* Prezzo */}
+                                    <TableCell className="text-right">
+                                      <div className="text-lg font-bold text-slate-900">
                                         {booking.accepted_offer?.total_cents
                                           ? `€${(booking.accepted_offer.total_cents / 100).toFixed(2)}`
                                           : "N/A"}
-                                      </p>
-                                      <p>
-                                        Completata:{" "}
-                                        {booking.created_at
-                                          ? new Date(
-                                              booking.created_at,
-                                            ).toLocaleDateString("it-IT")
-                                          : "N/A"}
-                                      </p>
-                                      {booking.payment_status && (
-                                        <p>
-                                          Pagamento:{" "}
-                                          <span
-                                            className={
-                                              booking.payment_status === "PAID"
-                                                ? "text-green-600 font-medium"
-                                                : "text-yellow-600"
-                                            }
-                                          >
-                                            {booking.payment_status === "PAID"
-                                              ? "Pagato ✓"
-                                              : booking.payment_status ===
-                                                  "PENDING"
-                                                ? "In attesa"
-                                                : booking.payment_status}
-                                          </span>
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        navigate(`/admin/booking/${booking.id}`)
-                                      }
-                                    >
-                                      Dettagli
-                                    </Button>
-                                  </div>
-                                </div>
-                              </Card>
-                            );
-                          })}
+                                      </div>
+                                    </TableCell>
+
+                                    {/* Stato */}
+                                    <TableCell>
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-green-600 whitespace-nowrap"
+                                        title="Completata"
+                                      >
+                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                        Completata
+                                      </Badge>
+                                    </TableCell>
+
+                                    {/* Azioni */}
+                                    <TableCell>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          navigate(`/admin/booking/${booking.id}`)
+                                        }
+                                        className="text-slate-600 hover:text-slate-900"
+                                      >
+                                        Dettagli
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
                       </div>
                     );
                   })()
