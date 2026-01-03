@@ -5,9 +5,16 @@ const italianNumberTransform = z
   .union([z.string(), z.number()])
   .transform((val) => {
     if (typeof val === "number") return val;
-    // Convert Italian format (1.234,56) to international (1234.56)
-    const normalized = val.replace(/\./g, "").replace(",", ".");
-    return parseFloat(normalized);
+    // Handle both Italian format (1.234,56) and international format (1234.56)
+    // First check if it's already in international format (contains only one dot)
+    if (val.includes(',') || (val.split('.').length - 1) > 1) {
+      // Italian format: remove dots and replace comma with dot
+      const normalized = val.replace(/\./g, "").replace(",", ".");
+      return parseFloat(normalized);
+    } else {
+      // Already international format or simple number
+      return parseFloat(val);
+    }
   });
 
 // Enums

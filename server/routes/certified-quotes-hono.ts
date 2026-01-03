@@ -422,8 +422,9 @@ app.get(
             };
           } catch (error: any) {
             console.error(
-              `❌ Error calculating quote for org ${org.id}:`,
-              error,
+              `❌ Error calculating quote for org ${org.id} (${org.legal_name}):`,
+              error.message,
+              error.stack,
             );
             return null; // Skip this org if calculation fails
           }
