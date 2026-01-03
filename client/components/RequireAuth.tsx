@@ -13,35 +13,46 @@ function isAuthenticated(): boolean {
   const selectedRole = localStorage.getItem("selected_role");
 
   if (!token || !organization) {
-    console.log('🔐 Auth check: token o organization mancanti');
+    console.log("🔐 Auth check: token o organization mancanti");
     return false;
   }
 
   try {
     // Supporta sia JWT custom ({body}.{signature}) che JWT standard ({header}.{body}.{signature})
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 2 && parts.length !== 3) {
-      console.log('🔐 Auth check: formato token invalido (parts:', parts.length, ')');
+      console.log(
+        "🔐 Auth check: formato token invalido (parts:",
+        parts.length,
+        ")",
+      );
       return false;
     }
 
     // Per JWT standard, prendi la seconda parte (body), per custom prendi la prima
     const body = parts.length === 3 ? parts[1] : parts[0];
     // Converti base64url a base64 standard
-    const base64 = body.replace(/-/g, '+').replace(/_/g, '/');
+    const base64 = body.replace(/-/g, "+").replace(/_/g, "/");
     // Padding
-    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
     // Decodifica
     const decoded = atob(padded);
     const payload = JSON.parse(decoded);
     const now = Math.floor(Date.now() / 1000);
 
     const isValid = payload.exp > now;
-    console.log('🔐 Auth check:', isValid ? '✅ valido' : '❌ scaduto', 'exp:', payload.exp, 'now:', now);
-    
+    console.log(
+      "🔐 Auth check:",
+      isValid ? "✅ valido" : "❌ scaduto",
+      "exp:",
+      payload.exp,
+      "now:",
+      now,
+    );
+
     return isValid;
   } catch (error: any) {
-    console.log('🔐 Auth check: errore parsing token:', error.message);
+    console.log("🔐 Auth check: errore parsing token:", error.message);
     return false;
   }
 }
@@ -59,22 +70,22 @@ export default function RequireAuth({ children }: Props) {
 
     // Opzionale: verifica con API /me per refresh token
     if (authenticated) {
-      fetch('/api/auth/me', {
+      fetch("/api/auth/me", {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
       })
-      .then(response => {
-        if (!response.ok) {
-          // Token invalido, logout
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('organization');
-          setIsAuthed(false);
-        }
-      })
-      .catch(() => {
-        // Errore network, mantieni autenticazione locale
-      });
+        .then((response) => {
+          if (!response.ok) {
+            // Token invalido, logout
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("organization");
+            setIsAuthed(false);
+          }
+        })
+        .catch(() => {
+          // Errore network, mantieni autenticazione locale
+        });
     }
   }, []);
 

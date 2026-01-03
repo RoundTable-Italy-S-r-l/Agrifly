@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Type definitions for API responses (local types, not from Prisma)
 type Organization = {
@@ -7,7 +7,7 @@ type Organization = {
   type?: string;
   org_type?: string;
   [key: string]: any;
-}
+};
 
 type User = {
   id: string;
@@ -15,7 +15,7 @@ type User = {
   first_name: string;
   last_name: string;
   [key: string]: any;
-}
+};
 
 type OrgMembership = {
   id: string;
@@ -23,47 +23,53 @@ type OrgMembership = {
   user_id: string;
   role: string;
   [key: string]: any;
-}
+};
 
 type OrganizationWithUsers = Organization & {
-  memberships?: Array<OrgMembership & { user: User }>
-}
+  memberships?: Array<OrgMembership & { user: User }>;
+};
 
 type NotificationSettings = {
-  email_orders: boolean
-  email_payments: boolean
-  email_updates: boolean
-  inapp_orders: boolean
-  inapp_messages: boolean
-}
+  email_orders: boolean;
+  email_payments: boolean;
+  email_updates: boolean;
+  inapp_orders: boolean;
+  inapp_messages: boolean;
+};
 
 type InviteUserData = {
-  email: string
-  role: string
-}
+  email: string;
+  role: string;
+};
 
 // API helper - similar to the apiRequest function in lib/api.ts
-const API_BASE = '';
+const API_BASE = "";
 
 class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
-async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function apiRequest<T>(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<T> {
   const url = `${API_BASE}/api${endpoint}`;
 
   // Get auth token from localStorage
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem("auth_token");
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options?.headers as Record<string, string> || {}),
+    "Content-Type": "application/json",
+    ...((options?.headers as Record<string, string>) || {}),
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   try {
@@ -73,7 +79,10 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
     });
 
     if (!response.ok) {
-      throw new ApiError(response.status, `API request failed: ${response.statusText}`);
+      throw new ApiError(
+        response.status,
+        `API request failed: ${response.statusText}`,
+      );
     }
 
     return await response.json();
@@ -90,28 +99,28 @@ const api = {
   get: <T>(endpoint: string): Promise<T> => apiRequest<T>(endpoint),
   post: <T>(endpoint: string, data?: any): Promise<T> =>
     apiRequest<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: data ? JSON.stringify(data) : undefined,
     }),
   patch: <T>(endpoint: string, data?: any): Promise<T> =>
     apiRequest<T>(endpoint, {
-      method: 'PATCH',
+      method: "PATCH",
       body: data ? JSON.stringify(data) : undefined,
     }),
   delete: <T>(endpoint: string): Promise<T> =>
-    apiRequest<T>(endpoint, { method: 'DELETE' }),
+    apiRequest<T>(endpoint, { method: "DELETE" }),
 };
 
 // Helper function to get organization ID from localStorage
 function getCurrentOrgId(): string | null {
   try {
-    const orgData = localStorage.getItem('organization');
+    const orgData = localStorage.getItem("organization");
     if (orgData) {
       const org = JSON.parse(orgData);
       return org.id;
     }
   } catch (error) {
-    console.error('Error parsing organization data:', error);
+    console.error("Error parsing organization data:", error);
   }
   return null;
 }
@@ -121,42 +130,47 @@ export function useOrganizationGeneral() {
   const orgId = getCurrentOrgId();
 
   return useQuery({
-    queryKey: ['organization', 'general'],
+    queryKey: ["organization", "general"],
     queryFn: async () => {
       if (!orgId) {
-        throw new Error('Organization ID not found');
+        throw new Error("Organization ID not found");
       }
-      const response = await api.get<{ data: Organization }>(`/settings/organization/general?orgId=${orgId}`)
-      return response.data
+      const response = await api.get<{ data: Organization }>(
+        `/settings/organization/general?orgId=${orgId}`,
+      );
+      return response.data;
     },
     enabled: !!orgId,
     retry: (failureCount, error: any) => {
       // Don't retry on auth errors
       if (error?.status === 401 || error?.status === 403) {
-        return false
+        return false;
       }
-      return failureCount < 2
+      return failureCount < 2;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-  })
+  });
 }
 
 export function useUpdateOrganizationGeneral() {
-  const queryClient = useQueryClient()
-  const orgId = getCurrentOrgId()
+  const queryClient = useQueryClient();
+  const orgId = getCurrentOrgId();
 
   return useMutation({
     mutationFn: async (data: Partial<Organization>) => {
       if (!orgId) {
-        throw new Error('Organization ID not found');
+        throw new Error("Organization ID not found");
       }
-      const response = await api.patch<{ data: Organization }>(`/settings/organization/general?orgId=${orgId}`, data)
-      return response.data
+      const response = await api.patch<{ data: Organization }>(
+        `/settings/organization/general?orgId=${orgId}`,
+        data,
+      );
+      return response.data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['organization', 'general'] })
+      queryClient.invalidateQueries({ queryKey: ["organization", "general"] });
     },
-  })
+  });
 }
 
 // Organization Users
@@ -164,23 +178,25 @@ export function useOrganizationUsers() {
   const orgId = getCurrentOrgId();
 
   return useQuery({
-    queryKey: ['organization', 'users'],
+    queryKey: ["organization", "users"],
     queryFn: async () => {
       if (!orgId) {
-        throw new Error('Organization ID not found');
+        throw new Error("Organization ID not found");
       }
-      const response = await api.get<Array<OrgMembership & { user: User }>>(`/settings/organization/users?orgId=${orgId}`)
-      return response
+      const response = await api.get<Array<OrgMembership & { user: User }>>(
+        `/settings/organization/users?orgId=${orgId}`,
+      );
+      return response;
     },
     enabled: !!orgId,
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.status === 403) {
-        return false
+        return false;
       }
-      return failureCount < 2
+      return failureCount < 2;
     },
     staleTime: 5 * 60 * 1000,
-  })
+  });
 }
 
 // Organization Invitations
@@ -188,51 +204,62 @@ export function useOrganizationInvitations() {
   const orgId = getCurrentOrgId();
 
   return useQuery({
-    queryKey: ['organization', 'invitations'],
+    queryKey: ["organization", "invitations"],
     queryFn: async () => {
       if (!orgId) {
-        throw new Error('Organization ID not found');
+        throw new Error("Organization ID not found");
       }
-      const response = await api.get<any[]>(`/settings/organization/invitations?orgId=${orgId}`)
-      return response
+      const response = await api.get<any[]>(
+        `/settings/organization/invitations?orgId=${orgId}`,
+      );
+      return response;
     },
     enabled: !!orgId,
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.status === 403) {
-        return false
+        return false;
       }
-      return failureCount < 2
+      return failureCount < 2;
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
-  })
+  });
 }
 
 export function useInviteUser() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: InviteUserData) => {
-      const response = await api.post<{ data: any }>('/settings/organization/invitations/invite', data)
-      return response.data
+      const response = await api.post<{ data: any }>(
+        "/settings/organization/invitations/invite",
+        data,
+      );
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organization', 'invitations'] })
+      queryClient.invalidateQueries({
+        queryKey: ["organization", "invitations"],
+      });
     },
-  })
+  });
 }
 
 export function useRevokeInvitation() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (invitationId: string) => {
-      const response = await api.post<{ data: any }>(`/settings/organization/invitations/revoke/${invitationId}`)
-      return response.data
+      const response = await api.post<{ data: any }>(
+        `/settings/organization/invitations/revoke/${invitationId}`,
+      );
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organization', 'invitations'] })
+      queryClient.invalidateQueries({
+        queryKey: ["organization", "invitations"],
+      });
     },
-  })
+  });
 }
 
 // ============================================================================
@@ -241,54 +268,58 @@ export function useRevokeInvitation() {
 
 export function useNotificationPreferences() {
   return useQuery({
-    queryKey: ['notifications', 'preferences'],
+    queryKey: ["notifications", "preferences"],
     queryFn: async () => {
       try {
-        const response = await api.get<NotificationSettings>('/settings/notifications')
-        return response
+        const response = await api.get<NotificationSettings>(
+          "/settings/notifications",
+        );
+        return response;
       } catch (error: any) {
         // If unauthorized, throw a specific error that can be handled
         if (error.status === 401 || error.status === 403) {
-          throw new Error('UNAUTHORIZED')
+          throw new Error("UNAUTHORIZED");
         }
-        throw error
+        throw error;
       }
     },
     retry: (failureCount, error: any) => {
       // Don't retry on auth errors
-      if (error?.message === 'UNAUTHORIZED') {
-        return false
+      if (error?.message === "UNAUTHORIZED") {
+        return false;
       }
-      return failureCount < 2
+      return failureCount < 2;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-  })
+  });
 }
 
 export function useUpdateNotificationPreferences() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: {
-      email_orders?: boolean
-      email_payments?: boolean
-      email_updates?: boolean
-      inapp_orders?: boolean
-      inapp_messages?: boolean
+      email_orders?: boolean;
+      email_payments?: boolean;
+      email_updates?: boolean;
+      inapp_orders?: boolean;
+      inapp_messages?: boolean;
     }) => {
       try {
-        const response = await api.patch('/settings/notifications', data)
-        return response
+        const response = await api.patch("/settings/notifications", data);
+        return response;
       } catch (error: any) {
         // If unauthorized, throw a specific error
         if (error.status === 401 || error.status === 403) {
-          throw new Error('UNAUTHORIZED')
+          throw new Error("UNAUTHORIZED");
         }
-        throw error
+        throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'preferences'] })
+      queryClient.invalidateQueries({
+        queryKey: ["notifications", "preferences"],
+      });
     },
-  })
+  });
 }

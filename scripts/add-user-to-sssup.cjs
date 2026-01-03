@@ -1,6 +1,6 @@
-const { Client } = require('pg');
-const { randomBytes, pbkdf2Sync } = require('crypto');
-require('dotenv').config();
+const { Client } = require("pg");
+const { randomBytes, pbkdf2Sync } = require("crypto");
+require("dotenv").config();
 
 const client = new Client({
   host: process.env.PGHOST,
@@ -8,98 +8,128 @@ const client = new Client({
   database: process.env.PGDATABASE,
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 
 function hashPassword(password) {
   const saltBytes = randomBytes(16);
-  const salt = saltBytes.toString('hex');
-  const hash = pbkdf2Sync(password, saltBytes, 100000, 64, 'sha256').toString('hex');
+  const salt = saltBytes.toString("hex");
+  const hash = pbkdf2Sync(password, saltBytes, 100000, 64, "sha256").toString(
+    "hex",
+  );
   return { salt, hash };
 }
 
 async function setupUser() {
   try {
     await client.connect();
-    console.log('✅ Connesso a Supabase\n');
-    
-    const email = 'giacomocavalcabo13@gmail.com';
-    const password = 'password';
-    
+    console.log("✅ Connesso a Supabase\n");
+
+    const email = "giacomocavalcabo13@gmail.com";
+    const password = "password";
+
     // 1. Trova utente
-    const userResult = await client.query('SELECT id, email FROM users WHERE email = $1', [email]);
+    const userResult = await client.query(
+      "SELECT id, email FROM users WHERE email = $1",
+      [email],
+    );
     if (userResult.rows.length === 0) {
-      console.log('❌ Utente non trovato');
+      console.log("❌ Utente non trovato");
       await client.end();
       return;
     }
     const userId = userResult.rows[0].id;
-    console.log('✅ Utente trovato:', userId);
-    
+    console.log("✅ Utente trovato:", userId);
+
     // 2. Reset password
     const { salt, hash } = hashPassword(password);
     await client.query(
-      'UPDATE users SET password_hash = $1, password_salt = $2 WHERE id = $3',
-      [hash, salt, userId]
+      "UPDATE users SET password_hash = $1, password_salt = $2 WHERE id = $3",
+      [hash, salt, userId],
     );
-    console.log('✅ Password resettata:', password);
-    
+    console.log("✅ Password resettata:", password);
+
     // 3. Trova o crea organizzazione SSSUP
-    let orgResult = await client.query('SELECT id, legal_name FROM organizations WHERE legal_name ILIKE $1', ['%SSSUP%']);
+    let orgResult = await client.query(
+      "SELECT id, legal_name FROM organizations WHERE legal_name ILIKE $1",
+      ["%SSSUP%"],
+    );
     let orgId;
-    
+
     if (orgResult.rows.length === 0) {
-      console.log('📦 Creando organizzazione SSSUP...');
-      const orgIdGen = 'org_' + Date.now().toString(36);
+      console.log("📦 Creando organizzazione SSSUP...");
+      const orgIdGen = "org_" + Date.now().toString(36);
       await client.query(
-        'INSERT INTO organizations (id, legal_name, org_type, type, status, country, address_line, city, province, region) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-        [orgIdGen, 'SSSUP', 'FARM', 'buyer', 'ACTIVE', 'IT', 'Da completare', 'Da completare', 'Da completare', 'Da completare']
+        "INSERT INTO organizations (id, legal_name, org_type, type, status, country, address_line, city, province, region) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        [
+          orgIdGen,
+          "SSSUP",
+          "FARM",
+          "buyer",
+          "ACTIVE",
+          "IT",
+          "Da completare",
+          "Da completare",
+          "Da completare",
+          "Da completare",
+        ],
       );
       orgId = orgIdGen;
-      console.log('✅ Organizzazione creata:', orgId);
+      console.log("✅ Organizzazione creata:", orgId);
     } else {
       orgId = orgResult.rows[0].id;
-      console.log('✅ Organizzazione trovata:', orgId, orgResult.rows[0].legal_name);
+      console.log(
+        "✅ Organizzazione trovata:",
+        orgId,
+        orgResult.rows[0].legal_name,
+      );
     }
-    
+
     // 4. Verifica o crea membership come ADMIN
     const membershipCheck = await client.query(
-      'SELECT id, role, is_active FROM org_memberships WHERE user_id = $1 AND org_id = $2',
-      [userId, orgId]
+      "SELECT id, role, is_active FROM org_memberships WHERE user_id = $1 AND org_id = $2",
+      [userId, orgId],
     );
-    
+
     if (membershipCheck.rows.length === 0) {
-      console.log('📝 Creando membership come ADMIN...');
+      console.log("📝 Creando membership come ADMIN...");
       // Verifica valori enum OrgRole
-      const roleCheck = await client.query('SELECT DISTINCT role FROM org_memberships LIMIT 1');
-      const validRole = roleCheck.rows.length > 0 ? roleCheck.rows[0].role : 'OWNER';
-      console.log('📝 Usando ruolo:', validRole);
-      
-      const membershipId = 'om_' + Date.now().toString(36);
-      await client.query(
-        'INSERT INTO org_memberships (id, org_id, user_id, role, is_active) VALUES ($1, $2, $3, $4, $5)',
-        [membershipId, orgId, userId, validRole, true]
+      const roleCheck = await client.query(
+        "SELECT DISTINCT role FROM org_memberships LIMIT 1",
       );
-      console.log('✅ Membership creata come ADMIN');
+      const validRole =
+        roleCheck.rows.length > 0 ? roleCheck.rows[0].role : "OWNER";
+      console.log("📝 Usando ruolo:", validRole);
+
+      const membershipId = "om_" + Date.now().toString(36);
+      await client.query(
+        "INSERT INTO org_memberships (id, org_id, user_id, role, is_active) VALUES ($1, $2, $3, $4, $5)",
+        [membershipId, orgId, userId, validRole, true],
+      );
+      console.log("✅ Membership creata come ADMIN");
     } else {
       const membership = membershipCheck.rows[0];
-      if (membership.role !== 'ADMIN' || !membership.is_active) {
+      if (membership.role !== "ADMIN" || !membership.is_active) {
         // Verifica valori enum OrgRole
-        const roleCheck = await client.query('SELECT DISTINCT role FROM org_memberships LIMIT 1');
-        const validRole = roleCheck.rows.length > 0 ? roleCheck.rows[0].role : 'OWNER';
-        console.log('🔄 Aggiornando membership a', validRole, '...');
-        await client.query(
-          'UPDATE org_memberships SET role = $1, is_active = $2 WHERE id = $3',
-          [validRole, true, membership.id]
+        const roleCheck = await client.query(
+          "SELECT DISTINCT role FROM org_memberships LIMIT 1",
         );
-        console.log('✅ Membership aggiornata a ADMIN');
+        const validRole =
+          roleCheck.rows.length > 0 ? roleCheck.rows[0].role : "OWNER";
+        console.log("🔄 Aggiornando membership a", validRole, "...");
+        await client.query(
+          "UPDATE org_memberships SET role = $1, is_active = $2 WHERE id = $3",
+          [validRole, true, membership.id],
+        );
+        console.log("✅ Membership aggiornata a ADMIN");
       } else {
-        console.log('✅ Membership già esistente come ADMIN');
+        console.log("✅ Membership già esistente come ADMIN");
       }
     }
-    
+
     // 5. Verifica setup finale
-    const finalCheck = await client.query(`
+    const finalCheck = await client.query(
+      `
       SELECT 
         u.email, u.first_name, u.last_name,
         o.legal_name, om.role, om.is_active
@@ -107,25 +137,26 @@ async function setupUser() {
       JOIN org_memberships om ON u.id = om.user_id
       JOIN organizations o ON om.org_id = o.id
       WHERE u.email = $1 AND o.id = $2
-    `, [email, orgId]);
-    
+    `,
+      [email, orgId],
+    );
+
     if (finalCheck.rows.length > 0) {
       const check = finalCheck.rows[0];
-      console.log('\n✅ Setup completato:');
-      console.log('  Utente:', check.email);
-      console.log('  Nome:', check.first_name, check.last_name);
-      console.log('  Organizzazione:', check.legal_name);
-      console.log('  Ruolo:', check.role);
-      console.log('  Attivo:', check.is_active);
+      console.log("\n✅ Setup completato:");
+      console.log("  Utente:", check.email);
+      console.log("  Nome:", check.first_name, check.last_name);
+      console.log("  Organizzazione:", check.legal_name);
+      console.log("  Ruolo:", check.role);
+      console.log("  Attivo:", check.is_active);
     }
-    
+
     await client.end();
   } catch (error) {
-    console.error('❌ Errore:', error.message);
-    console.error('Stack:', error.stack);
+    console.error("❌ Errore:", error.message);
+    console.error("Stack:", error.stack);
     process.exit(1);
   }
 }
 
 setupUser();
-

@@ -1,50 +1,52 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AdminLayout } from '@/components/AdminLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { GeneralSection } from '../features/settings/components/GeneralSection'
-import { UsersSection } from '../features/settings/components/UsersSection'
-import { NotificationsSection } from '../features/settings/components/NotificationsSection'
-import { Building2, Users, Bell } from 'lucide-react'
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { AdminLayout } from "@/components/AdminLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GeneralSection } from "../features/settings/components/GeneralSection";
+import { UsersSection } from "../features/settings/components/UsersSection";
+import { NotificationsSection } from "../features/settings/components/NotificationsSection";
+import { Building2, Users, Bell } from "lucide-react";
 
 export default function AdminSettingsPage() {
-  const navigate = useNavigate()
-  const [activeSection, setActiveSection] = useState('general')
+  const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState("general");
 
   useEffect(() => {
     // Verifica se l'utente è autenticato
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem("auth_token");
     if (!token) {
-      navigate('/login')
-      return
+      navigate("/login");
+      return;
     }
-  }, [navigate])
+  }, [navigate]);
 
   const settingsSections = [
     {
-      id: 'general',
-      label: 'Generale',
+      id: "general",
+      label: "Generale",
       icon: Building2,
       component: GeneralSection,
-      description: 'Impostazioni generali dell\'organizzazione'
+      description: "Impostazioni generali dell'organizzazione",
     },
     {
-      id: 'users',
-      label: 'Utenti',
+      id: "users",
+      label: "Utenti",
       icon: Users,
       component: UsersSection,
-      description: 'Gestione membri e inviti'
+      description: "Gestione membri e inviti",
     },
     {
-      id: 'notifications',
-      label: 'Notifiche',
+      id: "notifications",
+      label: "Notifiche",
       icon: Bell,
       component: NotificationsSection,
-      description: 'Preferenze di notifica'
+      description: "Preferenze di notifica",
     },
-  ]
+  ];
 
-  const ActiveComponent = settingsSections.find(s => s.id === activeSection)?.component || GeneralSection
+  const ActiveComponent =
+    settingsSections.find((s) => s.id === activeSection)?.component ||
+    GeneralSection;
 
   return (
     <AdminLayout>
@@ -53,7 +55,8 @@ export default function AdminSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Impostazioni</h1>
           <p className="text-slate-600 mt-1">
-            Gestisci le impostazioni della tua organizzazione e preferenze personali
+            Gestisci le impostazioni della tua organizzazione e preferenze
+            personali
           </p>
         </div>
 
@@ -67,8 +70,8 @@ export default function AdminSettingsPage() {
               <CardContent className="p-0">
                 <nav className="space-y-1">
                   {settingsSections.map((section) => {
-                    const Icon = section.icon
-                    const isActive = activeSection === section.id
+                    const Icon = section.icon;
+                    const isActive = activeSection === section.id;
 
                     return (
                       <button
@@ -76,15 +79,17 @@ export default function AdminSettingsPage() {
                         onClick={() => setActiveSection(section.id)}
                         className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                           isActive
-                            ? 'bg-emerald-50 text-emerald-700 border-r-2 border-emerald-600'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? "bg-emerald-50 text-emerald-700 border-r-2 border-emerald-600"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                         }`}
                       >
                         <Icon className="w-5 h-5 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <div className={`font-medium truncate ${
-                            isActive ? 'text-emerald-700' : 'text-slate-900'
-                          }`}>
+                          <div
+                            className={`font-medium truncate ${
+                              isActive ? "text-emerald-700" : "text-slate-900"
+                            }`}
+                          >
                             {section.label}
                           </div>
                           <div className="text-xs text-slate-500 truncate">
@@ -92,7 +97,7 @@ export default function AdminSettingsPage() {
                           </div>
                         </div>
                       </button>
-                    )
+                    );
                   })}
                 </nav>
               </CardContent>
@@ -101,12 +106,12 @@ export default function AdminSettingsPage() {
 
           {/* Settings Content */}
           <div className="flex-1 min-w-0">
-            {activeSection === 'general' && <GeneralSection />}
-            {activeSection === 'users' && <UsersSection />}
-            {activeSection === 'notifications' && <NotificationsSection />}
+            {activeSection === "general" && <GeneralSection />}
+            {activeSection === "users" && <UsersSection />}
+            {activeSection === "notifications" && <NotificationsSection />}
           </div>
         </div>
       </div>
     </AdminLayout>
-  )
+  );
 }

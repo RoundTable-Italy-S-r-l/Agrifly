@@ -1,4 +1,4 @@
-import L from 'leaflet';
+import L from "leaflet";
 
 // Tipi base dal sistema esistente
 export interface GisData {
@@ -10,7 +10,7 @@ export interface GisData {
 export interface Treatment {
   id: string;
   name: string;
-  type: 'liquid' | 'solid';
+  type: "liquid" | "solid";
   categoryId: string;
   marketPriceMin: number;
   marketPriceMax: number;
@@ -109,16 +109,28 @@ export type PreventivoStep = 1 | 2 | 3 | 4;
 
 // Costanti per il design system
 export const PREVENTIVO_COLORS = {
-  primary: '#10B981',    // Emerald
-  secondary: '#64748B',  // Slate
-  accent: '#F59E0B',     // Amber
-  danger: '#EF4444',     // Red
-  background: '#FFFFFF', // White
-  surface: '#F8FAFC',    // Gray-50
+  primary: "#10B981", // Emerald
+  secondary: "#64748B", // Slate
+  accent: "#F59E0B", // Amber
+  danger: "#EF4444", // Red
+  background: "#FFFFFF", // White
+  surface: "#F8FAFC", // Gray-50
 } as const;
 
 export const PREVENTIVO_SERVICE_TYPES = {
-  SPRAY: { label: 'Trattamento fitosanitario', icon: '💧', color: 'bg-blue-50 text-blue-700' },
-  SPREAD: { label: 'Spandimento', icon: '📦', color: 'bg-purple-50 text-purple-700' },
-  MAPPING: { label: 'Mappatura', icon: '🗺️', color: 'bg-green-50 text-green-700' },
+  SPRAY: {
+    label: "Trattamento fitosanitario",
+    icon: "💧",
+    color: "bg-blue-50 text-blue-700",
+  },
+  SPREAD: {
+    label: "Spandimento",
+    icon: "📦",
+    color: "bg-purple-50 text-purple-700",
+  },
+  MAPPING: {
+    label: "Mappatura",
+    icon: "🗺️",
+    color: "bg-green-50 text-green-700",
+  },
 } as const;

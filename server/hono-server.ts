@@ -1,21 +1,29 @@
-import 'dotenv/config';
-import { serve } from '@hono/node-server';
-import app from './hono-app';
+import "dotenv/config";
+import { serve } from "@hono/node-server";
+import app from "./hono-app";
 
 // Per sviluppo locale con Hono invece di Express
 const port = process.env.PORT || 3001;
 
 console.log(`🚀 Hono server starting on port ${port}...`);
-console.log(`🔑 GRAPHHOPPER_API_KEY:`, process.env.GRAPHHOPPER_API_KEY ? 'Present' : 'Missing');
-console.log(`📦 DATABASE_URL:`, process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 20) + '...' : 'Not set');
+console.log(
+  `🔑 GRAPHHOPPER_API_KEY:`,
+  process.env.GRAPHHOPPER_API_KEY ? "Present" : "Missing",
+);
+console.log(
+  `📦 DATABASE_URL:`,
+  process.env.DATABASE_URL
+    ? process.env.DATABASE_URL.substring(0, 20) + "..."
+    : "Not set",
+);
 
 // Error handler globale
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
 });
 
-process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
   process.exit(1);
 });
 

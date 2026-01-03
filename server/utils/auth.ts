@@ -1,5 +1,11 @@
-import { randomUUID, createHmac, pbkdf2Sync, timingSafeEqual, randomBytes } from 'crypto';
-import { JWT_SECRET } from '../config';
+import {
+  randomUUID,
+  createHmac,
+  pbkdf2Sync,
+  timingSafeEqual,
+  randomBytes,
+} from "crypto";
+import { JWT_SECRET } from "../config";
 
 // ============================================================================
 // PASSWORD HASHING
@@ -13,10 +19,12 @@ import { JWT_SECRET } from '../config';
 export function hashPassword(password: string): { salt: string; hash: string } {
   // Genera salt casuale 16 byte (32 caratteri hex)
   const saltBytes = randomBytes(16);
-  const salt = saltBytes.toString('hex');
+  const salt = saltBytes.toString("hex");
 
   // PBKDF2 con SHA256, 100.000 iterazioni
-  const hash = pbkdf2Sync(password, saltBytes, 100000, 64, 'sha256').toString('hex');
+  const hash = pbkdf2Sync(password, saltBytes, 100000, 64, "sha256").toString(
+    "hex",
+  );
 
   return { salt, hash };
 }
@@ -28,12 +36,25 @@ export function hashPassword(password: string): { salt: string; hash: string } {
  * @param storedSalt Salt memorizzato
  * @returns boolean
  */
-export function verifyPassword(password: string, storedHash: string, storedSalt: string): boolean {
-  const saltBytes = Buffer.from(storedSalt, 'hex');
-  const computedHash = pbkdf2Sync(password, saltBytes, 100000, 64, 'sha256').toString('hex');
+export function verifyPassword(
+  password: string,
+  storedHash: string,
+  storedSalt: string,
+): boolean {
+  const saltBytes = Buffer.from(storedSalt, "hex");
+  const computedHash = pbkdf2Sync(
+    password,
+    saltBytes,
+    100000,
+    64,
+    "sha256",
+  ).toString("hex");
 
   // Usa timing-safe comparison per evitare timing attacks
-  return timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(storedHash, 'hex'));
+  return timingSafeEqual(
+    Buffer.from(computedHash, "hex"),
+    Buffer.from(storedHash, "hex"),
+  );
 }
 
 // ============================================================================
@@ -50,14 +71,18 @@ export function generateJWT(payload: any): string {
   const jwtPayload = {
     ...payload,
     iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 giorni
+    exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 giorni
   };
 
   // Codifica body in base64url (senza header)
-  const body = Buffer.from(JSON.stringify(jwtPayload, null, 0)).toString('base64url');
+  const body = Buffer.from(JSON.stringify(jwtPayload, null, 0)).toString(
+    "base64url",
+  );
 
   // Firma HMAC-SHA256 con secret (da config centralizzata)
-  const signature = createHmac('sha256', JWT_SECRET).update(body).digest('base64url');
+  const signature = createHmac("sha256", JWT_SECRET)
+    .update(body)
+    .digest("base64url");
 
   // Formato: {body}.{signature} (senza header)
   return `${body}.${signature}`;
@@ -70,20 +95,27 @@ export function generateJWT(payload: any): string {
  */
 export function verifyJWT(token: string): any | null {
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 2) return null; // Formato invalido
 
     const [body, signature] = parts;
 
     // Verifica firma
-    const expectedSignature = createHmac('sha256', JWT_SECRET).update(body).digest('base64url');
+    const expectedSignature = createHmac("sha256", JWT_SECRET)
+      .update(body)
+      .digest("base64url");
 
-    if (!timingSafeEqual(Buffer.from(signature, 'base64url'), Buffer.from(expectedSignature, 'base64url'))) {
+    if (
+      !timingSafeEqual(
+        Buffer.from(signature, "base64url"),
+        Buffer.from(expectedSignature, "base64url"),
+      )
+    ) {
       return null; // Firma invalida
     }
 
     // Decodifica payload
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString());
 
     // Verifica scadenza
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
@@ -92,7 +124,7 @@ export function verifyJWT(token: string): any | null {
 
     return payload;
   } catch (error) {
-    console.error('JWT verification error:', error);
+    console.error("JWT verification error:", error);
     return null; // Token malformato
   }
 }
@@ -106,7 +138,7 @@ export function verifyJWT(token: string): any | null {
  * @returns token string
  */
 export function generateResetToken(): string {
-  return crypto.randomBytes(24).toString('base64url'); // 32 caratteri URL-safe
+  return crypto.randomBytes(24).toString("base64url"); // 32 caratteri URL-safe
 }
 
 // ============================================================================
@@ -139,14 +171,22 @@ class RateLimiter {
    * @param windowMs Finestra temporale in ms
    * @returns {allowed: boolean, remaining: number, resetTime: number}
    */
-  check(key: string, maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000) {
+  check(
+    key: string,
+    maxAttempts: number = 5,
+    windowMs: number = 15 * 60 * 1000,
+  ) {
     const now = Date.now();
     const record = this.attempts.get(key);
 
     if (!record || now > record.resetTime) {
       // Prima tentativo o finestra scaduta
       this.attempts.set(key, { count: 1, resetTime: now + windowMs });
-      return { allowed: true, remaining: maxAttempts - 1, resetTime: now + windowMs };
+      return {
+        allowed: true,
+        remaining: maxAttempts - 1,
+        resetTime: now + windowMs,
+      };
     }
 
     if (record.count >= maxAttempts) {
@@ -154,7 +194,11 @@ class RateLimiter {
     }
 
     record.count++;
-    return { allowed: true, remaining: maxAttempts - record.count, resetTime: record.resetTime };
+    return {
+      allowed: true,
+      remaining: maxAttempts - record.count,
+      resetTime: record.resetTime,
+    };
   }
 
   /**
@@ -171,7 +215,7 @@ export const rateLimiter = new RateLimiter();
 // ============================================================================
 // EMAIL UTILITIES
 // ============================================================================
-// 
+//
 // NOTA: Le funzioni email reali sono in server/utils/email.ts
 // Questo file contiene solo utility per autenticazione e JWT
 //

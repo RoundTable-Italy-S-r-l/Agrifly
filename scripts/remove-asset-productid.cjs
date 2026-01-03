@@ -1,11 +1,11 @@
 /**
  * Script di migrazione: rimuove colonna productId da assets
- * 
+ *
  * Asset ora usa solo sku_id per riferirsi a Product (via SKU)
  */
 
-require('dotenv').config();
-const { Client } = require('pg');
+require("dotenv").config();
+const { Client } = require("pg");
 
 async function removeAssetProductId() {
   const client = new Client({
@@ -14,12 +14,12 @@ async function removeAssetProductId() {
     database: process.env.PGDATABASE,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
-    console.log('✅ Connesso al database');
+    console.log("✅ Connesso al database");
 
     // Verifica se la colonna esiste
     const columnCheck = await client.query(`
@@ -29,7 +29,7 @@ async function removeAssetProductId() {
     `);
 
     if (columnCheck.rows.length === 0) {
-      console.log('✅ Colonna productId già rimossa da assets');
+      console.log("✅ Colonna productId già rimossa da assets");
       return;
     }
 
@@ -43,23 +43,26 @@ async function removeAssetProductId() {
     `);
 
     if (fkCheck.rows.length > 0) {
-      console.log('🔧 Rimuovo foreign key constraints...');
+      console.log("🔧 Rimuovo foreign key constraints...");
       for (const fk of fkCheck.rows) {
-        await client.query(`ALTER TABLE assets DROP CONSTRAINT IF EXISTS "${fk.constraint_name}"`);
+        await client.query(
+          `ALTER TABLE assets DROP CONSTRAINT IF EXISTS "${fk.constraint_name}"`,
+        );
         console.log(`  ✅ Rimosso constraint: ${fk.constraint_name}`);
       }
     }
 
     // Rimuovi la colonna
-    console.log('🔧 Rimuovo colonna productId da assets...');
+    console.log("🔧 Rimuovo colonna productId da assets...");
     await client.query(`ALTER TABLE assets DROP COLUMN IF EXISTS "productId"`);
-    console.log('✅ Colonna productId rimossa con successo');
+    console.log("✅ Colonna productId rimossa con successo");
 
-    console.log('\n✅ Migrazione completata!');
-    console.log('📝 Asset ora usa solo sku_id per riferirsi a Product (via SKU → Product)');
-
+    console.log("\n✅ Migrazione completata!");
+    console.log(
+      "📝 Asset ora usa solo sku_id per riferirsi a Product (via SKU → Product)",
+    );
   } catch (error) {
-    console.error('❌ Errore durante la migrazione:', error);
+    console.error("❌ Errore durante la migrazione:", error);
     throw error;
   } finally {
     await client.end();
@@ -69,11 +72,10 @@ async function removeAssetProductId() {
 // Esegui migrazione
 removeAssetProductId()
   .then(() => {
-    console.log('\n🎉 Script completato');
+    console.log("\n🎉 Script completato");
     process.exit(0);
   })
   .catch((error) => {
-    console.error('\n💥 Script fallito:', error);
+    console.error("\n💥 Script fallito:", error);
     process.exit(1);
   });
-

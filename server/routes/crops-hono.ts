@@ -1,8 +1,8 @@
-import { Hono } from 'hono';
+import { Hono } from "hono";
 
 const app = new Hono();
 
 // Placeholder per crops routes
-app.get('/', (c) => c.json({ message: 'crops API' }));
+app.get("/", (c) => c.json({ message: "crops API" }));
 
 export default app;

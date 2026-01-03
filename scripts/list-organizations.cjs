@@ -1,5 +1,5 @@
-const { Client } = require('pg');
-require('dotenv').config();
+const { Client } = require("pg");
+require("dotenv").config();
 
 const client = new Client({
   host: process.env.PGHOST,
@@ -7,14 +7,14 @@ const client = new Client({
   database: process.env.PGDATABASE,
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 
 async function listOrganizations() {
   try {
-    console.log('🔗 Connessione a Supabase...');
+    console.log("🔗 Connessione a Supabase...");
     await client.connect();
-    console.log('✅ Connesso a Supabase\n');
+    console.log("✅ Connesso a Supabase\n");
 
     const orgs = await client.query(`
       SELECT 
@@ -37,28 +37,27 @@ async function listOrganizations() {
     console.log(`   Trovate: ${orgs.rows.length}\n`);
 
     if (orgs.rows.length === 0) {
-      console.log('   ⚠️  Nessuna organizzazione trovata\n');
+      console.log("   ⚠️  Nessuna organizzazione trovata\n");
     } else {
       orgs.rows.forEach((org, index) => {
         console.log(`   ${index + 1}. ${org.legal_name}`);
         console.log(`      ID: ${org.id}`);
-        console.log(`      Tipo: ${org.kind || 'N/A'}`);
-        console.log(`      Certificata: ${org.is_certified ? '✅' : '❌'}`);
-        console.log(`      Può operare: ${org.can_operate ? '✅' : '❌'}`);
+        console.log(`      Tipo: ${org.kind || "N/A"}`);
+        console.log(`      Certificata: ${org.is_certified ? "✅" : "❌"}`);
+        console.log(`      Può operare: ${org.can_operate ? "✅" : "❌"}`);
         console.log(`      Status: ${org.status}`);
         console.log(`      Rate Cards: ${org.rate_cards_count}`);
         console.log(`      Service Configs: ${org.service_configs_count}`);
-        console.log('');
+        console.log("");
       });
     }
 
     await client.end();
   } catch (error) {
-    console.error('❌ Errore durante la verifica:', error);
+    console.error("❌ Errore durante la verifica:", error);
     await client.end();
     process.exit(1);
   }
 }
 
 listOrganizations();
-

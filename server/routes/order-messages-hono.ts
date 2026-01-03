@@ -1,7 +1,10 @@
-import { Hono } from 'hono';
-import { query } from '../utils/database';
-import { validateBody } from '../middleware/validation';
-import { CreateMessageSchema, MarkMessagesReadSchema } from '../schemas/api.schemas';
+import { Hono } from "hono";
+import { query } from "../utils/database";
+import { validateBody } from "../middleware/validation";
+import {
+  CreateMessageSchema,
+  MarkMessagesReadSchema,
+} from "../schemas/api.schemas";
 
 const app = new Hono();
 
@@ -9,15 +12,15 @@ const app = new Hono();
 // GET MESSAGES FOR ORDER
 // ============================================================================
 
-app.get('/:orderId', async (c) => {
+app.get("/:orderId", async (c) => {
   try {
-    const orderId = c.req.param('orderId');
+    const orderId = c.req.param("orderId");
 
     if (!orderId) {
-      return c.json({ error: 'Order ID required' }, 400);
+      return c.json({ error: "Order ID required" }, 400);
     }
 
-    console.log('💬 Richiesta messaggi per ordine:', orderId);
+    console.log("💬 Richiesta messaggi per ordine:", orderId);
 
     const messagesQuery = `
       SELECT
@@ -37,7 +40,7 @@ app.get('/:orderId', async (c) => {
 
     const result = await query(messagesQuery, [orderId]);
 
-    const messages = result.rows.map(msg => ({
+    const messages = result.rows.map((msg) => ({
       id: msg.id,
       order_id: msg.order_id,
       sender_org_id: msg.sender_org_id,
@@ -45,19 +48,21 @@ app.get('/:orderId', async (c) => {
       message_text: msg.message_text,
       is_read: msg.is_read === 1 || msg.is_read === true,
       created_at: msg.created_at,
-      sender_org_name: msg.sender_org_name
+      sender_org_name: msg.sender_org_name,
     }));
 
-    console.log('✅ Recuperati', messages.length, 'messaggi');
+    console.log("✅ Recuperati", messages.length, "messaggi");
 
     return c.json(messages);
-
   } catch (error: any) {
-    console.error('❌ Errore get messages:', error);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message
-    }, 500);
+    console.error("❌ Errore get messages:", error);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+      },
+      500,
+    );
   }
 });
 
@@ -66,24 +71,36 @@ app.get('/:orderId', async (c) => {
 // Route: POST /api/orders/:orderId/messages
 // ============================================================================
 
-app.post('/:orderId/messages', validateBody(CreateMessageSchema), async (c) => {
+app.post("/:orderId/messages", validateBody(CreateMessageSchema), async (c) => {
   try {
-    const orderId = c.req.param('orderId');
-    const { sender_org_id, sender_user_id, message_text } = c.get('validatedBody');
+    const orderId = c.req.param("orderId");
+    const { sender_org_id, sender_user_id, message_text } =
+      c.get("validatedBody");
 
-    console.log('💬 Creazione messaggio per ordine:', orderId);
+    console.log("💬 Creazione messaggio per ordine:", orderId);
 
     // Verifica che l'ordine esista
-    const orderCheck = await query('SELECT id, buyer_org_id, seller_org_id FROM orders WHERE id = $1', [orderId]);
+    const orderCheck = await query(
+      "SELECT id, buyer_org_id, seller_org_id FROM orders WHERE id = $1",
+      [orderId],
+    );
     if (orderCheck.rows.length === 0) {
-      return c.json({ error: 'Order not found' }, 404);
+      return c.json({ error: "Order not found" }, 404);
     }
 
     const order = orderCheck.rows[0];
-    
+
     // Verifica che il sender sia buyer o seller dell'ordine
-    if (order.buyer_org_id !== sender_org_id && order.seller_org_id !== sender_org_id) {
-      return c.json({ error: 'Unauthorized: You can only send messages for your own orders' }, 403);
+    if (
+      order.buyer_org_id !== sender_org_id &&
+      order.seller_org_id !== sender_org_id
+    ) {
+      return c.json(
+        {
+          error: "Unauthorized: You can only send messages for your own orders",
+        },
+        403,
+      );
     }
 
     // Crea messaggio
@@ -100,21 +117,24 @@ app.post('/:orderId/messages', validateBody(CreateMessageSchema), async (c) => {
       sender_user_id || null,
       message_text,
       0, // is_read = false
-      new Date().toISOString()
+      new Date().toISOString(),
     ]);
 
     // Recupera il messaggio appena creato
-    const messageResult = await query(`
+    const messageResult = await query(
+      `
       SELECT om.id, om.order_id, om.sender_org_id, om.sender_user_id, om.message_text, om.is_read, om.created_at,
              o.legal_name as sender_org_name
       FROM order_messages om
       LEFT JOIN organizations o ON om.sender_org_id = o.id
       WHERE om.id = $1
-    `, [messageId]);
+    `,
+      [messageId],
+    );
 
     const message = messageResult.rows[0];
 
-    console.log('✅ Messaggio creato:', messageId);
+    console.log("✅ Messaggio creato:", messageId);
 
     return c.json({
       id: message.id,
@@ -124,15 +144,17 @@ app.post('/:orderId/messages', validateBody(CreateMessageSchema), async (c) => {
       message_text: message.message_text,
       is_read: message.is_read === 1 || message.is_read === true,
       created_at: message.created_at,
-      sender_org_name: message.sender_org_name
+      sender_org_name: message.sender_org_name,
     });
-
   } catch (error: any) {
-    console.error('❌ Errore create message:', error);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message
-    }, 500);
+    console.error("❌ Errore create message:", error);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+      },
+      500,
+    );
   }
 });
 
@@ -141,47 +163,61 @@ app.post('/:orderId/messages', validateBody(CreateMessageSchema), async (c) => {
 // Route: PUT /api/orders/:orderId/messages/read
 // ============================================================================
 
-app.put('/:orderId/messages/read', validateBody(MarkMessagesReadSchema), async (c) => {
-  try {
-    const orderId = c.req.param('orderId');
-    const { reader_org_id } = c.get('validatedBody');
+app.put(
+  "/:orderId/messages/read",
+  validateBody(MarkMessagesReadSchema),
+  async (c) => {
+    try {
+      const orderId = c.req.param("orderId");
+      const { reader_org_id } = c.get("validatedBody");
 
-    console.log('💬 Marca messaggi come letti per ordine:', orderId);
+      console.log("💬 Marca messaggi come letti per ordine:", orderId);
 
-    // Verifica che l'ordine esista e che il reader sia buyer o seller
-    const orderCheck = await query('SELECT id, buyer_org_id, seller_org_id FROM orders WHERE id = $1', [orderId]);
-    if (orderCheck.rows.length === 0) {
-      return c.json({ error: 'Order not found' }, 404);
-    }
+      // Verifica che l'ordine esista e che il reader sia buyer o seller
+      const orderCheck = await query(
+        "SELECT id, buyer_org_id, seller_org_id FROM orders WHERE id = $1",
+        [orderId],
+      );
+      if (orderCheck.rows.length === 0) {
+        return c.json({ error: "Order not found" }, 404);
+      }
 
-    const order = orderCheck.rows[0];
-    
-    // Verifica che il reader sia buyer o seller dell'ordine
-    if (order.buyer_org_id !== reader_org_id && order.seller_org_id !== reader_org_id) {
-      return c.json({ error: 'Unauthorized' }, 403);
-    }
+      const order = orderCheck.rows[0];
 
-    // Marca come letti solo i messaggi NON inviati dal reader stesso
-    await query(`
+      // Verifica che il reader sia buyer o seller dell'ordine
+      if (
+        order.buyer_org_id !== reader_org_id &&
+        order.seller_org_id !== reader_org_id
+      ) {
+        return c.json({ error: "Unauthorized" }, 403);
+      }
+
+      // Marca come letti solo i messaggi NON inviati dal reader stesso
+      await query(
+        `
       UPDATE order_messages 
       SET is_read = 1 
       WHERE order_id = $1 
         AND sender_org_id != $2
         AND is_read = 0
-    `, [orderId, reader_org_id]);
+    `,
+        [orderId, reader_org_id],
+      );
 
-    console.log('✅ Messaggi marcati come letti');
+      console.log("✅ Messaggi marcati come letti");
 
-    return c.json({ success: true });
-
-  } catch (error: any) {
-    console.error('❌ Errore mark messages as read:', error);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message
-    }, 500);
-  }
-});
+      return c.json({ success: true });
+    } catch (error: any) {
+      console.error("❌ Errore mark messages as read:", error);
+      return c.json(
+        {
+          error: "Errore interno",
+          message: error.message,
+        },
+        500,
+      );
+    }
+  },
+);
 
 export default app;
-

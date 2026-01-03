@@ -1,8 +1,12 @@
-import { Hono } from 'hono';
-import { query } from '../utils/database';
-import { authMiddleware } from '../middleware/auth';
-import { validateBody, validateParams } from '../middleware/validation';
-import { CreateOfferSchema, UpdateOfferSchema, DeleteOfferParamsSchema } from '../schemas/api.schemas';
+import { Hono } from "hono";
+import { query } from "../utils/database";
+import { authMiddleware } from "../middleware/auth";
+import { validateBody, validateParams } from "../middleware/validation";
+import {
+  CreateOfferSchema,
+  UpdateOfferSchema,
+  DeleteOfferParamsSchema,
+} from "../schemas/api.schemas";
 
 const app = new Hono();
 
@@ -10,14 +14,15 @@ const app = new Hono();
 // GET OFFERS
 // ============================================================================
 
-app.get('/:orgId', async (c) => {
+app.get("/:orgId", async (c) => {
   try {
-    const orgId = c.req.param('orgId');
-    
-    console.log('🎁 Richiesta offerte per org:', orgId);
+    const orgId = c.req.param("orgId");
+
+    console.log("🎁 Richiesta offerte per org:", orgId);
 
     // Query per ottenere tutte le offerte (bundle, promo, season package)
-    const offersResult = await query(`
+    const offersResult = await query(
+      `
       SELECT 
         id,
         vendor_org_id,
@@ -30,18 +35,20 @@ app.get('/:orgId', async (c) => {
       FROM offers
       WHERE vendor_org_id = $1
       ORDER BY valid_from DESC
-    `, [orgId]);
+    `,
+      [orgId],
+    );
 
     console.log(`📋 Offerte trovate nel DB: ${offersResult.rows.length}`);
 
-    const offers = offersResult.rows.map(row => {
+    const offers = offersResult.rows.map((row) => {
       // Parse rules_json se è una stringa
       let rules_json = row.rules_json;
-      if (typeof rules_json === 'string') {
+      if (typeof rules_json === "string") {
         try {
           rules_json = JSON.parse(rules_json);
         } catch (e) {
-          console.warn('⚠️  Errore parsing rules_json per offerta:', row.id, e);
+          console.warn("⚠️  Errore parsing rules_json per offerta:", row.id, e);
           rules_json = null;
         }
       }
@@ -52,24 +59,31 @@ app.get('/:orgId', async (c) => {
         offer_type: row.offer_type,
         name: row.name,
         rules_json: rules_json,
-        valid_from: row.valid_from ? new Date(row.valid_from).toISOString() : null,
+        valid_from: row.valid_from
+          ? new Date(row.valid_from).toISOString()
+          : null,
         valid_to: row.valid_to ? new Date(row.valid_to).toISOString() : null,
-        status: row.status
+        status: row.status,
       };
     });
 
     console.log(`✅ Offerte formattate: ${offers.length}`);
 
     return c.json(offers);
-
   } catch (error: any) {
-    console.error('❌ Errore get offers:', error);
-    console.error('Stack:', error.stack);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
-    }, 500);
+    console.error("❌ Errore get offers:", error);
+    console.error("Stack:", error.stack);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+        details:
+          process.env.NODE_ENV === "development"
+            ? error.stack?.split("\n").slice(0, 5)
+            : undefined,
+      },
+      500,
+    );
   }
 });
 
@@ -77,20 +91,21 @@ app.get('/:orgId', async (c) => {
 // POST /api/offers - Create offer
 // ============================================================================
 
-app.post('/', authMiddleware, validateBody(CreateOfferSchema), async (c) => {
+app.post("/", authMiddleware, validateBody(CreateOfferSchema), async (c) => {
   try {
     // @ts-ignore - Hono context typing issue
-    const user = c.get('user') as any;
+    const user = c.get("user") as any;
 
-    const body = c.get('validatedBody');
+    const body = c.get("validatedBody");
 
     // Set vendor_org_id from authenticated user
     const data = { ...body, vendor_org_id: user.organizationId };
 
-    console.log('🎁 Creazione offerta:', data);
+    console.log("🎁 Creazione offerta:", data);
 
     // Insert offer into database
-    const insertResult = await query(`
+    const insertResult = await query(
+      `
       INSERT INTO offers (
         id, vendor_org_id, offer_type, name, rules_json,
         valid_from, valid_to, status
@@ -98,23 +113,25 @@ app.post('/', authMiddleware, validateBody(CreateOfferSchema), async (c) => {
         gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7
       )
       RETURNING *
-    `, [
-      data.vendor_org_id,
-      data.offer_type,
-      data.name,
-      JSON.stringify(data.rules_json),
-      data.valid_from,
-      data.valid_to || null,
-      data.status
-    ]);
+    `,
+      [
+        data.vendor_org_id,
+        data.offer_type,
+        data.name,
+        JSON.stringify(data.rules_json),
+        data.valid_from,
+        data.valid_to || null,
+        data.status,
+      ],
+    );
 
     const newOffer = insertResult.rows[0];
 
-    console.log('✅ Offerta creata:', newOffer.id);
+    console.log("✅ Offerta creata:", newOffer.id);
 
     // Parse rules_json if it's a string
     let rulesJson = newOffer.rules_json;
-    if (typeof rulesJson === 'string') {
+    if (typeof rulesJson === "string") {
       try {
         rulesJson = JSON.parse(rulesJson);
       } catch (e) {
@@ -130,17 +147,22 @@ app.post('/', authMiddleware, validateBody(CreateOfferSchema), async (c) => {
       rules_json: rulesJson,
       valid_from: newOffer.valid_from,
       valid_to: newOffer.valid_to,
-      status: newOffer.status
+      status: newOffer.status,
     });
-
   } catch (error: any) {
-    console.error('❌ Errore create offer:', error);
-    console.error('Stack:', error.stack);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
-    }, 500);
+    console.error("❌ Errore create offer:", error);
+    console.error("Stack:", error.stack);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+        details:
+          process.env.NODE_ENV === "development"
+            ? error.stack?.split("\n").slice(0, 5)
+            : undefined,
+      },
+      500,
+    );
   }
 });
 
@@ -148,167 +170,199 @@ app.post('/', authMiddleware, validateBody(CreateOfferSchema), async (c) => {
 // PUT /api/offers/:offerId - Update offer
 // ============================================================================
 
-app.put('/:offerId', authMiddleware, validateBody(UpdateOfferSchema), async (c) => {
-  try {
-    // @ts-ignore - Hono context typing issue
-    const user = c.get('user') as any;
+app.put(
+  "/:offerId",
+  authMiddleware,
+  validateBody(UpdateOfferSchema),
+  async (c) => {
+    try {
+      // @ts-ignore - Hono context typing issue
+      const user = c.get("user") as any;
 
-    const offerId = c.req.param('offerId');
-    const data = c.get('validatedBody');
+      const offerId = c.req.param("offerId");
+      const data = c.get("validatedBody");
 
-    console.log('🔄 Aggiornamento offerta:', { offerId, data });
+      console.log("🔄 Aggiornamento offerta:", { offerId, data });
 
-    // Verify the offer belongs to the user's vendor
-    const offerCheck = await query(
-      'SELECT id, vendor_org_id FROM offers WHERE id = $1',
-      [offerId]
-    );
+      // Verify the offer belongs to the user's vendor
+      const offerCheck = await query(
+        "SELECT id, vendor_org_id FROM offers WHERE id = $1",
+        [offerId],
+      );
 
-    if (offerCheck.rows.length === 0) {
-      return c.json({ error: 'Offerta non trovata' }, 404);
-    }
+      if (offerCheck.rows.length === 0) {
+        return c.json({ error: "Offerta non trovata" }, 404);
+      }
 
-    if (offerCheck.rows[0].vendor_org_id !== user.organizationId) {
-      return c.json({ error: 'Non autorizzato a modificare questa offerta' }, 403);
-    }
+      if (offerCheck.rows[0].vendor_org_id !== user.organizationId) {
+        return c.json(
+          { error: "Non autorizzato a modificare questa offerta" },
+          403,
+        );
+      }
 
-    // Build dynamic update query
-    const updateFields = [];
-    const values = [];
-    let paramIndex = 1;
+      // Build dynamic update query
+      const updateFields = [];
+      const values = [];
+      let paramIndex = 1;
 
-    if (data.name !== undefined) {
-      updateFields.push(`name = $${paramIndex++}`);
-      values.push(data.name);
-    }
+      if (data.name !== undefined) {
+        updateFields.push(`name = $${paramIndex++}`);
+        values.push(data.name);
+      }
 
-    if (data.rules_json !== undefined) {
-      updateFields.push(`rules_json = $${paramIndex++}`);
-      values.push(JSON.stringify(data.rules_json));
-    }
+      if (data.rules_json !== undefined) {
+        updateFields.push(`rules_json = $${paramIndex++}`);
+        values.push(JSON.stringify(data.rules_json));
+      }
 
-    if (data.valid_from !== undefined) {
-      updateFields.push(`valid_from = $${paramIndex++}`);
-      values.push(data.valid_from);
-    }
+      if (data.valid_from !== undefined) {
+        updateFields.push(`valid_from = $${paramIndex++}`);
+        values.push(data.valid_from);
+      }
 
-    if (data.valid_to !== undefined) {
-      updateFields.push(`valid_to = $${paramIndex++}`);
-      values.push(data.valid_to);
-    }
+      if (data.valid_to !== undefined) {
+        updateFields.push(`valid_to = $${paramIndex++}`);
+        values.push(data.valid_to);
+      }
 
-    if (data.status !== undefined) {
-      updateFields.push(`status = $${paramIndex++}`);
-      values.push(data.status);
-    }
+      if (data.status !== undefined) {
+        updateFields.push(`status = $${paramIndex++}`);
+        values.push(data.status);
+      }
 
-    if (updateFields.length === 0) {
-      return c.json({ error: 'Nessun campo da aggiornare' }, 400);
-    }
+      if (updateFields.length === 0) {
+        return c.json({ error: "Nessun campo da aggiornare" }, 400);
+      }
 
-    // Note: offers table doesn't have updated_at column
-    values.push(offerId); // Add offerId as last parameter
+      // Note: offers table doesn't have updated_at column
+      values.push(offerId); // Add offerId as last parameter
 
-    const updateQuery = `
+      const updateQuery = `
       UPDATE offers
-      SET ${updateFields.join(', ')}
+      SET ${updateFields.join(", ")}
       WHERE id = $${paramIndex}
       RETURNING *
     `;
 
-    const updateResult = await query(updateQuery, values);
+      const updateResult = await query(updateQuery, values);
 
-    if (updateResult.rows.length === 0) {
-      return c.json({ error: 'Offerta non trovata' }, 404);
-    }
-
-    const updatedOffer = updateResult.rows[0];
-
-    console.log('✅ Offerta aggiornata:', offerId);
-
-    // Parse rules_json if it's a string
-    let rulesJson = updatedOffer.rules_json;
-    if (typeof rulesJson === 'string') {
-      try {
-        rulesJson = JSON.parse(rulesJson);
-      } catch (e) {
-        rulesJson = {};
+      if (updateResult.rows.length === 0) {
+        return c.json({ error: "Offerta non trovata" }, 404);
       }
+
+      const updatedOffer = updateResult.rows[0];
+
+      console.log("✅ Offerta aggiornata:", offerId);
+
+      // Parse rules_json if it's a string
+      let rulesJson = updatedOffer.rules_json;
+      if (typeof rulesJson === "string") {
+        try {
+          rulesJson = JSON.parse(rulesJson);
+        } catch (e) {
+          rulesJson = {};
+        }
+      }
+
+      return c.json({
+        id: updatedOffer.id,
+        vendor_org_id: updatedOffer.vendor_org_id,
+        offer_type: updatedOffer.offer_type,
+        name: updatedOffer.name,
+        rules_json: rulesJson,
+        valid_from: updatedOffer.valid_from,
+        valid_to: updatedOffer.valid_to,
+        status: updatedOffer.status,
+      });
+    } catch (error: any) {
+      console.error("❌ Errore update offer:", error);
+      console.error("Stack:", error.stack);
+      return c.json(
+        {
+          error: "Errore interno",
+          message: error.message,
+          details:
+            process.env.NODE_ENV === "development"
+              ? error.stack?.split("\n").slice(0, 5)
+              : undefined,
+        },
+        500,
+      );
     }
-
-    return c.json({
-      id: updatedOffer.id,
-      vendor_org_id: updatedOffer.vendor_org_id,
-      offer_type: updatedOffer.offer_type,
-      name: updatedOffer.name,
-      rules_json: rulesJson,
-      valid_from: updatedOffer.valid_from,
-      valid_to: updatedOffer.valid_to,
-      status: updatedOffer.status
-    });
-
-  } catch (error: any) {
-    console.error('❌ Errore update offer:', error);
-    console.error('Stack:', error.stack);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
-    }, 500);
-  }
-});
+  },
+);
 
 // ============================================================================
 // DELETE /api/offers/:offerId - Delete offer
 // ============================================================================
 
-app.delete('/:offerId', authMiddleware, validateParams(DeleteOfferParamsSchema), async (c) => {
-  try {
-    // @ts-ignore - Hono context typing issue
-    const user = c.get('user') as any;
+app.delete(
+  "/:offerId",
+  authMiddleware,
+  validateParams(DeleteOfferParamsSchema),
+  async (c) => {
+    try {
+      // @ts-ignore - Hono context typing issue
+      const user = c.get("user") as any;
 
-    const { offerId } = c.get('validatedParams');
+      const { offerId } = c.get("validatedParams");
 
-    console.log('🗑️ Eliminazione offerta:', offerId);
+      console.log("🗑️ Eliminazione offerta:", offerId);
 
-    // Verify the offer belongs to the user's vendor
-    const offerCheck = await query(
-      'SELECT id, vendor_org_id FROM offers WHERE id = $1',
-      [offerId]
-    );
+      // Verify the offer belongs to the user's vendor
+      const offerCheck = await query(
+        "SELECT id, vendor_org_id FROM offers WHERE id = $1",
+        [offerId],
+      );
 
-    if (offerCheck.rows.length === 0) {
-      return c.json({ error: 'Offerta non trovata' }, 404);
-    }
+      if (offerCheck.rows.length === 0) {
+        return c.json({ error: "Offerta non trovata" }, 404);
+      }
 
-    if (offerCheck.rows[0].vendor_org_id !== user.organizationId) {
-      return c.json({ error: 'Non autorizzato a eliminare questa offerta' }, 403);
-    }
+      if (offerCheck.rows[0].vendor_org_id !== user.organizationId) {
+        return c.json(
+          { error: "Non autorizzato a eliminare questa offerta" },
+          403,
+        );
+      }
 
-    // Delete offer from database
-    const deleteResult = await query(`
+      // Delete offer from database
+      const deleteResult = await query(
+        `
       DELETE FROM offers
       WHERE id = $1
       RETURNING id
-    `, [offerId]);
+    `,
+        [offerId],
+      );
 
-    if (deleteResult.rows.length === 0) {
-      return c.json({ error: 'Offerta non trovata' }, 404);
+      if (deleteResult.rows.length === 0) {
+        return c.json({ error: "Offerta non trovata" }, 404);
+      }
+
+      console.log("✅ Offerta eliminata:", offerId);
+
+      return c.json({
+        success: true,
+        message: "Offerta eliminata con successo",
+      });
+    } catch (error: any) {
+      console.error("❌ Errore delete offer:", error);
+      console.error("Stack:", error.stack);
+      return c.json(
+        {
+          error: "Errore interno",
+          message: error.message,
+          details:
+            process.env.NODE_ENV === "development"
+              ? error.stack?.split("\n").slice(0, 5)
+              : undefined,
+        },
+        500,
+      );
     }
-
-    console.log('✅ Offerta eliminata:', offerId);
-
-    return c.json({ success: true, message: 'Offerta eliminata con successo' });
-
-  } catch (error: any) {
-    console.error('❌ Errore delete offer:', error);
-    console.error('Stack:', error.stack);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
-    }, 500);
-  }
-});
+  },
+);
 
 export default app;

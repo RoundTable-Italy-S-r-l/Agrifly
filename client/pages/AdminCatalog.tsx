@@ -1,7 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AdminLayout } from '@/components/AdminLayout';
-import { fetchVendorCatalog, toggleVendorProduct, updateVendorProduct, initializeVendorCatalog, VendorCatalogItem, fetchOffers, createOffer, updateOffer, deleteOffer, Offer, fetchStockByLocation, StockByLocationResponse } from '@/lib/api';
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AdminLayout } from "@/components/AdminLayout";
+import {
+  fetchVendorCatalog,
+  toggleVendorProduct,
+  updateVendorProduct,
+  initializeVendorCatalog,
+  VendorCatalogItem,
+  fetchOffers,
+  createOffer,
+  updateOffer,
+  deleteOffer,
+  Offer,
+  fetchStockByLocation,
+  StockByLocationResponse,
+} from "@/lib/api";
 import {
   Package,
   Edit,
@@ -18,13 +31,13 @@ import {
   Box,
   Trash2,
   Save,
-  Info
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+  Info,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Sheet,
   SheetClose,
@@ -33,27 +46,28 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 export default function AdminCatalog() {
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('prodotti');
+  const [activeTab, setActiveTab] = useState("prodotti");
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<VendorCatalogItem | null>(null);
+  const [editingProduct, setEditingProduct] =
+    useState<VendorCatalogItem | null>(null);
   const [editForm, setEditForm] = useState({
-    price: '',
-    leadTimeDays: '',
-    notes: '',
-    stock: ''
+    price: "",
+    leadTimeDays: "",
+    notes: "",
+    stock: "",
   });
   const [bundleSheetOpen, setBundleSheetOpen] = useState(false);
   const [offerSheetOpen, setOfferSheetOpen] = useState(false);
@@ -65,137 +79,178 @@ export default function AdminCatalog() {
 
   // Ottieni l'ID dell'organizzazione corrente
   useEffect(() => {
-    const orgData = localStorage.getItem('organization');
-    console.log('📦 Organization data from localStorage:', orgData);
+    const orgData = localStorage.getItem("organization");
+    console.log("📦 Organization data from localStorage:", orgData);
     if (orgData) {
       try {
         const org = JSON.parse(orgData);
-        console.log('📦 Parsed organization:', org);
+        console.log("📦 Parsed organization:", org);
         if (org && org.id) {
-          console.log('✅ Setting currentOrgId to:', org.id);
+          console.log("✅ Setting currentOrgId to:", org.id);
           setCurrentOrgId(org.id);
         } else {
-          console.error('❌ Organization object non ha id:', org);
+          console.error("❌ Organization object non ha id:", org);
         }
       } catch (error) {
-        console.error('❌ Errore nel parsing dei dati organizzazione:', error);
+        console.error("❌ Errore nel parsing dei dati organizzazione:", error);
       }
     } else {
-      console.warn('⚠️  Nessun dato organizzazione in localStorage');
+      console.warn("⚠️  Nessun dato organizzazione in localStorage");
     }
   }, []);
 
   // Query per catalogo vendor
   const { data: catalogData, isLoading } = useQuery({
-    queryKey: ['vendorCatalog', currentOrgId],
-    queryFn: () => currentOrgId ? fetchVendorCatalog(currentOrgId) : Promise.resolve({ catalog: [] }),
-    enabled: !!currentOrgId
+    queryKey: ["vendorCatalog", currentOrgId],
+    queryFn: () =>
+      currentOrgId
+        ? fetchVendorCatalog(currentOrgId)
+        : Promise.resolve({ catalog: [] }),
+    enabled: !!currentOrgId,
   });
 
   // Query per offerte (bundle e promo)
-  const { data: offers = [], isLoading: offersLoading, error: offersError } = useQuery({
-    queryKey: ['offers', currentOrgId],
-    queryFn: () => currentOrgId ? fetchOffers(currentOrgId) : Promise.resolve([]),
-    enabled: !!currentOrgId
+  const {
+    data: offers = [],
+    isLoading: offersLoading,
+    error: offersError,
+  } = useQuery({
+    queryKey: ["offers", currentOrgId],
+    queryFn: () =>
+      currentOrgId ? fetchOffers(currentOrgId) : Promise.resolve([]),
+    enabled: !!currentOrgId,
   });
 
   // Gestione sicura per offers - assicura che sia sempre un array
   const offersArray = Array.isArray(offers) ? offers : [];
-  const bundles = offersArray.filter(o => o.offer_type === 'BUNDLE');
-  const promos = offersArray.filter(o => o.offer_type === 'PROMO' || o.offer_type === 'SEASON_PACKAGE');
+  const bundles = offersArray.filter((o) => o.offer_type === "BUNDLE");
+  const promos = offersArray.filter(
+    (o) => o.offer_type === "PROMO" || o.offer_type === "SEASON_PACKAGE",
+  );
 
   // Mutation per toggle prodotto
   const toggleMutation = useMutation({
-    mutationFn: ({ skuId, isForSale }: { skuId: string; isForSale: boolean }) =>
-      currentOrgId ? toggleVendorProduct(currentOrgId, skuId, isForSale) : Promise.reject('No org ID'),
+    mutationFn: ({
+      skuId,
+      isForSale,
+    }: {
+      skuId: string;
+      isForSale: boolean;
+    }) =>
+      currentOrgId
+        ? toggleVendorProduct(currentOrgId, skuId, isForSale)
+        : Promise.reject("No org ID"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vendorCatalog', currentOrgId] });
+      queryClient.invalidateQueries({
+        queryKey: ["vendorCatalog", currentOrgId],
+      });
     },
     onError: (error) => {
-      console.error('Errore nel toggle prodotto:', error);
-    }
+      console.error("Errore nel toggle prodotto:", error);
+    },
   });
 
   // Mutation per aggiornare prodotto
   const updateMutation = useMutation({
     mutationFn: ({ skuId, updates }: { skuId: string; updates: any }) =>
-      currentOrgId ? updateVendorProduct(currentOrgId, skuId, updates) : Promise.reject('No org ID'),
+      currentOrgId
+        ? updateVendorProduct(currentOrgId, skuId, updates)
+        : Promise.reject("No org ID"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vendorCatalog', currentOrgId] });
+      queryClient.invalidateQueries({
+        queryKey: ["vendorCatalog", currentOrgId],
+      });
       setSheetOpen(false);
       setEditingProduct(null);
-      setEditForm({ price: '', leadTimeDays: '', notes: '', stock: '' });
-    }
+      setEditForm({ price: "", leadTimeDays: "", notes: "", stock: "" });
+    },
   });
 
   // Mutation per inizializzare catalogo
   const initializeMutation = useMutation({
-    mutationFn: () => currentOrgId ? initializeVendorCatalog(currentOrgId) : Promise.reject('No org ID'),
+    mutationFn: () =>
+      currentOrgId
+        ? initializeVendorCatalog(currentOrgId)
+        : Promise.reject("No org ID"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vendorCatalog', currentOrgId] });
-    }
+      queryClient.invalidateQueries({
+        queryKey: ["vendorCatalog", currentOrgId],
+      });
+    },
   });
 
   // Mutation per offerte
   const createOfferMutation = useMutation({
     mutationFn: (offer: any) => createOffer(offer),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['offers', currentOrgId] });
+      queryClient.invalidateQueries({ queryKey: ["offers", currentOrgId] });
       setBundleSheetOpen(false);
       setOfferSheetOpen(false);
       setEditingBundle(null);
       setEditingOffer(null);
-    }
+    },
   });
 
   const updateOfferMutation = useMutation({
     mutationFn: ({ offerId, updates }: { offerId: string; updates: any }) =>
       updateOffer(offerId, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['offers', currentOrgId] });
+      queryClient.invalidateQueries({ queryKey: ["offers", currentOrgId] });
       setBundleSheetOpen(false);
       setOfferSheetOpen(false);
       setEditingBundle(null);
       setEditingOffer(null);
-    }
+    },
   });
 
   const deleteOfferMutation = useMutation({
     mutationFn: (offerId: string) => deleteOffer(offerId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['offers', currentOrgId] });
-    }
+      queryClient.invalidateQueries({ queryKey: ["offers", currentOrgId] });
+    },
   });
 
   const catalog = catalogData?.catalog || [];
 
   // Query per stock per location (quando necessario)
   const { data: stockDetail } = useQuery({
-    queryKey: ['stockByLocation', currentOrgId, stockDetailSkuId],
-    queryFn: () => currentOrgId && stockDetailSkuId 
-      ? fetchStockByLocation(currentOrgId, stockDetailSkuId) 
-      : Promise.resolve(null),
-    enabled: !!currentOrgId && !!stockDetailSkuId
+    queryKey: ["stockByLocation", currentOrgId, stockDetailSkuId],
+    queryFn: () =>
+      currentOrgId && stockDetailSkuId
+        ? fetchStockByLocation(currentOrgId, stockDetailSkuId)
+        : Promise.resolve(null),
+    enabled: !!currentOrgId && !!stockDetailSkuId,
   });
 
   const handleToggleProduct = async (skuId: string, currentStatus: boolean) => {
     try {
-      console.log('🔄 Toggle prodotto:', { skuId, currentStatus, newStatus: !currentStatus });
-      console.log('📡 Chiamando toggleVendorProduct con:', { orgId: currentOrgId, skuId, isForSale: !currentStatus });
-      const result = await toggleMutation.mutateAsync({ skuId, isForSale: !currentStatus });
-      console.log('✅ Toggle completato:', result);
+      console.log("🔄 Toggle prodotto:", {
+        skuId,
+        currentStatus,
+        newStatus: !currentStatus,
+      });
+      console.log("📡 Chiamando toggleVendorProduct con:", {
+        orgId: currentOrgId,
+        skuId,
+        isForSale: !currentStatus,
+      });
+      const result = await toggleMutation.mutateAsync({
+        skuId,
+        isForSale: !currentStatus,
+      });
+      console.log("✅ Toggle completato:", result);
     } catch (error) {
-      console.error('❌ Errore nel toggle prodotto:', error);
+      console.error("❌ Errore nel toggle prodotto:", error);
     }
   };
 
   const handleOpenEdit = (product: VendorCatalogItem) => {
     setEditingProduct(product);
     setEditForm({
-      price: product.price?.toString() || '',
-      leadTimeDays: product.leadTimeDays?.toString() || '',
-      notes: product.notes || '',
-      stock: product.stock?.toString() || ''
+      price: product.price?.toString() || "",
+      leadTimeDays: product.leadTimeDays?.toString() || "",
+      notes: product.notes || "",
+      stock: product.stock?.toString() || "",
     });
     setSheetOpen(true);
   };
@@ -206,37 +261,38 @@ export default function AdminCatalog() {
     try {
       const updates: any = {};
       if (editForm.price) updates.price = parseFloat(editForm.price);
-      if (editForm.leadTimeDays) updates.leadTimeDays = parseInt(editForm.leadTimeDays);
+      if (editForm.leadTimeDays)
+        updates.leadTimeDays = parseInt(editForm.leadTimeDays);
       if (editForm.notes !== undefined) updates.notes = editForm.notes;
-      if (editForm.stock !== undefined && editForm.stock !== '') {
+      if (editForm.stock !== undefined && editForm.stock !== "") {
         updates.stock = parseInt(editForm.stock);
       }
 
       await updateMutation.mutateAsync({ skuId: editingProduct.id, updates });
     } catch (error) {
-      console.error('Errore nell\'aggiornamento prodotto:', error);
+      console.error("Errore nell'aggiornamento prodotto:", error);
     }
   };
 
   const handleCloseSheet = () => {
     setSheetOpen(false);
     setEditingProduct(null);
-    setEditForm({ price: '', leadTimeDays: '', notes: '', stock: '' });
+    setEditForm({ price: "", leadTimeDays: "", notes: "", stock: "" });
   };
 
   // Statistiche semplificate
-  const activeProducts = catalog.filter(p => p.isActive).length;
+  const activeProducts = catalog.filter((p) => p.isActive).length;
 
   // Formatta prezzo
   const formatPrice = (price: number | null) => {
-    if (!price) return 'N/D';
+    if (!price) return "N/D";
     // Mostra decimali solo se necessari
     const hasDecimals = price % 1 !== 0;
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
+    return new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
       minimumFractionDigits: hasDecimals ? 2 : 0,
-      maximumFractionDigits: hasDecimals ? 2 : 0
+      maximumFractionDigits: hasDecimals ? 2 : 0,
     }).format(price);
   };
 
@@ -247,11 +303,15 @@ export default function AdminCatalog() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Catalogo</h1>
-            <p className="text-slate-600 mt-1">Gestisci prodotti, pacchetti e offerte</p>
+            <p className="text-slate-600 mt-1">
+              Gestisci prodotti, pacchetti e offerte
+            </p>
           </div>
-            <div className="text-right">
-            <div className="text-2xl font-bold text-slate-900">{activeProducts}</div>
-              <div className="text-sm text-slate-600">Prodotti attivi</div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-slate-900">
+              {activeProducts}
+            </div>
+            <div className="text-sm text-slate-600">Prodotti attivi</div>
           </div>
         </div>
 
@@ -278,9 +338,13 @@ export default function AdminCatalog() {
               <Card>
                 <CardContent className="py-12">
                   <div className="text-center">
-                    <p className="text-slate-600">Nessuna organizzazione selezionata</p>
-                    <p className="text-sm text-slate-500 mt-2">Effettua il login per vedere il catalogo</p>
-          </div>
+                    <p className="text-slate-600">
+                      Nessuna organizzazione selezionata
+                    </p>
+                    <p className="text-sm text-slate-500 mt-2">
+                      Effettua il login per vedere il catalogo
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             ) : isLoading ? (
@@ -288,45 +352,65 @@ export default function AdminCatalog() {
                 <CardContent className="py-12">
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                    <span className="ml-2 text-slate-600">Caricamento prodotti...</span>
-            </div>
+                    <span className="ml-2 text-slate-600">
+                      Caricamento prodotti...
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
-          ) : catalog.length === 0 ? (
+            ) : catalog.length === 0 ? (
               <Card>
                 <CardContent className="py-12">
                   <div className="text-center space-y-4">
                     <Package className="w-12 h-12 text-slate-400 mx-auto" />
-                    <h3 className="text-lg font-medium text-slate-900">Catalogo non ancora configurato</h3>
-                    <p className="text-slate-600">Configura il tuo catalogo selezionando i prodotti DJI da offrire.</p>
-                  <Button
+                    <h3 className="text-lg font-medium text-slate-900">
+                      Catalogo non ancora configurato
+                    </h3>
+                    <p className="text-slate-600">
+                      Configura il tuo catalogo selezionando i prodotti DJI da
+                      offrire.
+                    </p>
+                    <Button
                       onClick={() => initializeMutation.mutate()}
-                    disabled={initializeMutation.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    <Package className="w-4 h-4 mr-2" />
-                    {initializeMutation.isPending ? 'Inizializzazione...' : 'Inizializza Catalogo'}
-                  </Button>
+                      disabled={initializeMutation.isPending}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      <Package className="w-4 h-4 mr-2" />
+                      {initializeMutation.isPending
+                        ? "Inizializzazione..."
+                        : "Inizializza Catalogo"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {catalog.map((product) => (
-                  <Card key={product.id} className="hover:shadow-md transition-shadow">
+                {catalog.map((product) => (
+                  <Card
+                    key={product.id}
+                    className="hover:shadow-md transition-shadow"
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-lg mb-1">{product.productName}</CardTitle>
-                          <p className="text-sm text-slate-500">SKU: {product.skuCode}</p>
-                          </div>
+                          <CardTitle className="text-lg mb-1">
+                            {product.productName}
+                          </CardTitle>
+                          <p className="text-sm text-slate-500">
+                            SKU: {product.skuCode}
+                          </p>
+                        </div>
                         <Badge
                           variant={product.isActive ? "default" : "secondary"}
-                          className={product.isActive ? "bg-emerald-100 text-emerald-700" : ""}
+                          className={
+                            product.isActive
+                              ? "bg-emerald-100 text-emerald-700"
+                              : ""
+                          }
                         >
-                          {product.isActive ? 'ATTIVO' : 'DISATTIVO'}
+                          {product.isActive ? "ATTIVO" : "DISATTIVO"}
                         </Badge>
-                          </div>
+                      </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="space-y-2">
@@ -345,9 +429,11 @@ export default function AdminCatalog() {
                             Lead time
                           </span>
                           <span className="text-sm font-medium text-slate-900">
-                            {product.leadTimeDays ? `${product.leadTimeDays} giorni` : 'N/D'}
+                            {product.leadTimeDays
+                              ? `${product.leadTimeDays} giorni`
+                              : "N/D"}
                           </span>
-                          </div>
+                        </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-slate-600 flex items-center gap-1">
                             <Box className="w-4 h-4" />
@@ -359,22 +445,34 @@ export default function AdminCatalog() {
                               size="sm"
                               className="h-7 w-7 p-0"
                               onClick={async () => {
-                                const newStock = Math.max(0, (product.stock || 0) - 1);
+                                const newStock = Math.max(
+                                  0,
+                                  (product.stock || 0) - 1,
+                                );
                                 try {
-                                  await updateMutation.mutateAsync({ 
-                                    skuId: product.id, 
-                                    updates: { stock: newStock } 
+                                  await updateMutation.mutateAsync({
+                                    skuId: product.id,
+                                    updates: { stock: newStock },
                                   });
                                   // Ricarica dettaglio stock se aperto
                                   if (stockDetailSkuId === product.id) {
                                     setStockDetailSkuId(null);
-                                    setTimeout(() => setStockDetailSkuId(product.id), 100);
+                                    setTimeout(
+                                      () => setStockDetailSkuId(product.id),
+                                      100,
+                                    );
                                   }
                                 } catch (error) {
-                                  console.error('Errore aggiornamento stock:', error);
+                                  console.error(
+                                    "Errore aggiornamento stock:",
+                                    error,
+                                  );
                                 }
                               }}
-                              disabled={updateMutation.isPending || (product.stock || 0) <= 0}
+                              disabled={
+                                updateMutation.isPending ||
+                                (product.stock || 0) <= 0
+                              }
                             >
                               -
                             </Button>
@@ -403,17 +501,23 @@ export default function AdminCatalog() {
                               onClick={async () => {
                                 const newStock = (product.stock || 0) + 1;
                                 try {
-                                  await updateMutation.mutateAsync({ 
-                                    skuId: product.id, 
-                                    updates: { stock: newStock } 
+                                  await updateMutation.mutateAsync({
+                                    skuId: product.id,
+                                    updates: { stock: newStock },
                                   });
                                   // Ricarica dettaglio stock se aperto
                                   if (stockDetailSkuId === product.id) {
                                     setStockDetailSkuId(null);
-                                    setTimeout(() => setStockDetailSkuId(product.id), 100);
+                                    setTimeout(
+                                      () => setStockDetailSkuId(product.id),
+                                      100,
+                                    );
                                   }
                                 } catch (error) {
-                                  console.error('Errore aggiornamento stock:', error);
+                                  console.error(
+                                    "Errore aggiornamento stock:",
+                                    error,
+                                  );
                                 }
                               }}
                               disabled={updateMutation.isPending}
@@ -425,32 +529,48 @@ export default function AdminCatalog() {
                         {/* Dettaglio stock per location */}
                         {stockDetailSkuId === product.id && stockDetail && (
                           <div className="mt-2 p-2 bg-slate-50 rounded border border-slate-200">
-                            <div className="text-xs font-semibold text-slate-700 mb-1.5">Stock per location:</div>
+                            <div className="text-xs font-semibold text-slate-700 mb-1.5">
+                              Stock per location:
+                            </div>
                             {stockDetail.stockByLocation.length > 0 ? (
                               <div className="space-y-1">
                                 {stockDetail.stockByLocation.map((loc) => (
-                                  <div key={loc.locationId} className="flex items-center justify-between text-xs">
-                                    <span className="text-slate-600">{loc.locationName}:</span>
+                                  <div
+                                    key={loc.locationId}
+                                    className="flex items-center justify-between text-xs"
+                                  >
+                                    <span className="text-slate-600">
+                                      {loc.locationName}:
+                                    </span>
                                     <span className="font-medium text-slate-900">
                                       {loc.qtyOnHand} disponibili
                                       {loc.qtyReserved > 0 && (
-                                        <span className="text-slate-500 ml-1">({loc.qtyReserved} riservati)</span>
+                                        <span className="text-slate-500 ml-1">
+                                          ({loc.qtyReserved} riservati)
+                                        </span>
                                       )}
                                     </span>
                                   </div>
                                 ))}
                                 <div className="pt-1 mt-1 border-t border-slate-200 flex items-center justify-between text-xs font-semibold">
-                                  <span className="text-slate-700">Totale:</span>
+                                  <span className="text-slate-700">
+                                    Totale:
+                                  </span>
                                   <span className="text-slate-900">
                                     {stockDetail.totals.totalStock} unità
                                     {stockDetail.totals.totalReserved > 0 && (
-                                      <span className="text-slate-500 ml-1">({stockDetail.totals.totalReserved} riservati)</span>
+                                      <span className="text-slate-500 ml-1">
+                                        ({stockDetail.totals.totalReserved}{" "}
+                                        riservati)
+                                      </span>
                                     )}
                                   </span>
                                 </div>
                               </div>
                             ) : (
-                              <div className="text-xs text-slate-500">Nessuno stock registrato</div>
+                              <div className="text-xs text-slate-500">
+                                Nessuno stock registrato
+                              </div>
                             )}
                           </div>
                         )}
@@ -460,7 +580,9 @@ export default function AdminCatalog() {
                               <MapPin className="w-4 h-4" />
                               Location
                             </span>
-                            <span className="text-sm text-slate-700">{product.location}</span>
+                            <span className="text-sm text-slate-700">
+                              {product.location}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -477,9 +599,15 @@ export default function AdminCatalog() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleToggleProduct(product.id, product.isActive)}
+                          onClick={() =>
+                            handleToggleProduct(product.id, product.isActive)
+                          }
                           disabled={toggleMutation.isPending}
-                          className={product.isActive ? "text-red-600 hover:text-red-700" : "text-emerald-600 hover:text-emerald-700"}
+                          className={
+                            product.isActive
+                              ? "text-red-600 hover:text-red-700"
+                              : "text-emerald-600 hover:text-emerald-700"
+                          }
                         >
                           {product.isActive ? (
                             <>
@@ -501,11 +629,12 @@ export default function AdminCatalog() {
             )}
           </TabsContent>
 
-
           {/* Tab Pacchetti */}
           <TabsContent value="pacchetti" className="space-y-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-slate-900">Pacchetti</h2>
+              <h2 className="text-xl font-semibold text-slate-900">
+                Pacchetti
+              </h2>
               <Button
                 onClick={() => {
                   setEditingBundle(null);
@@ -523,7 +652,9 @@ export default function AdminCatalog() {
                 <CardContent className="py-12">
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                    <span className="ml-2 text-slate-600">Caricamento pacchetti...</span>
+                    <span className="ml-2 text-slate-600">
+                      Caricamento pacchetti...
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -532,8 +663,12 @@ export default function AdminCatalog() {
                 <CardContent className="py-12">
                   <div className="text-center">
                     <Gift className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">Nessun pacchetto</h3>
-                    <p className="text-slate-600 mb-4">Crea bundle strutturati (drone + batterie + training)</p>
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">
+                      Nessun pacchetto
+                    </h3>
+                    <p className="text-slate-600 mb-4">
+                      Crea bundle strutturati (drone + batterie + training)
+                    </p>
                     <Button
                       onClick={() => {
                         setEditingBundle(null);
@@ -552,17 +687,36 @@ export default function AdminCatalog() {
                 {bundles.map((bundle) => {
                   const rules = bundle.rules_json as any;
                   return (
-                    <Card key={bundle.id} className="hover:shadow-md transition-shadow">
+                    <Card
+                      key={bundle.id}
+                      className="hover:shadow-md transition-shadow"
+                    >
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <CardTitle className="text-lg">{bundle.name}</CardTitle>
+                            <CardTitle className="text-lg">
+                              {bundle.name}
+                            </CardTitle>
                             <p className="text-sm text-slate-500 mt-1">
-                              {new Date(bundle.valid_from).toLocaleDateString('it-IT')} - {bundle.valid_to ? new Date(bundle.valid_to).toLocaleDateString('it-IT') : 'Sempre'}
+                              {new Date(bundle.valid_from).toLocaleDateString(
+                                "it-IT",
+                              )}{" "}
+                              -{" "}
+                              {bundle.valid_to
+                                ? new Date(bundle.valid_to).toLocaleDateString(
+                                    "it-IT",
+                                  )
+                                : "Sempre"}
                             </p>
                           </div>
-                          <Badge className={bundle.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : ''}>
-                            {bundle.status === 'ACTIVE' ? 'ATTIVO' : 'INATTIVO'}
+                          <Badge
+                            className={
+                              bundle.status === "ACTIVE"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : ""
+                            }
+                          >
+                            {bundle.status === "ACTIVE" ? "ATTIVO" : "INATTIVO"}
                           </Badge>
                         </div>
                       </CardHeader>
@@ -570,20 +724,27 @@ export default function AdminCatalog() {
                         <div className="space-y-2 mb-4">
                           {rules.items && Array.isArray(rules.items) && (
                             <div>
-                              <p className="text-sm font-medium text-slate-700 mb-1">Include:</p>
+                              <p className="text-sm font-medium text-slate-700 mb-1">
+                                Include:
+                              </p>
                               <ul className="text-sm text-slate-600 space-y-1">
                                 {rules.items.map((item: any, idx: number) => (
-                                  <li key={idx}>• {item.name || item.sku_code} (x{item.qty || 1})</li>
+                                  <li key={idx}>
+                                    • {item.name || item.sku_code} (x
+                                    {item.qty || 1})
+                                  </li>
                                 ))}
                               </ul>
                             </div>
                           )}
                           {rules.bundle_price && (
                             <div className="flex items-center justify-between pt-2 border-t">
-                              <span className="text-sm text-slate-600">Prezzo pacchetto:</span>
+                              <span className="text-sm text-slate-600">
+                                Prezzo pacchetto:
+                              </span>
                               <span className="text-lg font-semibold text-slate-900">
                                 {formatPrice(rules.bundle_price)}
-                          </span>
+                              </span>
                             </div>
                           )}
                           {rules.discount_percent && (
@@ -608,7 +769,9 @@ export default function AdminCatalog() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => deleteOfferMutation.mutate(bundle.id)}
+                            onClick={() =>
+                              deleteOfferMutation.mutate(bundle.id)
+                            }
                             disabled={deleteOfferMutation.isPending}
                             className="text-red-600 hover:text-red-700"
                           >
@@ -644,7 +807,9 @@ export default function AdminCatalog() {
                 <CardContent className="py-12">
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                    <span className="ml-2 text-slate-600">Caricamento offerte...</span>
+                    <span className="ml-2 text-slate-600">
+                      Caricamento offerte...
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -653,8 +818,12 @@ export default function AdminCatalog() {
                 <CardContent className="py-12">
                   <div className="text-center">
                     <Tag className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">Nessuna offerta</h3>
-                    <p className="text-slate-600 mb-4">Crea promo temporanee e sconti stagionali</p>
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">
+                      Nessuna offerta
+                    </h3>
+                    <p className="text-slate-600 mb-4">
+                      Crea promo temporanee e sconti stagionali
+                    </p>
                     <Button
                       onClick={() => {
                         setEditingOffer(null);
@@ -673,39 +842,69 @@ export default function AdminCatalog() {
                 {promos.map((promo) => {
                   const rules = promo.rules_json as any;
                   return (
-                    <Card key={promo.id} className="hover:shadow-md transition-shadow">
+                    <Card
+                      key={promo.id}
+                      className="hover:shadow-md transition-shadow"
+                    >
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <CardTitle className="text-lg">{promo.name}</CardTitle>
+                            <CardTitle className="text-lg">
+                              {promo.name}
+                            </CardTitle>
                             <p className="text-sm text-slate-500 mt-1">
-                              {new Date(promo.valid_from).toLocaleDateString('it-IT')} - {promo.valid_to ? new Date(promo.valid_to).toLocaleDateString('it-IT') : 'Sempre'}
+                              {new Date(promo.valid_from).toLocaleDateString(
+                                "it-IT",
+                              )}{" "}
+                              -{" "}
+                              {promo.valid_to
+                                ? new Date(promo.valid_to).toLocaleDateString(
+                                    "it-IT",
+                                  )
+                                : "Sempre"}
                             </p>
                           </div>
-                          <Badge className={promo.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : ''}>
-                            {promo.status === 'ACTIVE' ? 'ATTIVA' : 'INATTIVA'}
+                          <Badge
+                            className={
+                              promo.status === "ACTIVE"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : ""
+                            }
+                          >
+                            {promo.status === "ACTIVE" ? "ATTIVA" : "INATTIVA"}
                           </Badge>
                         </div>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-slate-600">Tipo:</span>
+                            <span className="text-sm text-slate-600">
+                              Tipo:
+                            </span>
                             <span className="text-sm font-medium text-slate-900">
-                              {promo.offer_type === 'PROMO' ? 'Promo' : 'Pacchetto Stagionale'}
+                              {promo.offer_type === "PROMO"
+                                ? "Promo"
+                                : "Pacchetto Stagionale"}
                             </span>
                           </div>
                           {rules.discount_type && (
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-slate-600">Sconto:</span>
+                              <span className="text-sm text-slate-600">
+                                Sconto:
+                              </span>
                               <span className="text-sm font-semibold text-emerald-600">
-                                {rules.discount_type === 'PERCENT' ? `-${rules.discount_value}%` : `-${formatPrice(rules.discount_value)}`}
+                                {rules.discount_type === "PERCENT"
+                                  ? `-${rules.discount_value}%`
+                                  : `-${formatPrice(rules.discount_value)}`}
                               </span>
                             </div>
                           )}
                           {rules.applies_to && (
                             <div className="text-sm text-slate-600">
-                              Applica a: {Array.isArray(rules.applies_to) ? rules.applies_to.join(', ') : rules.applies_to}
+                              Applica a:{" "}
+                              {Array.isArray(rules.applies_to)
+                                ? rules.applies_to.join(", ")
+                                : rules.applies_to}
                             </div>
                           )}
                         </div>
@@ -736,8 +935,8 @@ export default function AdminCatalog() {
                     </Card>
                   );
                 })}
-            </div>
-          )}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
@@ -761,7 +960,9 @@ export default function AdminCatalog() {
                   step="0.01"
                   placeholder="0.00"
                   value={editForm.price}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, price: e.target.value }))}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({ ...prev, price: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -771,9 +972,14 @@ export default function AdminCatalog() {
                   type="number"
                   placeholder="7"
                   value={editForm.leadTimeDays}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, leadTimeDays: e.target.value }))}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      leadTimeDays: e.target.value,
+                    }))
+                  }
                 />
-        </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="stock">Stock (unità disponibili)</Label>
                 <Input
@@ -781,23 +987,27 @@ export default function AdminCatalog() {
                   type="number"
                   placeholder="0"
                   value={editForm.stock}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, stock: e.target.value }))}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({ ...prev, stock: e.target.value }))
+                  }
                 />
                 <p className="text-xs text-slate-500">
                   Quantità attualmente disponibile in magazzino
                 </p>
-            </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="notes">Note visibili al cliente</Label>
                 <Textarea
                   id="notes"
                   placeholder="Informazioni aggiuntive sul prodotto..."
                   value={editForm.notes}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({ ...prev, notes: e.target.value }))
+                  }
                   rows={3}
                 />
-          </div>
-        </div>
+              </div>
+            </div>
             <SheetFooter className="mt-6">
               <SheetClose asChild>
                 <Button variant="outline" onClick={handleCloseSheet}>
@@ -809,7 +1019,9 @@ export default function AdminCatalog() {
                 disabled={updateMutation.isPending}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                {updateMutation.isPending ? 'Salvataggio...' : 'Salva modifiche'}
+                {updateMutation.isPending
+                  ? "Salvataggio..."
+                  : "Salva modifiche"}
               </Button>
             </SheetFooter>
           </SheetContent>
@@ -824,12 +1036,20 @@ export default function AdminCatalog() {
           currentOrgId={currentOrgId}
           onSave={(bundleData) => {
             if (editingBundle) {
-              updateOfferMutation.mutate({ offerId: editingBundle.id, updates: bundleData });
+              updateOfferMutation.mutate({
+                offerId: editingBundle.id,
+                updates: bundleData,
+              });
             } else {
-              createOfferMutation.mutate({ ...bundleData, offer_type: 'BUNDLE' });
+              createOfferMutation.mutate({
+                ...bundleData,
+                offer_type: "BUNDLE",
+              });
             }
           }}
-          isLoading={createOfferMutation.isPending || updateOfferMutation.isPending}
+          isLoading={
+            createOfferMutation.isPending || updateOfferMutation.isPending
+          }
         />
 
         {/* Sheet per Offerte */}
@@ -841,12 +1061,17 @@ export default function AdminCatalog() {
           currentOrgId={currentOrgId}
           onSave={(offerData) => {
             if (editingOffer) {
-              updateOfferMutation.mutate({ offerId: editingOffer.id, updates: offerData });
+              updateOfferMutation.mutate({
+                offerId: editingOffer.id,
+                updates: offerData,
+              });
             } else {
-              createOfferMutation.mutate({ ...offerData, offer_type: 'PROMO' });
+              createOfferMutation.mutate({ ...offerData, offer_type: "PROMO" });
             }
           }}
-          isLoading={createOfferMutation.isPending || updateOfferMutation.isPending}
+          isLoading={
+            createOfferMutation.isPending || updateOfferMutation.isPending
+          }
         />
       </div>
     </AdminLayout>
@@ -861,7 +1086,7 @@ function BundleSheet({
   catalog,
   currentOrgId,
   onSave,
-  isLoading
+  isLoading,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -872,24 +1097,24 @@ function BundleSheet({
   isLoading: boolean;
 }) {
   const formatPrice = (price: number | null) => {
-    if (!price) return 'N/D';
+    if (!price) return "N/D";
     // Mostra decimali solo se necessari
     const hasDecimals = price % 1 !== 0;
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
+    return new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
       minimumFractionDigits: hasDecimals ? 2 : 0,
-      maximumFractionDigits: hasDecimals ? 2 : 0
+      maximumFractionDigits: hasDecimals ? 2 : 0,
     }).format(price);
   };
   const [form, setForm] = useState({
-    name: '',
-    bundle_price: '',
-    discount_percent: '',
-    valid_from: '',
-    valid_to: '',
-    status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
-    items: [] as Array<{ sku_id: string; qty: number }>
+    name: "",
+    bundle_price: "",
+    discount_percent: "",
+    valid_from: "",
+    valid_to: "",
+    status: "ACTIVE" as "ACTIVE" | "INACTIVE",
+    items: [] as Array<{ sku_id: string; qty: number }>,
   });
 
   useEffect(() => {
@@ -897,54 +1122,64 @@ function BundleSheet({
       const rules = bundle.rules_json as any;
       setForm({
         name: bundle.name,
-        bundle_price: rules.bundle_price?.toString() || '',
-        discount_percent: rules.discount_percent?.toString() || '',
-        valid_from: new Date(bundle.valid_from).toISOString().split('T')[0],
-        valid_to: bundle.valid_to ? new Date(bundle.valid_to).toISOString().split('T')[0] : '',
+        bundle_price: rules.bundle_price?.toString() || "",
+        discount_percent: rules.discount_percent?.toString() || "",
+        valid_from: new Date(bundle.valid_from).toISOString().split("T")[0],
+        valid_to: bundle.valid_to
+          ? new Date(bundle.valid_to).toISOString().split("T")[0]
+          : "",
         status: bundle.status,
-        items: rules.items || []
+        items: rules.items || [],
       });
     } else {
       setForm({
-        name: '',
-        bundle_price: '',
-        discount_percent: '',
-        valid_from: new Date().toISOString().split('T')[0],
-        valid_to: '',
-        status: 'ACTIVE',
-        items: []
+        name: "",
+        bundle_price: "",
+        discount_percent: "",
+        valid_from: new Date().toISOString().split("T")[0],
+        valid_to: "",
+        status: "ACTIVE",
+        items: [],
       });
     }
   }, [bundle, open]);
 
   const handleAddItem = () => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      items: [...prev.items, { sku_id: '', qty: 1 }]
+      items: [...prev.items, { sku_id: "", qty: 1 }],
     }));
   };
 
   const handleRemoveItem = (index: number) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      items: prev.items.filter((_, i) => i !== index)
+      items: prev.items.filter((_, i) => i !== index),
     }));
   };
 
-  const handleItemChange = (index: number, field: 'sku_id' | 'qty', value: string) => {
-    setForm(prev => ({
+  const handleItemChange = (
+    index: number,
+    field: "sku_id" | "qty",
+    value: string,
+  ) => {
+    setForm((prev) => ({
       ...prev,
       items: prev.items.map((item, i) =>
-        i === index ? { ...item, [field]: field === 'qty' ? parseInt(value) || 1 : value } : item
-      )
+        i === index
+          ? { ...item, [field]: field === "qty" ? parseInt(value) || 1 : value }
+          : item,
+      ),
     }));
   };
 
   const handleSave = () => {
     const rules_json = {
-      items: form.items.filter(item => item.sku_id),
+      items: form.items.filter((item) => item.sku_id),
       bundle_price: form.bundle_price ? parseFloat(form.bundle_price) : null,
-      discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null
+      discount_percent: form.discount_percent
+        ? parseFloat(form.discount_percent)
+        : null,
     };
 
     onSave({
@@ -952,7 +1187,7 @@ function BundleSheet({
       rules_json,
       valid_from: form.valid_from,
       valid_to: form.valid_to || null,
-      status: form.status
+      status: form.status,
     });
   };
 
@@ -960,7 +1195,9 @@ function BundleSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>{bundle ? 'Modifica pacchetto' : 'Crea nuovo pacchetto'}</SheetTitle>
+          <SheetTitle>
+            {bundle ? "Modifica pacchetto" : "Crea nuovo pacchetto"}
+          </SheetTitle>
           <SheetDescription>
             Crea un bundle strutturato con più prodotti
           </SheetDescription>
@@ -971,7 +1208,9 @@ function BundleSheet({
             <Input
               id="bundle-name"
               value={form.name}
-              onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, name: e.target.value }))
+              }
               placeholder="Es. Avvio Agricoltura 50ha"
             />
           </div>
@@ -983,7 +1222,9 @@ function BundleSheet({
                 <div key={index} className="flex items-center gap-2">
                   <Select
                     value={item.sku_id}
-                    onValueChange={(value) => handleItemChange(index, 'sku_id', value)}
+                    onValueChange={(value) =>
+                      handleItemChange(index, "sku_id", value)
+                    }
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Seleziona prodotto" />
@@ -1000,7 +1241,9 @@ function BundleSheet({
                     type="number"
                     min="1"
                     value={item.qty}
-                    onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
+                    onChange={(e) =>
+                      handleItemChange(index, "qty", e.target.value)
+                    }
                     className="w-20"
                   />
                   <Button
@@ -1027,7 +1270,9 @@ function BundleSheet({
                 type="number"
                 step="0.01"
                 value={form.bundle_price}
-                onChange={(e) => setForm(prev => ({ ...prev, bundle_price: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, bundle_price: e.target.value }))
+                }
                 placeholder="0.00"
               />
             </div>
@@ -1037,7 +1282,12 @@ function BundleSheet({
                 id="discount"
                 type="number"
                 value={form.discount_percent}
-                onChange={(e) => setForm(prev => ({ ...prev, discount_percent: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    discount_percent: e.target.value,
+                  }))
+                }
                 placeholder="0"
               />
             </div>
@@ -1050,7 +1300,9 @@ function BundleSheet({
                 id="valid-from"
                 type="date"
                 value={form.valid_from}
-                onChange={(e) => setForm(prev => ({ ...prev, valid_from: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, valid_from: e.target.value }))
+                }
               />
             </div>
             <div className="space-y-2">
@@ -1059,7 +1311,9 @@ function BundleSheet({
                 id="valid-to"
                 type="date"
                 value={form.valid_to}
-                onChange={(e) => setForm(prev => ({ ...prev, valid_to: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, valid_to: e.target.value }))
+                }
               />
             </div>
           </div>
@@ -1068,7 +1322,9 @@ function BundleSheet({
             <Label htmlFor="bundle-status">Stato</Label>
             <Select
               value={form.status}
-              onValueChange={(value: 'ACTIVE' | 'INACTIVE') => setForm(prev => ({ ...prev, status: value }))}
+              onValueChange={(value: "ACTIVE" | "INACTIVE") =>
+                setForm((prev) => ({ ...prev, status: value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -1091,7 +1347,7 @@ function BundleSheet({
             disabled={isLoading || !form.name || form.items.length === 0}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
-            {isLoading ? 'Salvataggio...' : 'Salva pacchetto'}
+            {isLoading ? "Salvataggio..." : "Salva pacchetto"}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -1107,7 +1363,7 @@ function OfferSheet({
   catalog,
   currentOrgId,
   onSave,
-  isLoading
+  isLoading,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1118,24 +1374,24 @@ function OfferSheet({
   isLoading: boolean;
 }) {
   const formatPrice = (price: number | null) => {
-    if (!price) return 'N/D';
+    if (!price) return "N/D";
     // Mostra decimali solo se necessari
     const hasDecimals = price % 1 !== 0;
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
+    return new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
       minimumFractionDigits: hasDecimals ? 2 : 0,
-      maximumFractionDigits: hasDecimals ? 2 : 0
+      maximumFractionDigits: hasDecimals ? 2 : 0,
     }).format(price);
   };
   const [form, setForm] = useState({
-    name: '',
-    discount_type: 'PERCENT' as 'PERCENT' | 'FIXED',
-    discount_value: '',
+    name: "",
+    discount_type: "PERCENT" as "PERCENT" | "FIXED",
+    discount_value: "",
     applies_to: [] as string[],
-    valid_from: '',
-    valid_to: '',
-    status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE'
+    valid_from: "",
+    valid_to: "",
+    status: "ACTIVE" as "ACTIVE" | "INACTIVE",
   });
 
   useEffect(() => {
@@ -1143,42 +1399,45 @@ function OfferSheet({
       const rules = offer.rules_json as any;
       setForm({
         name: offer.name,
-        discount_type: rules.discount_type || 'PERCENT',
-        discount_value: rules.discount_value?.toString() || '',
+        discount_type: rules.discount_type || "PERCENT",
+        discount_value: rules.discount_value?.toString() || "",
         applies_to: rules.applies_to || [],
-        valid_from: new Date(offer.valid_from).toISOString().split('T')[0],
-        valid_to: offer.valid_to ? new Date(offer.valid_to).toISOString().split('T')[0] : '',
-        status: offer.status
+        valid_from: new Date(offer.valid_from).toISOString().split("T")[0],
+        valid_to: offer.valid_to
+          ? new Date(offer.valid_to).toISOString().split("T")[0]
+          : "",
+        status: offer.status,
       });
     } else {
       setForm({
-        name: '',
-        discount_type: 'PERCENT',
-        discount_value: '',
+        name: "",
+        discount_type: "PERCENT",
+        discount_value: "",
         applies_to: [],
-        valid_from: new Date().toISOString().split('T')[0],
-        valid_to: '',
-        status: 'ACTIVE'
+        valid_from: new Date().toISOString().split("T")[0],
+        valid_to: "",
+        status: "ACTIVE",
       });
     }
   }, [offer, open]);
 
   const handleToggleProduct = (skuId: string) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       applies_to: prev.applies_to.includes(skuId)
-        ? prev.applies_to.filter(id => id !== skuId)
-        : [...prev.applies_to, skuId]
+        ? prev.applies_to.filter((id) => id !== skuId)
+        : [...prev.applies_to, skuId],
     }));
   };
 
   const handleSave = () => {
     const rules_json = {
       discount_type: form.discount_type,
-      discount_value: form.discount_type === 'PERCENT' 
-        ? parseFloat(form.discount_value) 
-        : parseFloat(form.discount_value) * 100, // Converti in centesimi per FIXED
-      applies_to: form.applies_to
+      discount_value:
+        form.discount_type === "PERCENT"
+          ? parseFloat(form.discount_value)
+          : parseFloat(form.discount_value) * 100, // Converti in centesimi per FIXED
+      applies_to: form.applies_to,
     };
 
     onSave({
@@ -1186,7 +1445,7 @@ function OfferSheet({
       rules_json,
       valid_from: form.valid_from,
       valid_to: form.valid_to || null,
-      status: form.status
+      status: form.status,
     });
   };
 
@@ -1194,7 +1453,9 @@ function OfferSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>{offer ? 'Modifica offerta' : 'Crea nuova offerta'}</SheetTitle>
+          <SheetTitle>
+            {offer ? "Modifica offerta" : "Crea nuova offerta"}
+          </SheetTitle>
           <SheetDescription>
             Crea una promo temporanea o sconto stagionale
           </SheetDescription>
@@ -1205,7 +1466,9 @@ function OfferSheet({
             <Input
               id="offer-name"
               value={form.name}
-              onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, name: e.target.value }))
+              }
               placeholder="Es. Promo Primavera Agras"
             />
           </div>
@@ -1215,7 +1478,9 @@ function OfferSheet({
               <Label htmlFor="discount-type">Tipo sconto</Label>
               <Select
                 value={form.discount_type}
-                onValueChange={(value: 'PERCENT' | 'FIXED') => setForm(prev => ({ ...prev, discount_type: value }))}
+                onValueChange={(value: "PERCENT" | "FIXED") =>
+                  setForm((prev) => ({ ...prev, discount_type: value }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1231,10 +1496,15 @@ function OfferSheet({
               <Input
                 id="discount-value"
                 type="number"
-                step={form.discount_type === 'PERCENT' ? '1' : '0.01'}
+                step={form.discount_type === "PERCENT" ? "1" : "0.01"}
                 value={form.discount_value}
-                onChange={(e) => setForm(prev => ({ ...prev, discount_value: e.target.value }))}
-                placeholder={form.discount_type === 'PERCENT' ? '10' : '100.00'}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    discount_value: e.target.value,
+                  }))
+                }
+                placeholder={form.discount_type === "PERCENT" ? "10" : "100.00"}
               />
             </div>
           </div>
@@ -1243,7 +1513,10 @@ function OfferSheet({
             <Label>Applica a prodotti</Label>
             <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
               {catalog.map((product) => (
-                <label key={product.id} className="flex items-center gap-2 cursor-pointer">
+                <label
+                  key={product.id}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     checked={form.applies_to.includes(product.id)}
@@ -1263,7 +1536,9 @@ function OfferSheet({
                 id="offer-valid-from"
                 type="date"
                 value={form.valid_from}
-                onChange={(e) => setForm(prev => ({ ...prev, valid_from: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, valid_from: e.target.value }))
+                }
               />
             </div>
             <div className="space-y-2">
@@ -1272,7 +1547,9 @@ function OfferSheet({
                 id="offer-valid-to"
                 type="date"
                 value={form.valid_to}
-                onChange={(e) => setForm(prev => ({ ...prev, valid_to: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, valid_to: e.target.value }))
+                }
               />
             </div>
           </div>
@@ -1281,7 +1558,9 @@ function OfferSheet({
             <Label htmlFor="offer-status">Stato</Label>
             <Select
               value={form.status}
-              onValueChange={(value: 'ACTIVE' | 'INACTIVE') => setForm(prev => ({ ...prev, status: value }))}
+              onValueChange={(value: "ACTIVE" | "INACTIVE") =>
+                setForm((prev) => ({ ...prev, status: value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -1301,10 +1580,15 @@ function OfferSheet({
           </SheetClose>
           <Button
             onClick={handleSave}
-            disabled={isLoading || !form.name || !form.discount_value || form.applies_to.length === 0}
+            disabled={
+              isLoading ||
+              !form.name ||
+              !form.discount_value ||
+              form.applies_to.length === 0
+            }
             className="bg-emerald-600 hover:bg-emerald-700"
           >
-            {isLoading ? 'Salvataggio...' : 'Salva offerta'}
+            {isLoading ? "Salvataggio..." : "Salva offerta"}
           </Button>
         </SheetFooter>
       </SheetContent>

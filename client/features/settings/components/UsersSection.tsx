@@ -1,106 +1,147 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-import { useToast } from '@/hooks/use-toast'
-import { useOrganizationUsers, useOrganizationInvitations, useInviteUser, useRevokeInvitation } from '../hooks'
-import { Mail, UserPlus, X, Clock, Check, AlertCircle } from 'lucide-react'
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import {
+  useOrganizationUsers,
+  useOrganizationInvitations,
+  useInviteUser,
+  useRevokeInvitation,
+} from "../hooks";
+import { Mail, UserPlus, X, Clock, Check, AlertCircle } from "lucide-react";
 
 const inviteSchema = z.object({
-  email: z.string().email('Email non valida'),
-  role: z.enum(['admin', 'vendor', 'operator', 'dispatcher']),
-})
+  email: z.string().email("Email non valida"),
+  role: z.enum(["admin", "vendor", "operator", "dispatcher"]),
+});
 
-type InviteForm = z.infer<typeof inviteSchema>
+type InviteForm = z.infer<typeof inviteSchema>;
 
 const roleLabels = {
-  admin: 'Admin',
-  vendor: 'Vendor',
-  operator: 'Operator',
-  dispatcher: 'Dispatcher',
-}
+  admin: "Admin",
+  vendor: "Vendor",
+  operator: "Operator",
+  dispatcher: "Dispatcher",
+};
 
 const statusIcons = {
   PENDING: <Clock className="w-4 h-4 text-yellow-500" />,
   ACCEPTED: <Check className="w-4 h-4 text-green-500" />,
   EXPIRED: <AlertCircle className="w-4 h-4 text-red-500" />,
-}
+};
 
 const statusLabels = {
-  PENDING: 'In Attesa',
-  ACCEPTED: 'Accettato',
-  EXPIRED: 'Scaduto',
-}
+  PENDING: "In Attesa",
+  ACCEPTED: "Accettato",
+  EXPIRED: "Scaduto",
+};
 
 export function UsersSection() {
-  const { toast } = useToast()
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const { toast } = useToast();
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
-  const { data: users = [], isLoading: usersLoading } = useOrganizationUsers()
-  const { data: invitations = [], isLoading: invitationsLoading } = useOrganizationInvitations()
-  const inviteMutation = useInviteUser()
-  const revokeMutation = useRevokeInvitation()
+  const { data: users = [], isLoading: usersLoading } = useOrganizationUsers();
+  const { data: invitations = [], isLoading: invitationsLoading } =
+    useOrganizationInvitations();
+  const inviteMutation = useInviteUser();
+  const revokeMutation = useRevokeInvitation();
 
   // Ottieni il tipo di organizzazione
-  const orgData = localStorage.getItem('organization')
-  const organization = orgData ? JSON.parse(orgData) : null
-  const orgType = organization?.type || 'buyer'
+  const orgData = localStorage.getItem("organization");
+  const organization = orgData ? JSON.parse(orgData) : null;
+  const orgType = organization?.type || "buyer";
 
   // Determina i ruoli disponibili in base al tipo di organizzazione
-  const availableRoles = (orgType === 'vendor' || orgType === 'operator')
-    ? ['admin', 'vendor', 'operator', 'dispatcher'] as const
-    : ['admin'] as const // Buyer possono invitare solo admin
+  const availableRoles =
+    orgType === "vendor" || orgType === "operator"
+      ? (["admin", "vendor", "operator", "dispatcher"] as const)
+      : (["admin"] as const); // Buyer possono invitare solo admin
 
   const form = useForm<InviteForm>({
     resolver: zodResolver(inviteSchema),
     defaultValues: {
-      email: '',
-      role: 'admin',
+      email: "",
+      role: "admin",
     },
-  })
+  });
 
   const onInviteSubmit = async (data: InviteForm) => {
     try {
-      await inviteMutation.mutateAsync(data as { email: string; role: string })
+      await inviteMutation.mutateAsync(data as { email: string; role: string });
       toast({
-        title: 'Invito inviato',
+        title: "Invito inviato",
         description: `L'invito è stato inviato a ${data.email}`,
-      })
-      form.reset()
-      setInviteDialogOpen(false)
+      });
+      form.reset();
+      setInviteDialogOpen(false);
     } catch (error: any) {
       toast({
-        title: 'Errore',
-        description: error.message || 'Si è verificato un errore durante l\'invio dell\'invito.',
-        variant: 'destructive',
-      })
+        title: "Errore",
+        description:
+          error.message ||
+          "Si è verificato un errore durante l'invio dell'invito.",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
-  const handleRevokeInvitation = async (invitationId: string, email: string) => {
+  const handleRevokeInvitation = async (
+    invitationId: string,
+    email: string,
+  ) => {
     try {
-      await revokeMutation.mutateAsync(invitationId)
+      await revokeMutation.mutateAsync(invitationId);
       toast({
-        title: 'Invito revocato',
+        title: "Invito revocato",
         description: `L'invito per ${email} è stato revocato.`,
-      })
+      });
     } catch (error) {
       toast({
-        title: 'Errore',
-        description: 'Si è verificato un errore durante la revoca dell\'invito.',
-        variant: 'destructive',
-      })
+        title: "Errore",
+        description: "Si è verificato un errore durante la revoca dell'invito.",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -119,31 +160,38 @@ export function UsersSection() {
               <DialogHeader>
                 <DialogTitle>Invita Nuovo Utente</DialogTitle>
               </DialogHeader>
-              <form onSubmit={form.handleSubmit(onInviteSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onInviteSubmit)}
+                className="space-y-4"
+              >
                 <div className="space-y-2">
                   <Label htmlFor="email">Email *</Label>
                   <Input
                     id="email"
                     type="email"
-                    {...form.register('email')}
+                    {...form.register("email")}
                     placeholder="email@esempio.com"
                   />
                   {form.formState.errors.email && (
-                    <p className="text-sm text-red-600">{form.formState.errors.email.message}</p>
+                    <p className="text-sm text-red-600">
+                      {form.formState.errors.email.message}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Ruolo *</Label>
                   <Select
-                    value={form.watch('role')}
-                    onValueChange={(value) => form.setValue('role', value as any)}
+                    value={form.watch("role")}
+                    onValueChange={(value) =>
+                      form.setValue("role", value as any)
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona ruolo" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableRoles.map(role => (
+                      {availableRoles.map((role) => (
                         <SelectItem key={role} value={role}>
                           {roleLabels[role]}
                         </SelectItem>
@@ -165,7 +213,7 @@ export function UsersSection() {
                     variant="emerald"
                     disabled={inviteMutation.isPending}
                   >
-                    {inviteMutation.isPending ? 'Invio...' : 'Invia Invito'}
+                    {inviteMutation.isPending ? "Invio..." : "Invia Invito"}
                   </Button>
                 </div>
               </form>
@@ -194,48 +242,53 @@ export function UsersSection() {
               <TableBody>
                 {users.map((member: any) => {
                   const user = member.user || member;
-                  const firstName = user.first_name || '';
-                  const lastName = user.last_name || '';
-                  const fullName = firstName && lastName ? `${firstName} ${lastName}` : (user.email || 'Utente');
+                  const firstName = user.first_name || "";
+                  const lastName = user.last_name || "";
+                  const fullName =
+                    firstName && lastName
+                      ? `${firstName} ${lastName}`
+                      : user.email || "Utente";
                   const isActive = member.is_active !== false;
-                  
+
                   return (
-                  <TableRow key={member.id}>
-                    <TableCell>
-                      {fullName}
-                    </TableCell>
-                    <TableCell>{user.email || ''}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {roleLabels[member.role] || member.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={isActive ? 'default' : 'outline'}>
-                        {isActive ? 'Attivo' : 'In Attesa'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {member.created_at ? new Date(member.created_at).toLocaleDateString('it-IT') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {!isActive && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            // Pre-compila il form di invito con i dati esistenti
-                            form.setValue('email', user.email);
-                            form.setValue('role', member.role);
-                            setInviteDialogOpen(true);
-                          }}
-                        >
-                          <Mail className="w-4 h-4 mr-1" />
-                          Re-invita
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                    <TableRow key={member.id}>
+                      <TableCell>{fullName}</TableCell>
+                      <TableCell>{user.email || ""}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {roleLabels[member.role] || member.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={isActive ? "default" : "outline"}>
+                          {isActive ? "Attivo" : "In Attesa"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {member.created_at
+                          ? new Date(member.created_at).toLocaleDateString(
+                              "it-IT",
+                            )
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {!isActive && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // Pre-compila il form di invito con i dati esistenti
+                              form.setValue("email", user.email);
+                              form.setValue("role", member.role);
+                              setInviteDialogOpen(true);
+                            }}
+                          >
+                            <Mail className="w-4 h-4 mr-1" />
+                            Re-invita
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
               </TableBody>
@@ -245,7 +298,7 @@ export function UsersSection() {
       </Card>
 
       {/* Pending Members Section - Membri invitati ma senza account completo */}
-      {users.some((user: any) => user.member_type === 'PENDING_SETUP') && (
+      {users.some((user: any) => user.member_type === "PENDING_SETUP") && (
         <Card>
           <CardHeader>
             <CardTitle>Membri In Attesa di Attivazione</CardTitle>
@@ -265,7 +318,7 @@ export function UsersSection() {
               </TableHeader>
               <TableBody>
                 {users
-                  .filter((user: any) => user.member_type === 'PENDING_SETUP')
+                  .filter((user: any) => user.member_type === "PENDING_SETUP")
                   .map((user: any) => (
                     <TableRow key={user.id}>
                       <TableCell>{user.email}</TableCell>
@@ -275,15 +328,15 @@ export function UsersSection() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(user.created_at).toLocaleDateString('it-IT')}
+                        {new Date(user.created_at).toLocaleDateString("it-IT")}
                       </TableCell>
                       <TableCell>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            form.setValue('email', user.email);
-                            form.setValue('role', user.role);
+                            form.setValue("email", user.email);
+                            form.setValue("role", user.role);
                             setInviteDialogOpen(true);
                           }}
                         >
@@ -311,7 +364,9 @@ export function UsersSection() {
               <div className="h-10 bg-gray-200 rounded"></div>
             </div>
           ) : invitations.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">Nessun invito pendente</p>
+            <p className="text-gray-500 text-center py-4">
+              Nessun invito pendente
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -330,7 +385,9 @@ export function UsersSection() {
                     <TableCell>{invitation.email}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {roleLabels[invitation.role as keyof typeof roleLabels] || invitation.role}
+                        {roleLabels[
+                          invitation.role as keyof typeof roleLabels
+                        ] || invitation.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -340,13 +397,17 @@ export function UsersSection() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {new Date(invitation.created_at).toLocaleDateString('it-IT')}
+                      {new Date(invitation.created_at).toLocaleDateString(
+                        "it-IT",
+                      )}
                     </TableCell>
                     <TableCell>
-                      {new Date(invitation.expires_at).toLocaleDateString('it-IT')}
+                      {new Date(invitation.expires_at).toLocaleDateString(
+                        "it-IT",
+                      )}
                     </TableCell>
                     <TableCell>
-                      {invitation.status === 'PENDING' && (
+                      {invitation.status === "PENDING" && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm">
@@ -356,15 +417,23 @@ export function UsersSection() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Revocare l'invito?</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Revocare l'invito?
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
-                                Questa azione non può essere annullata. L'utente non potrà più accettare questo invito.
+                                Questa azione non può essere annullata. L'utente
+                                non potrà più accettare questo invito.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Annulla</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleRevokeInvitation(invitation.id, invitation.email)}
+                                onClick={() =>
+                                  handleRevokeInvitation(
+                                    invitation.id,
+                                    invitation.email,
+                                  )
+                                }
                                 className="bg-red-600 hover:bg-red-700"
                               >
                                 Revoca Invito
@@ -382,5 +451,5 @@ export function UsersSection() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

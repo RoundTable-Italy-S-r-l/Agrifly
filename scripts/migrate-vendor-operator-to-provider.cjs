@@ -1,12 +1,12 @@
 /**
  * Script di migrazione: vendor/operator → provider
- * 
+ *
  * Migra le organizzazioni con type='vendor' o type='operator' a type='provider'
  * Aggiorna anche org_type per retrocompatibilità
  */
 
-require('dotenv').config();
-const { Client } = require('pg');
+require("dotenv").config();
+const { Client } = require("pg");
 
 async function migrateOrgTypes() {
   const client = new Client({
@@ -15,12 +15,12 @@ async function migrateOrgTypes() {
     database: process.env.PGDATABASE,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
-    console.log('✅ Connesso al database');
+    console.log("✅ Connesso al database");
 
     // Conta organizzazioni da migrare
     const countResult = await client.query(`
@@ -29,16 +29,19 @@ async function migrateOrgTypes() {
       WHERE type IN ('vendor', 'operator') 
       GROUP BY type
     `);
-    
-    console.log('\n📊 Organizzazioni da migrare:');
-    countResult.rows.forEach(r => {
+
+    console.log("\n📊 Organizzazioni da migrare:");
+    countResult.rows.forEach((r) => {
       console.log(`  ${r.type}: ${r.count}`);
     });
 
-    const totalCount = countResult.rows.reduce((sum, r) => sum + parseInt(r.count), 0);
-    
+    const totalCount = countResult.rows.reduce(
+      (sum, r) => sum + parseInt(r.count),
+      0,
+    );
+
     if (totalCount === 0) {
-      console.log('\n✅ Nessuna organizzazione da migrare');
+      console.log("\n✅ Nessuna organizzazione da migrare");
       return;
     }
 
@@ -48,8 +51,10 @@ async function migrateOrgTypes() {
       SET type = 'provider' 
       WHERE type IN ('vendor', 'operator')
     `);
-    
-    console.log(`\n✅ Migrate ${updateTypeResult.rowCount} organizzazioni: type → 'provider'`);
+
+    console.log(
+      `\n✅ Migrate ${updateTypeResult.rowCount} organizzazioni: type → 'provider'`,
+    );
 
     // Migra org_type (se esiste)
     const updateOrgTypeResult = await client.query(`
@@ -57,8 +62,10 @@ async function migrateOrgTypes() {
       SET org_type = 'provider' 
       WHERE org_type IN ('vendor', 'operator', 'VENDOR', 'OPERATOR')
     `);
-    
-    console.log(`✅ Migrate ${updateOrgTypeResult.rowCount} organizzazioni: org_type → 'provider'`);
+
+    console.log(
+      `✅ Migrate ${updateOrgTypeResult.rowCount} organizzazioni: org_type → 'provider'`,
+    );
 
     // Verifica risultato
     const verifyResult = await client.query(`
@@ -67,16 +74,15 @@ async function migrateOrgTypes() {
       WHERE type IN ('buyer', 'provider') 
       GROUP BY type
     `);
-    
-    console.log('\n📊 Organizzazioni dopo migrazione:');
-    verifyResult.rows.forEach(r => {
+
+    console.log("\n📊 Organizzazioni dopo migrazione:");
+    verifyResult.rows.forEach((r) => {
       console.log(`  ${r.type}: ${r.count}`);
     });
 
-    console.log('\n✅ Migrazione completata con successo!');
-
+    console.log("\n✅ Migrazione completata con successo!");
   } catch (error) {
-    console.error('❌ Errore durante la migrazione:', error);
+    console.error("❌ Errore durante la migrazione:", error);
     throw error;
   } finally {
     await client.end();
@@ -86,11 +92,10 @@ async function migrateOrgTypes() {
 // Esegui migrazione
 migrateOrgTypes()
   .then(() => {
-    console.log('\n🎉 Script completato');
+    console.log("\n🎉 Script completato");
     process.exit(0);
   })
   .catch((error) => {
-    console.error('\n💥 Script fallito:', error);
+    console.error("\n💥 Script fallito:", error);
     process.exit(1);
   });
-

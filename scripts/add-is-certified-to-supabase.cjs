@@ -1,18 +1,18 @@
-const { Client } = require('pg');
+const { Client } = require("pg");
 
 const client = new Client({
-  host: process.env.PGHOST || 'aws-1-eu-central-2.pooler.supabase.com',
-  port: parseInt(process.env.PGPORT || '6543'),
-  database: process.env.PGDATABASE || 'postgres',
-  user: process.env.PGUSER || 'postgres.fzowfkfwriajohjjboed',
-  password: process.env.PGPASSWORD || '_Mszqe_%uF_82%@',
-  ssl: { rejectUnauthorized: false }
+  host: process.env.PGHOST || "aws-1-eu-central-2.pooler.supabase.com",
+  port: parseInt(process.env.PGPORT || "6543"),
+  database: process.env.PGDATABASE || "postgres",
+  user: process.env.PGUSER || "postgres.fzowfkfwriajohjjboed",
+  password: process.env.PGPASSWORD || "_Mszqe_%uF_82%@",
+  ssl: { rejectUnauthorized: false },
 });
 
 async function addIsCertifiedColumn() {
   try {
     await client.connect();
-    console.log('✅ Connesso a Supabase PostgreSQL\n');
+    console.log("✅ Connesso a Supabase PostgreSQL\n");
 
     // Verifica se la colonna esiste già
     const checkColumn = await client.query(`
@@ -24,12 +24,14 @@ async function addIsCertifiedColumn() {
     `);
 
     if (checkColumn.rows.length > 0) {
-      console.log('✅ La colonna is_certified esiste già in Supabase!');
+      console.log("✅ La colonna is_certified esiste già in Supabase!");
       await client.end();
       return;
     }
 
-    console.log('📝 Aggiungendo colonna is_certified alla tabella organizations...');
+    console.log(
+      "📝 Aggiungendo colonna is_certified alla tabella organizations...",
+    );
 
     // Aggiungi la colonna
     await client.query(`
@@ -37,10 +39,10 @@ async function addIsCertifiedColumn() {
       ADD COLUMN is_certified BOOLEAN DEFAULT false NOT NULL
     `);
 
-    console.log('✅ Colonna is_certified aggiunta con successo!');
-    console.log('   Tipo: BOOLEAN');
-    console.log('   Default: false');
-    console.log('   NOT NULL: true\n');
+    console.log("✅ Colonna is_certified aggiunta con successo!");
+    console.log("   Tipo: BOOLEAN");
+    console.log("   Default: false");
+    console.log("   NOT NULL: true\n");
 
     // Verifica l'aggiunta
     const verify = await client.query(`
@@ -53,7 +55,7 @@ async function addIsCertifiedColumn() {
 
     if (verify.rows.length > 0) {
       const col = verify.rows[0];
-      console.log('✅ Verifica colonna:');
+      console.log("✅ Verifica colonna:");
       console.log(`   Nome: ${col.column_name}`);
       console.log(`   Tipo: ${col.data_type}`);
       console.log(`   Nullable: ${col.is_nullable}`);
@@ -61,19 +63,24 @@ async function addIsCertifiedColumn() {
     }
 
     // Conta organizzazioni
-    const count = await client.query('SELECT COUNT(*) as total FROM organizations');
-    console.log(`\n📊 Totale organizzazioni in Supabase: ${count.rows[0].total}`);
-    console.log('   Tutte le organizzazioni esistenti hanno is_certified = false (default)\n');
+    const count = await client.query(
+      "SELECT COUNT(*) as total FROM organizations",
+    );
+    console.log(
+      `\n📊 Totale organizzazioni in Supabase: ${count.rows[0].total}`,
+    );
+    console.log(
+      "   Tutte le organizzazioni esistenti hanno is_certified = false (default)\n",
+    );
 
     await client.end();
   } catch (err) {
-    console.error('❌ Errore:', err.message);
-    if (err.message.includes('already exists')) {
-      console.log('   La colonna esiste già!');
+    console.error("❌ Errore:", err.message);
+    if (err.message.includes("already exists")) {
+      console.log("   La colonna esiste già!");
     }
     process.exit(1);
   }
 }
 
 addIsCertifiedColumn();
-

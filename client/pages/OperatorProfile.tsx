@@ -1,17 +1,28 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Clock, CheckCircle, Star, MessageSquare, MapPin, Phone, Mail, Building2 } from 'lucide-react';
-import { getAuthHeaders } from '@/lib/auth';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  ArrowLeft,
+  User,
+  Clock,
+  CheckCircle,
+  Star,
+  MessageSquare,
+  MapPin,
+  Phone,
+  Mail,
+  Building2,
+} from "lucide-react";
+import { getAuthHeaders } from "@/lib/auth";
 
 interface ResponseMetric {
   avg_response_minutes: number | null;
   sample_count: number;
   last_response_at: string | null;
-  status: 'reliable' | 'building' | 'insufficient_data';
+  status: "reliable" | "building" | "insufficient_data";
 }
 
 interface Organization {
@@ -29,20 +40,23 @@ interface Organization {
 export default function OperatorProfile() {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
-  const [responseMetric, setResponseMetric] = useState<ResponseMetric | null>(null);
+  const [responseMetric, setResponseMetric] = useState<ResponseMetric | null>(
+    null,
+  );
 
   // Fetch organization data
   const { data: org, isLoading: loadingOrg } = useQuery({
-    queryKey: ['organization', orgId],
+    queryKey: ["organization", orgId],
     queryFn: async () => {
       try {
         const response = await fetch(`/api/operators/org/${orgId}`, {
           headers: getAuthHeaders(),
         });
-        if (!response.ok) throw new Error('Errore nel caricamento organizzazione');
+        if (!response.ok)
+          throw new Error("Errore nel caricamento organizzazione");
         return await response.json();
       } catch (error) {
-        console.error('Errore fetch organizzazione:', error);
+        console.error("Errore fetch organizzazione:", error);
         return null;
       }
     },
@@ -55,9 +69,9 @@ export default function OperatorProfile() {
       fetch(`/api/operators/metrics/ORGANIZATION/${orgId}`, {
         headers: getAuthHeaders(),
       })
-        .then(res => res.json())
-        .then(data => setResponseMetric(data))
-        .catch(err => console.error('Errore caricamento metriche:', err));
+        .then((res) => res.json())
+        .then((data) => setResponseMetric(data))
+        .catch((err) => console.error("Errore caricamento metriche:", err));
     }
   }, [orgId]);
 
@@ -75,14 +89,16 @@ export default function OperatorProfile() {
     return (
       <div className="min-h-screen bg-slate-50">
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="text-center text-slate-600">Organizzazione non trovata</div>
+          <div className="text-center text-slate-600">
+            Organizzazione non trovata
+          </div>
         </div>
       </div>
     );
   }
 
   const formatResponseTime = (minutes: number | null) => {
-    if (!minutes) return 'N/A';
+    if (!minutes) return "N/A";
     if (minutes < 60) return `${Math.round(minutes)} min`;
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
@@ -94,11 +110,7 @@ export default function OperatorProfile() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="mb-4"
-          >
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Indietro
           </Button>
@@ -114,7 +126,13 @@ export default function OperatorProfile() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-sm">
-                    {org.type === 'provider' ? 'Provider' : org.type === 'operator' ? 'Operatore' : org.type === 'vendor' ? 'Vendor' : 'Organizzazione'}
+                    {org.type === "provider"
+                      ? "Provider"
+                      : org.type === "operator"
+                        ? "Operatore"
+                        : org.type === "vendor"
+                          ? "Vendor"
+                          : "Organizzazione"}
                   </Badge>
                 </div>
               </div>
@@ -158,7 +176,7 @@ export default function OperatorProfile() {
         </Card>
 
         {/* Response Metrics */}
-        {responseMetric && responseMetric.status !== 'insufficient_data' && (
+        {responseMetric && responseMetric.status !== "insufficient_data" && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -181,10 +199,12 @@ export default function OperatorProfile() {
                     {responseMetric.sample_count}
                   </div>
                   <div className="text-sm text-slate-600">
-                    {responseMetric.sample_count === 1 ? 'risposta' : 'risposte'}
+                    {responseMetric.sample_count === 1
+                      ? "risposta"
+                      : "risposte"}
                   </div>
                 </div>
-                {responseMetric.status === 'building' && (
+                {responseMetric.status === "building" && (
                   <Badge variant="outline" className="ml-auto">
                     Dato in costruzione
                   </Badge>
@@ -197,7 +217,9 @@ export default function OperatorProfile() {
         {/* Placeholder per altre metriche future */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Informazioni</CardTitle>
+            <CardTitle className="text-lg font-semibold">
+              Informazioni
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-slate-600 text-sm">
@@ -209,4 +231,3 @@ export default function OperatorProfile() {
     </div>
   );
 }
-

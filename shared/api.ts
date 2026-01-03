@@ -23,7 +23,7 @@ export interface GisCategory {
 export interface Treatment {
   id: string;
   name: string;
-  type: 'liquid' | 'solid';
+  type: "liquid" | "solid";
   targetCrops: string;
   dosage: string;
   operatingSpeed: number;
@@ -66,7 +66,7 @@ export interface Affiliate {
   name: string;
   region: string;
   zone: string;
-  status: 'active' | 'busy' | 'offline';
+  status: "active" | "busy" | "offline";
   jobsDone: number;
   rating: number;
 }

@@ -3,11 +3,14 @@
 ## Flusso Attuale
 
 ### 1. Aggiornamento Stock (Frontend → Backend)
+
 **Frontend** (`AdminCatalog.tsx`):
+
 - Utente clicca `+` o `-` per aggiornare stock
 - Chiama `updateMutation.mutateAsync({ skuId, updates: { stock: newStock } })`
 
 **Backend** (`catalog-hono.ts` PUT `/vendor/:orgId/product`):
+
 - Trova la **PRIMA location** del vendor (o ne crea una default "Magazzino Principale")
 - Fa **UPSERT** nella tabella `inventories`:
   ```sql
@@ -18,7 +21,9 @@
   ```
 
 ### 2. Lettura Stock (Backend → Frontend)
+
 **Backend** (`catalog-hono.ts` GET `/vendor/:orgId`):
+
 - Query fa **SUM** di `qty_on_hand` da **TUTTE le location**:
   ```sql
   COALESCE(SUM(i.qty_on_hand), 0) as total_stock
@@ -29,6 +34,7 @@
 ## Problema Potenziale
 
 **Scenario problematico:**
+
 1. Vendor ha 2 location: "Magazzino A" e "Magazzino B"
 2. SKU X ha:
    - Location A: 5 unità
@@ -42,6 +48,7 @@
 7. **Totale mostrato: 10 unità** (7 + 3) ❌
 
 **Oppure:**
+
 - Se Location A era la prima, viene sovrascritta con 7
 - Se Location B era la prima, viene sovrascritta con 7
 - Il totale potrebbe essere diverso da quello che l'utente si aspetta
@@ -49,7 +56,9 @@
 ## Soluzione Consigliata
 
 ### Opzione 1: Aggiornare TUTTO lo stock (semplice)
+
 Quando aggiorni lo stock, aggiorna la SOMMA di tutte le location:
+
 ```sql
 -- Calcola stock totale attuale
 SELECT COALESCE(SUM(qty_on_hand), 0) as current_total
@@ -62,17 +71,20 @@ WHERE vendor_org_id = $1 AND sku_id = $2;
 ```
 
 ### Opzione 2: Usare sempre la stessa location (più semplice)
+
 - Quando aggiorni lo stock, usa sempre la PRIMA location
 - Quando leggi lo stock, leggi solo dalla PRIMA location (non fare SUM)
 - Questo funziona bene se il vendor ha una sola location principale
 
 ### Opzione 3: Gestione multi-location (complessa)
+
 - Permettere all'utente di selezionare quale location aggiornare
 - Mostrare stock per location separatamente
 
 ## Verifica Database
 
 Tabella `inventories`:
+
 - `vendor_org_id`: ID organizzazione vendor
 - `location_id`: ID location (magazzino)
 - `sku_id`: ID SKU
@@ -81,10 +93,11 @@ Tabella `inventories`:
 - **Constraint UNIQUE**: `(vendor_org_id, location_id, sku_id)`
 
 **Il comportamento attuale è corretto se:**
+
 - Il vendor ha una sola location
 - O se vuoi che lo stock sia sempre nella prima location
 
 **Il comportamento attuale NON è corretto se:**
+
 - Il vendor ha più location con stock diverso
 - Vuoi gestire stock per location separatamente
-

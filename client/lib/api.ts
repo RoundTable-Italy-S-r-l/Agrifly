@@ -1,20 +1,8 @@
-import {
-  Drone,
-  Crop,
-  Treatment,
-  Affiliate,
-  GisCategory
-} from "@shared/api";
+import { Drone, Crop, Treatment, Affiliate, GisCategory } from "@shared/api";
 import { getAuthHeaders } from "./auth";
 
 // Re-export types for convenience
-export type {
-  Drone,
-  Crop,
-  Treatment,
-  Affiliate,
-  GisCategory
-};
+export type { Drone, Crop, Treatment, Affiliate, GisCategory };
 
 // Service Management Types
 export interface RateCard {
@@ -115,22 +103,28 @@ export interface ServiceConfiguration {
 }
 
 // API Base URL - in dev, Vite serve anche le API sulla stessa porta (8082)
-const API_BASE = '';
+const API_BASE = "";
 
 class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
-export async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+export async function apiRequest<T>(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<T> {
   const url = `${API_BASE}/api${endpoint}`;
 
   try {
     const response = await fetch(url, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...getAuthHeaders(),
         ...options?.headers,
       },
@@ -138,8 +132,15 @@ export async function apiRequest<T>(endpoint: string, options?: RequestInit): Pr
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: response.statusText }));
-      throw new ApiError(response.status, errorData.error || errorData.message || `API request failed: ${response.statusText}`);
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: response.statusText }));
+      throw new ApiError(
+        response.status,
+        errorData.error ||
+          errorData.message ||
+          `API request failed: ${response.statusText}`,
+      );
     }
 
     return await response.json();
@@ -153,7 +154,7 @@ export async function apiRequest<T>(endpoint: string, options?: RequestInit): Pr
 
 // Drones API
 export const fetchDrones = (): Promise<Drone[]> =>
-  apiRequest<Drone[]>('/drones');
+  apiRequest<Drone[]>("/drones");
 
 export const fetchDroneById = (id: string): Promise<Drone> =>
   apiRequest<Drone>(`/drones/${id}`);
@@ -175,21 +176,24 @@ export interface ProductMetricsResponse {
   minMax: Record<string, { min: number; max: number }>;
 }
 
-export const fetchProductMetrics = (id: string): Promise<ProductMetricsResponse> =>
+export const fetchProductMetrics = (
+  id: string,
+): Promise<ProductMetricsResponse> =>
   apiRequest<ProductMetricsResponse>(`/drones/${id}/metrics`);
 
 // Crops API
-export const fetchCrops = (): Promise<Crop[]> =>
-  apiRequest<Crop[]>('/crops');
+export const fetchCrops = (): Promise<Crop[]> => apiRequest<Crop[]>("/crops");
 
 export const fetchCropById = (id: string): Promise<Crop> =>
   apiRequest<Crop>(`/crops/${id}`);
 
 // Treatments API
 export const fetchTreatments = (): Promise<Treatment[]> =>
-  apiRequest<Treatment[]>('/treatments');
+  apiRequest<Treatment[]>("/treatments");
 
-export const fetchTreatmentsByCategory = (categoryId: string): Promise<Treatment[]> =>
+export const fetchTreatmentsByCategory = (
+  categoryId: string,
+): Promise<Treatment[]> =>
   apiRequest<Treatment[]>(`/treatments/category/${categoryId}`);
 
 export const fetchTreatmentById = (id: string): Promise<Treatment> =>
@@ -197,18 +201,20 @@ export const fetchTreatmentById = (id: string): Promise<Treatment> =>
 
 // Affiliates API
 export const fetchAffiliates = (): Promise<Affiliate[]> =>
-  apiRequest<Affiliate[]>('/affiliates');
+  apiRequest<Affiliate[]>("/affiliates");
 
 export const fetchAffiliateById = (id: number): Promise<Affiliate> =>
   apiRequest<Affiliate>(`/affiliates/${id}`);
 
 // Saved Fields API
 export const fetchSavedFields = (): Promise<SavedField[]> =>
-  apiRequest<SavedField[]>('/fields');
+  apiRequest<SavedField[]>("/fields");
 
-export const createSavedField = (data: Omit<SavedField, 'id' | 'createdAt' | 'updatedAt'>): Promise<SavedField> =>
-  apiRequest<SavedField>('/fields', {
-    method: 'POST',
+export const createSavedField = (
+  data: Omit<SavedField, "id" | "createdAt" | "updatedAt">,
+): Promise<SavedField> =>
+  apiRequest<SavedField>("/fields", {
+    method: "POST",
     body: JSON.stringify(data),
   });
 
@@ -217,7 +223,7 @@ export const fetchSavedFieldById = (id: string): Promise<SavedField> =>
 
 // GIS Categories API
 export const fetchGisCategories = (): Promise<GisCategory[]> =>
-  apiRequest<GisCategory[]>('/gis-categories');
+  apiRequest<GisCategory[]>("/gis-categories");
 
 export const fetchGisCategoryById = (id: string): Promise<GisCategory> =>
   apiRequest<GisCategory>(`/gis-categories/${id}`);
@@ -273,9 +279,12 @@ export interface OrderStats {
   }>;
 }
 
-export const fetchOrders = (orgId: string, role?: 'buyer' | 'seller'): Promise<Order[]> => {
+export const fetchOrders = (
+  orgId: string,
+  role?: "buyer" | "seller",
+): Promise<Order[]> => {
   const params = new URLSearchParams({ orgId });
-  if (role) params.append('role', role);
+  if (role) params.append("role", role);
   return apiRequest<Order[]>(`/orders?${params}`);
 };
 
@@ -291,9 +300,9 @@ export const createOrderFromCart = (data: {
   billingAddress: any;
   customerNotes?: string;
 }): Promise<{ order: Order }> =>
-  apiRequest<{ order: Order }>('/orders/create-from-cart', {
-    method: 'POST',
-    body: JSON.stringify(data)
+  apiRequest<{ order: Order }>("/orders/create-from-cart", {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 
 // ============================================================================
@@ -325,20 +334,26 @@ export interface JobOfferMessage {
 export const fetchOrderMessages = (orderId: string): Promise<OrderMessage[]> =>
   apiRequest<OrderMessage[]>(`/orders/${orderId}/messages`);
 
-export const sendOrderMessage = (orderId: string, data: {
-  sender_org_id: string;
-  sender_user_id?: string;
-  message_text: string;
-}): Promise<OrderMessage> =>
+export const sendOrderMessage = (
+  orderId: string,
+  data: {
+    sender_org_id: string;
+    sender_user_id?: string;
+    message_text: string;
+  },
+): Promise<OrderMessage> =>
   apiRequest<OrderMessage>(`/orders/${orderId}/messages`, {
-    method: 'POST',
-    body: JSON.stringify(data)
+    method: "POST",
+    body: JSON.stringify(data),
   });
 
-export const markOrderMessagesAsRead = (orderId: string, reader_org_id: string): Promise<{ success: boolean }> =>
+export const markOrderMessagesAsRead = (
+  orderId: string,
+  reader_org_id: string,
+): Promise<{ success: boolean }> =>
   apiRequest<{ success: boolean }>(`/orders/${orderId}/messages/read`, {
-    method: 'PUT',
-    body: JSON.stringify({ reader_org_id })
+    method: "PUT",
+    body: JSON.stringify({ reader_org_id }),
   });
 
 // ============================================================================
@@ -356,21 +371,29 @@ export interface JobOfferMessage {
   sender_org_name?: string;
 }
 
-export const fetchJobOfferMessages = (offerId: string): Promise<JobOfferMessage[]> =>
+export const fetchJobOfferMessages = (
+  offerId: string,
+): Promise<JobOfferMessage[]> =>
   apiRequest<JobOfferMessage[]>(`/jobs/offers/${offerId}/messages`);
 
-export const sendJobOfferMessage = (offerId: string, data: {
-  content: string;
-}): Promise<JobOfferMessage> =>
+export const sendJobOfferMessage = (
+  offerId: string,
+  data: {
+    content: string;
+  },
+): Promise<JobOfferMessage> =>
   apiRequest<JobOfferMessage>(`/jobs/offers/${offerId}/messages`, {
-    method: 'POST',
-    body: JSON.stringify(data)
+    method: "POST",
+    body: JSON.stringify(data),
   });
 
-export const markJobOfferMessagesAsRead = (offerId: string, reader_org_id: string): Promise<{ success: boolean }> =>
+export const markJobOfferMessagesAsRead = (
+  offerId: string,
+  reader_org_id: string,
+): Promise<{ success: boolean }> =>
   apiRequest<{ success: boolean }>(`/jobs/offers/${offerId}/messages/read`, {
-    method: 'PUT',
-    body: JSON.stringify({ reader_org_id })
+    method: "PUT",
+    body: JSON.stringify({ reader_org_id }),
   });
 
 // ============================================================================
@@ -420,7 +443,7 @@ export interface WishlistItem {
 export interface Address {
   id: string;
   org_id: string;
-  type: 'SHIPPING' | 'BILLING';
+  type: "SHIPPING" | "BILLING";
   name: string;
   company?: string;
   address_line: string;
@@ -435,102 +458,141 @@ export interface Address {
 }
 
 // Shopping Cart API
-export const getCart = (orgId: string | null, userId?: string, sessionId?: string): Promise<CartResponse> => {
+export const getCart = (
+  orgId: string | null,
+  userId?: string,
+  sessionId?: string,
+): Promise<CartResponse> => {
   const params = new URLSearchParams();
-  if (orgId && orgId !== 'guest_org') params.append('orgId', orgId);
-  if (userId) params.append('userId', userId);
-  if (sessionId) params.append('sessionId', sessionId);
+  if (orgId && orgId !== "guest_org") params.append("orgId", orgId);
+  if (userId) params.append("userId", userId);
+  if (sessionId) params.append("sessionId", sessionId);
   // Se non c'è orgId e non c'è sessionId, usa 'guest_org' come fallback
-  if (!orgId && !sessionId) params.append('orgId', 'guest_org');
+  if (!orgId && !sessionId) params.append("orgId", "guest_org");
   return apiRequest<CartResponse>(`/ecommerce/cart?${params}`);
 };
 
-export const addToCart = (cartId: string, skuId: string, quantity?: number): Promise<CartItem> =>
-  apiRequest<CartItem>('/ecommerce/cart/items', {
-    method: 'POST',
-    body: JSON.stringify({ cartId, skuId, quantity: quantity || 1 })
+export const addToCart = (
+  cartId: string,
+  skuId: string,
+  quantity?: number,
+): Promise<CartItem> =>
+  apiRequest<CartItem>("/ecommerce/cart/items", {
+    method: "POST",
+    body: JSON.stringify({ cartId, skuId, quantity: quantity || 1 }),
   });
 
-export const updateCartItem = (itemId: string, quantity: number): Promise<CartItem> =>
+export const updateCartItem = (
+  itemId: string,
+  quantity: number,
+): Promise<CartItem> =>
   apiRequest<CartItem>(`/ecommerce/cart/items/${itemId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ quantity })
+    method: "PUT",
+    body: JSON.stringify({ quantity }),
   });
 
 export const removeFromCart = (itemId: string): Promise<{ message: string }> =>
   apiRequest<{ message: string }>(`/ecommerce/cart/items/${itemId}`, {
-    method: 'DELETE'
+    method: "DELETE",
   });
 
-export const migrateCart = (sessionId: string, userId: string, orgId: string): Promise<{ message: string; migrated: boolean; itemsMigrated?: number; userCartId?: string }> =>
+export const migrateCart = (
+  sessionId: string,
+  userId: string,
+  orgId: string,
+): Promise<{
+  message: string;
+  migrated: boolean;
+  itemsMigrated?: number;
+  userCartId?: string;
+}> =>
   apiRequest(`/ecommerce/cart/migrate`, {
-    method: 'POST',
-    body: JSON.stringify({ sessionId, userId, orgId })
+    method: "POST",
+    body: JSON.stringify({ sessionId, userId, orgId }),
   });
 
 // Wishlist API
 export const getWishlist = (orgId: string): Promise<WishlistItem[]> =>
   apiRequest<WishlistItem[]>(`/ecommerce/wishlist?orgId=${orgId}`);
 
-export const addToWishlist = (orgId: string, productId?: string, skuId?: string, note?: string): Promise<WishlistItem> => {
+export const addToWishlist = (
+  orgId: string,
+  productId?: string,
+  skuId?: string,
+  note?: string,
+): Promise<WishlistItem> => {
   const body: any = { orgId };
   if (productId) {
     body.productId = productId;
   } else if (skuId) {
     body.skuId = skuId;
   } else {
-    throw new Error('Product ID or SKU ID required');
+    throw new Error("Product ID or SKU ID required");
   }
   if (note) {
     body.note = note;
   }
-  return apiRequest<WishlistItem>('/ecommerce/wishlist', {
-    method: 'POST',
-    body: JSON.stringify(body)
+  return apiRequest<WishlistItem>("/ecommerce/wishlist", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 };
 
-export const removeFromWishlist = (itemId: string): Promise<{ message: string }> =>
+export const removeFromWishlist = (
+  itemId: string,
+): Promise<{ message: string }> =>
   apiRequest<{ message: string }>(`/ecommerce/wishlist/${itemId}`, {
-    method: 'DELETE'
+    method: "DELETE",
   });
 
 // Address Management API
-export const getAddresses = (orgId: string, type?: 'SHIPPING' | 'BILLING'): Promise<Address[]> => {
+export const getAddresses = (
+  orgId: string,
+  type?: "SHIPPING" | "BILLING",
+): Promise<Address[]> => {
   const params = new URLSearchParams({ orgId });
-  if (type) params.append('type', type);
+  if (type) params.append("type", type);
   return apiRequest<Address[]>(`/ecommerce/addresses?${params}`);
 };
 
-export const createAddress = (address: Omit<Address, 'id' | 'created_at' | 'updated_at'>): Promise<Address> =>
-  apiRequest<Address>('/ecommerce/addresses', {
-    method: 'POST',
-    body: JSON.stringify(address)
+export const createAddress = (
+  address: Omit<Address, "id" | "created_at" | "updated_at">,
+): Promise<Address> =>
+  apiRequest<Address>("/ecommerce/addresses", {
+    method: "POST",
+    body: JSON.stringify(address),
   });
 
-export const updateAddress = (addressId: string, updates: Partial<Address>): Promise<Address> =>
+export const updateAddress = (
+  addressId: string,
+  updates: Partial<Address>,
+): Promise<Address> =>
   apiRequest<Address>(`/ecommerce/addresses/${addressId}`, {
-    method: 'PUT',
-    body: JSON.stringify(updates)
+    method: "PUT",
+    body: JSON.stringify(updates),
   });
 
-export const deleteAddress = (addressId: string): Promise<{ message: string }> =>
+export const deleteAddress = (
+  addressId: string,
+): Promise<{ message: string }> =>
   apiRequest<{ message: string }>(`/ecommerce/addresses/${addressId}`, {
-    method: 'DELETE'
+    method: "DELETE",
   });
 
 // Services API - Geo Areas and Crop Types
 export const fetchGeoAreas = (): Promise<{
-  provinces: Array<{code: string, name: string}>;
-  regions: Array<{region_code: string, name: string}>;
-  comuni: Array<{code: string, name: string, province_code: string}>;
-}> => apiRequest('/services/geo-areas');
+  provinces: Array<{ code: string; name: string }>;
+  regions: Array<{ region_code: string; name: string }>;
+  comuni: Array<{ code: string; name: string; province_code: string }>;
+}> => apiRequest("/services/geo-areas");
 
-export const fetchCropTypes = (): Promise<Array<{
-  id: string;
-  name: string;
-  category: string;
-}>> => apiRequest('/services/crop-types');
+export const fetchCropTypes = (): Promise<
+  Array<{
+    id: string;
+    name: string;
+    category: string;
+  }>
+> => apiRequest("/services/crop-types");
 
 // Missions API
 export interface Mission {
@@ -539,7 +601,7 @@ export interface Mission {
   operator: string;
   area: number;
   progress: number;
-  status: 'scheduled' | 'in_progress' | 'completed';
+  status: "scheduled" | "in_progress" | "completed";
 }
 
 export interface MissionsStats {
@@ -619,7 +681,7 @@ export interface VendorCatalogItem {
 
 export interface BundleOffer {
   id: string;
-  type: 'bundle';
+  type: "bundle";
   name: string;
   description: string;
   bundlePrice: number;
@@ -674,7 +736,7 @@ export interface ProductVendor {
   offer?: {
     id: string;
     name: string;
-    type: 'BUNDLE' | 'PROMO' | 'SEASON_PACKAGE';
+    type: "BUNDLE" | "PROMO" | "SEASON_PACKAGE";
     discountPercent: number;
     originalPrice: number;
     rules: any;
@@ -695,40 +757,54 @@ export const fetchPublicCatalog = (filters?: {
   maxPrice?: number;
 }): Promise<PublicCatalogResponse> => {
   const params = new URLSearchParams();
-  if (filters?.category) params.append('category', filters.category);
-  if (filters?.minPrice) params.append('minPrice', filters.minPrice.toString());
-  if (filters?.maxPrice) params.append('maxPrice', filters.maxPrice.toString());
+  if (filters?.category) params.append("category", filters.category);
+  if (filters?.minPrice) params.append("minPrice", filters.minPrice.toString());
+  if (filters?.maxPrice) params.append("maxPrice", filters.maxPrice.toString());
 
   return apiRequest<PublicCatalogResponse>(`/catalog/public?${params}`);
 };
 
-export const fetchProductVendors = (productId: string): Promise<ProductVendorsResponse> => {
-  return apiRequest<ProductVendorsResponse>(`/catalog/product/${productId}/vendors`);
+export const fetchProductVendors = (
+  productId: string,
+): Promise<ProductVendorsResponse> => {
+  return apiRequest<ProductVendorsResponse>(
+    `/catalog/product/${productId}/vendors`,
+  );
 };
 
-export const fetchVendorCatalog = (orgId: string): Promise<VendorCatalogResponse> =>
+export const fetchVendorCatalog = (
+  orgId: string,
+): Promise<VendorCatalogResponse> =>
   apiRequest<VendorCatalogResponse>(`/catalog/vendor/${orgId}`);
 
-export const toggleVendorProduct = (orgId: string, skuId: string, isForSale: boolean): Promise<any> =>
+export const toggleVendorProduct = (
+  orgId: string,
+  skuId: string,
+  isForSale: boolean,
+): Promise<any> =>
   apiRequest<any>(`/catalog/vendor/${orgId}/toggle`, {
-    method: 'POST',
-    body: JSON.stringify({ skuId, isForSale })
+    method: "POST",
+    body: JSON.stringify({ skuId, isForSale }),
   });
 
-export const updateVendorProduct = (orgId: string, skuId: string, updates: {
-  price?: number;
-  leadTimeDays?: number;
-  notes?: string;
-  stock?: number;
-}): Promise<any> =>
+export const updateVendorProduct = (
+  orgId: string,
+  skuId: string,
+  updates: {
+    price?: number;
+    leadTimeDays?: number;
+    notes?: string;
+    stock?: number;
+  },
+): Promise<any> =>
   apiRequest<any>(`/catalog/vendor/${orgId}/product`, {
-    method: 'PUT',
-    body: JSON.stringify({ skuId, ...updates })
+    method: "PUT",
+    body: JSON.stringify({ skuId, ...updates }),
   });
 
 export const initializeVendorCatalog = (orgId: string): Promise<any> =>
   apiRequest<any>(`/catalog/vendor/${orgId}/initialize`, {
-    method: 'POST'
+    method: "POST",
   });
 
 // Stock by location
@@ -750,36 +826,43 @@ export interface StockByLocationResponse {
   };
 }
 
-export const fetchStockByLocation = (orgId: string, skuId: string): Promise<StockByLocationResponse> =>
-  apiRequest<StockByLocationResponse>(`/catalog/vendor/${orgId}/stock/${skuId}`);
+export const fetchStockByLocation = (
+  orgId: string,
+  skuId: string,
+): Promise<StockByLocationResponse> =>
+  apiRequest<StockByLocationResponse>(
+    `/catalog/vendor/${orgId}/stock/${skuId}`,
+  );
 
 export const initializeLenziCatalog = (): Promise<any> =>
-  apiRequest<any>('/catalog/initialize/lenzi', {
-    method: 'POST'
+  apiRequest<any>("/catalog/initialize/lenzi", {
+    method: "POST",
   });
 
 // Offers API (Bundle e Offerte)
 export interface Offer {
   id: string;
   vendor_org_id: string;
-  offer_type: 'BUNDLE' | 'PROMO' | 'SEASON_PACKAGE';
+  offer_type: "BUNDLE" | "PROMO" | "SEASON_PACKAGE";
   name: string;
   rules_json: any;
   valid_from: string;
   valid_to: string | null;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: "ACTIVE" | "INACTIVE";
 }
 
 export const fetchOffers = (orgId: string): Promise<Offer[]> =>
   apiRequest<Offer[]>(`/offers/${orgId}`);
 
 export const fetchJobs = (): Promise<{ jobs: any[] }> =>
-  apiRequest<{ jobs: any[] }>('/jobs');
+  apiRequest<{ jobs: any[] }>("/jobs");
 
 export const fetchOperatorJobs = (): Promise<{ jobs: any[] }> =>
-  apiRequest<{ jobs: any[] }>('/jobs/operator/jobs');
+  apiRequest<{ jobs: any[] }>("/jobs/operator/jobs");
 
-export const fetchJobOffers = (orgId: string): Promise<{
+export const fetchJobOffers = (
+  orgId: string,
+): Promise<{
   received: JobOffer[];
   made: JobOffer[];
 }> =>
@@ -789,106 +872,137 @@ export const fetchJobOffers = (orgId: string): Promise<{
   }>(`/jobs/offers/${orgId}`);
 
 export const createOffer = (offer: {
-  offer_type: 'BUNDLE' | 'PROMO' | 'SEASON_PACKAGE';
+  offer_type: "BUNDLE" | "PROMO" | "SEASON_PACKAGE";
   name: string;
   rules_json: any;
   valid_from: string;
   valid_to?: string | null;
-  status?: 'ACTIVE' | 'INACTIVE';
+  status?: "ACTIVE" | "INACTIVE";
 }): Promise<Offer> =>
-  apiRequest<Offer>('/offers', {
-    method: 'POST',
-    body: JSON.stringify(offer)
+  apiRequest<Offer>("/offers", {
+    method: "POST",
+    body: JSON.stringify(offer),
   });
 
-export const updateOffer = (offerId: string, updates: {
-  name?: string;
-  rules_json?: any;
-  valid_from?: string;
-  valid_to?: string | null;
-  status?: 'ACTIVE' | 'INACTIVE';
-}): Promise<Offer> =>
+export const updateOffer = (
+  offerId: string,
+  updates: {
+    name?: string;
+    rules_json?: any;
+    valid_from?: string;
+    valid_to?: string | null;
+    status?: "ACTIVE" | "INACTIVE";
+  },
+): Promise<Offer> =>
   apiRequest<Offer>(`/offers/${offerId}`, {
-    method: 'PUT',
-    body: JSON.stringify(updates)
+    method: "PUT",
+    body: JSON.stringify(updates),
   });
 
 export const deleteOffer = (offerId: string): Promise<void> =>
   apiRequest<void>(`/offers/${offerId}`, {
-    method: 'DELETE'
+    method: "DELETE",
   });
 
 export const setupTestData = (): Promise<any> =>
-  apiRequest<any>('/setup-test-data', {
-    method: 'POST'
+  apiRequest<any>("/setup-test-data", {
+    method: "POST",
   });
 
 // Rate Cards API
 export const fetchRateCards = (orgId: string): Promise<RateCard[]> =>
   apiRequest<RateCard[]>(`/services/${orgId}`);
 
-export const createRateCard = (orgId: string, rateCard: Omit<RateCard, 'id' | 'org_id' | 'is_active' | 'valid_from' | 'created_at' | 'updated_at'>): Promise<RateCard> =>
+export const createRateCard = (
+  orgId: string,
+  rateCard: Omit<
+    RateCard,
+    "id" | "org_id" | "is_active" | "valid_from" | "created_at" | "updated_at"
+  >,
+): Promise<RateCard> =>
   apiRequest<RateCard>(`/services/${orgId}`, {
-    method: 'POST',
-    body: JSON.stringify(rateCard)
+    method: "POST",
+    body: JSON.stringify(rateCard),
   });
 
-export const updateRateCard = (orgId: string, rateCardId: string, rateCard: Partial<RateCard>): Promise<RateCard> =>
+export const updateRateCard = (
+  orgId: string,
+  rateCardId: string,
+  rateCard: Partial<RateCard>,
+): Promise<RateCard> =>
   apiRequest<RateCard>(`/services/${orgId}/${rateCardId}`, {
-    method: 'PUT',
-    body: JSON.stringify(rateCard)
+    method: "PUT",
+    body: JSON.stringify(rateCard),
   });
 
-export const deleteRateCard = (orgId: string, rateCardId: string): Promise<void> =>
+export const deleteRateCard = (
+  orgId: string,
+  rateCardId: string,
+): Promise<void> =>
   apiRequest(`/services/${orgId}/${rateCardId}`, {
-    method: 'DELETE'
+    method: "DELETE",
   });
 
 // Operator Profiles API
 export const fetchOperators = (orgId: string): Promise<OperatorProfile[]> =>
   apiRequest<OperatorProfile[]>(`/operators/${orgId}`);
 
-export const createOperator = (orgId: string, operator: {
-  user_id: string;
-  license_number?: string;
-  certifications?: string[];
-  experience_years?: number;
-  max_flight_time_hours?: number;
-  supported_drone_models?: string[];
-  availability_schedule?: any;
-  preferred_regions?: string[];
-}): Promise<OperatorProfile> =>
+export const createOperator = (
+  orgId: string,
+  operator: {
+    user_id: string;
+    license_number?: string;
+    certifications?: string[];
+    experience_years?: number;
+    max_flight_time_hours?: number;
+    supported_drone_models?: string[];
+    availability_schedule?: any;
+    preferred_regions?: string[];
+  },
+): Promise<OperatorProfile> =>
   apiRequest<OperatorProfile>(`/operators/${orgId}`, {
-    method: 'POST',
-    body: JSON.stringify(operator)
+    method: "POST",
+    body: JSON.stringify(operator),
   });
 
-export const updateOperator = (orgId: string, operatorId: string, operator: Partial<OperatorProfile>): Promise<OperatorProfile> =>
+export const updateOperator = (
+  orgId: string,
+  operatorId: string,
+  operator: Partial<OperatorProfile>,
+): Promise<OperatorProfile> =>
   apiRequest<OperatorProfile>(`/operators/${orgId}/${operatorId}`, {
-    method: 'PUT',
-    body: JSON.stringify(operator)
+    method: "PUT",
+    body: JSON.stringify(operator),
   });
 
-export const deleteOperator = (orgId: string, operatorId: string): Promise<void> =>
+export const deleteOperator = (
+  orgId: string,
+  operatorId: string,
+): Promise<void> =>
   apiRequest(`/operators/${orgId}/${operatorId}`, {
-    method: 'DELETE'
+    method: "DELETE",
   });
 
 // Service Configuration API
-export const fetchServiceConfig = (orgId: string): Promise<ServiceConfiguration> =>
+export const fetchServiceConfig = (
+  orgId: string,
+): Promise<ServiceConfiguration> =>
   apiRequest<ServiceConfiguration>(`/service-config/${orgId}`);
 
-export const updateServiceConfig = (orgId: string, config: Partial<ServiceConfiguration>): Promise<ServiceConfiguration> =>
+export const updateServiceConfig = (
+  orgId: string,
+  config: Partial<ServiceConfiguration>,
+): Promise<ServiceConfiguration> =>
   apiRequest<ServiceConfiguration>(`/service-config/${orgId}`, {
-    method: 'PUT',
-    body: JSON.stringify(config)
+    method: "PUT",
+    body: JSON.stringify(config),
   });
 
 // Missions API
 export interface MissionHistory {
   id: string;
   booking_id: string;
-  service_type: 'SPRAY' | 'SPREAD' | 'MAPPING';
+  service_type: "SPRAY" | "SPREAD" | "MAPPING";
   executed_start_at: string;
   executed_end_at: string | null;
   actual_area_ha: number | null;
@@ -900,18 +1014,20 @@ export interface MissionHistory {
   lon: number | null;
   operator: string;
   model: string;
-  status: 'DONE' | 'IN_PROGRESS' | 'SCHEDULED';
+  status: "DONE" | "IN_PROGRESS" | "SCHEDULED";
 }
 
-export const fetchMissions = (orgId: string, filters?: {
-  period?: string;
-  serviceType?: string;
-  status?: string;
-}): Promise<MissionHistory[]> => {
+export const fetchMissions = (
+  orgId: string,
+  filters?: {
+    period?: string;
+    serviceType?: string;
+    status?: string;
+  },
+): Promise<MissionHistory[]> => {
   const params = new URLSearchParams({ orgId, ...filters });
   return apiRequest<MissionHistory[]>(`/missions?${params}`);
 };
-
 
 // ============================================================================
 // QUOTE ESTIMATE (Netlify Function)
@@ -950,19 +1066,23 @@ export interface QuoteEstimateResponse {
   pricing_snapshot_json: any;
 }
 
-export const estimateQuote = async (input: QuoteEstimateInput): Promise<QuoteEstimateResponse> => {
-  const response = await fetch('/api/quote-estimate', {
-    method: 'POST',
+export const estimateQuote = async (
+  input: QuoteEstimateInput,
+): Promise<QuoteEstimateResponse> => {
+  const response = await fetch("/api/quote-estimate", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
     body: JSON.stringify(input),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Quote estimation failed');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Quote estimation failed");
   }
 
   return response.json();
@@ -996,28 +1116,34 @@ export interface CertifiedQuotesInput {
   month?: number;
 }
 
-export const fetchCertifiedQuotes = async (input: CertifiedQuotesInput): Promise<CertifiedQuotesResponse> => {
+export const fetchCertifiedQuotes = async (
+  input: CertifiedQuotesInput,
+): Promise<CertifiedQuotesResponse> => {
   const params = new URLSearchParams({
     service_type: input.service_type,
     area_ha: String(input.area_ha),
     ...(input.location_lat && { location_lat: String(input.location_lat) }),
     ...(input.location_lng && { location_lng: String(input.location_lng) }),
-    ...(input.terrain_conditions && { terrain_conditions: input.terrain_conditions }),
+    ...(input.terrain_conditions && {
+      terrain_conditions: input.terrain_conditions,
+    }),
     ...(input.crop_type && { crop_type: input.crop_type }),
     ...(input.treatment_type && { treatment_type: input.treatment_type }),
     ...(input.month && { month: String(input.month) }),
   });
 
   const response = await fetch(`/api/certified-quotes?${params.toString()}`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       ...getAuthHeaders(),
     },
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to fetch certified quotes');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to fetch certified quotes");
   }
 
   return response.json();
@@ -1058,7 +1184,7 @@ export interface JobOffer {
   id: string;
   job_id: string;
   operator_org_id: string;
-  status: 'OFFERED' | 'AWARDED' | 'DECLINED' | 'WITHDRAWN';
+  status: "OFFERED" | "AWARDED" | "DECLINED" | "WITHDRAWN";
   pricing_snapshot_json: string;
   total_cents: number;
   currency: string;
@@ -1072,16 +1198,20 @@ export interface JobOffer {
 }
 
 // Create a new job
-export const createJob = async (jobData: CreateJobRequest): Promise<{ job: Partial<Job> }> => {
-  const response = await fetch('/api/jobs', {
-    method: 'POST',
+export const createJob = async (
+  jobData: CreateJobRequest,
+): Promise<{ job: Partial<Job> }> => {
+  const response = await fetch("/api/jobs", {
+    method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(jobData),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to create job');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to create job");
   }
 
   return response.json();
@@ -1089,13 +1219,15 @@ export const createJob = async (jobData: CreateJobRequest): Promise<{ job: Parti
 
 // Get buyer's jobs
 export const getMyJobs = async (): Promise<{ jobs: Job[] }> => {
-  const response = await fetch('/api/jobs', {
+  const response = await fetch("/api/jobs", {
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to fetch jobs');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to fetch jobs");
   }
 
   return response.json();
@@ -1103,59 +1235,72 @@ export const getMyJobs = async (): Promise<{ jobs: Job[] }> => {
 
 // Get available jobs for operators (feed)
 export const getAvailableJobs = async (): Promise<{ jobs: Job[] }> => {
-  const response = await fetch('/api/jobs/operator/jobs', {
+  const response = await fetch("/api/jobs/operator/jobs", {
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to fetch available jobs');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to fetch available jobs");
   }
 
   return response.json();
 };
 
 // Accept job offer and create booking
-export const acceptJobOffer = async (jobId: string, offerId: string): Promise<{
+export const acceptJobOffer = async (
+  jobId: string,
+  offerId: string,
+): Promise<{
   message: string;
   job: { id: string; status: string };
   booking: { id: string; status: string };
   conversation_unlocked: boolean;
 }> => {
   const response = await fetch(`/api/jobs/${jobId}/accept-offer/${offerId}`, {
-    method: 'POST',
+    method: "POST",
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to accept offer');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to accept offer");
   }
 
   return response.json();
 };
 
 // Pay booking (unlock chat after payment)
-export const payBooking = async (bookingId: string): Promise<{
+export const payBooking = async (
+  bookingId: string,
+): Promise<{
   message: string;
   booking: { id: string; payment_status: string; paid_at: string | null };
   conversation_unlocked: boolean;
 }> => {
   const response = await fetch(`/api/bookings/${bookingId}/pay`, {
-    method: 'POST',
+    method: "POST",
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to pay booking');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to pay booking");
   }
 
   return response.json();
 };
 
 // Get bookings for organization
-export const getBookings = async (orgId: string): Promise<{
+export const getBookings = async (
+  orgId: string,
+): Promise<{
   bookings: Array<{
     id: string;
     job_id: string;
@@ -1183,79 +1328,102 @@ export const getBookings = async (orgId: string): Promise<{
     executor_org: { id: string; legal_name: string };
   }>;
 }> => {
-  console.log('📞 [API] Calling getBookings with orgId:', orgId);
+  console.log("📞 [API] Calling getBookings with orgId:", orgId);
   const response = await fetch(`/api/bookings/${orgId}`, {
-    method: 'GET',
+    method: "GET",
     headers: getAuthHeaders(),
   });
 
-  console.log('📞 [API] getBookings response status:', response.status, response.statusText);
+  console.log(
+    "📞 [API] getBookings response status:",
+    response.status,
+    response.statusText,
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    console.error('❌ [API] getBookings error:', error);
-    throw new Error(error.error || 'Failed to fetch bookings');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    console.error("❌ [API] getBookings error:", error);
+    throw new Error(error.error || "Failed to fetch bookings");
   }
 
   const data = await response.json();
-  console.log('📞 [API] getBookings response data:', { bookingsCount: data.bookings?.length || 0 });
+  console.log("📞 [API] getBookings response data:", {
+    bookingsCount: data.bookings?.length || 0,
+  });
   return data;
 };
 
 // Complete mission (using offer ID - creates/updates booking with status DONE)
-export const completeMission = async (offerId: string): Promise<{ message: string; offer_id: string; job_id: string }> => {
+export const completeMission = async (
+  offerId: string,
+): Promise<{ message: string; offer_id: string; job_id: string }> => {
   const response = await fetch(`/api/jobs/offers/${offerId}/complete`, {
-    method: 'POST',
+    method: "POST",
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to complete mission');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to complete mission");
   }
 
   return response.json();
 };
 
 // Create job offer (for operators)
-export const createJobOffer = async (jobId: string, offerData: {
-  total_cents: number;
-  proposed_start?: string;
-  proposed_end?: string;
-  provider_note?: string;
-  pricing_snapshot_json?: any;
-}): Promise<{ offer: Partial<JobOffer> }> => {
+export const createJobOffer = async (
+  jobId: string,
+  offerData: {
+    total_cents: number;
+    proposed_start?: string;
+    proposed_end?: string;
+    provider_note?: string;
+    pricing_snapshot_json?: any;
+  },
+): Promise<{ offer: Partial<JobOffer> }> => {
   const response = await fetch(`/api/jobs/${jobId}/offers`, {
-    method: 'POST',
+    method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(offerData),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to create offer');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to create offer");
   }
 
   return response.json();
 };
 
 // Update job offer (for operators)
-export const updateJobOffer = async (jobId: string, offerId: string, offerData: {
-  total_cents: number;
-  proposed_start?: string;
-  proposed_end?: string;
-  provider_note?: string;
-  pricing_snapshot_json?: any;
-}): Promise<{ offer: Partial<JobOffer> }> => {
+export const updateJobOffer = async (
+  jobId: string,
+  offerId: string,
+  offerData: {
+    total_cents: number;
+    proposed_start?: string;
+    proposed_end?: string;
+    provider_note?: string;
+    pricing_snapshot_json?: any;
+  },
+): Promise<{ offer: Partial<JobOffer> }> => {
   const response = await fetch(`/api/jobs/${jobId}/offers/${offerId}`, {
-    method: 'PUT',
+    method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify(offerData),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to update offer');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to update offer");
   }
 
   return response.json();
@@ -1301,47 +1469,66 @@ export interface Message {
 }
 
 // Get conversations
-export const getConversations = async (): Promise<{ conversations: Conversation[] }> => {
-  const response = await fetch('/api/conversations', {
+export const getConversations = async (): Promise<{
+  conversations: Conversation[];
+}> => {
+  const response = await fetch("/api/conversations", {
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to fetch conversations');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to fetch conversations");
   }
 
   return response.json();
 };
 
 // Get conversation messages
-export const getConversationMessages = async (conversationId: string): Promise<{ messages: Message[] }> => {
-  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
-    headers: getAuthHeaders(),
-  });
+export const getConversationMessages = async (
+  conversationId: string,
+): Promise<{ messages: Message[] }> => {
+  const response = await fetch(
+    `/api/conversations/${conversationId}/messages`,
+    {
+      headers: getAuthHeaders(),
+    },
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to fetch messages');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to fetch messages");
   }
 
   return response.json();
 };
 
 // Send message
-export const sendMessage = async (conversationId: string, messageData: {
-  body: string;
-  attachments_json?: any;
-}): Promise<{ message: Message }> => {
-  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(messageData),
-  });
+export const sendMessage = async (
+  conversationId: string,
+  messageData: {
+    body: string;
+    attachments_json?: any;
+  },
+): Promise<{ message: Message }> => {
+  const response = await fetch(
+    `/api/conversations/${conversationId}/messages`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(messageData),
+    },
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to send message');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || "Failed to send message");
   }
 
   return response.json();
@@ -1351,14 +1538,14 @@ export const sendMessage = async (conversationId: string, messageData: {
 export const startMessagePolling = (
   conversationId: string,
   onNewMessages: (messages: Message[]) => void,
-  intervalMs: number = 5000
+  intervalMs: number = 5000,
 ) => {
   const poll = async () => {
     try {
       const result = await getConversationMessages(conversationId);
       onNewMessages(result.messages);
     } catch (error) {
-      console.error('Polling error:', error);
+      console.error("Polling error:", error);
     }
   };
 
@@ -1385,15 +1572,14 @@ export interface Operator {
   max_ha_per_day: number | null;
   home_location: string | null;
   service_area_set_name: string | null;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: "ACTIVE" | "INACTIVE";
 }
-
 
 // Bookings API
 export interface Booking {
   id: string;
-  service_type: 'SPRAY' | 'SPREAD' | 'MAPPING';
-  status: 'REQUESTED' | 'CONFIRMED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+  service_type: "SPRAY" | "SPREAD" | "MAPPING";
+  status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "DONE" | "CANCELLED";
   buyer_org_name: string;
   location: string;
   lat: number | null;
@@ -1404,15 +1590,20 @@ export interface Booking {
   created_at: string;
 }
 
-export const fetchBookings = (orgId: string, filters?: {
-  status?: string;
-  period?: string;
-}): Promise<Booking[]> => {
+export const fetchBookings = (
+  orgId: string,
+  filters?: {
+    status?: string;
+    period?: string;
+  },
+): Promise<Booking[]> => {
   const params = new URLSearchParams();
-  if (filters?.status) params.append('status', filters.status);
-  if (filters?.period) params.append('period', filters.period);
+  if (filters?.status) params.append("status", filters.status);
+  if (filters?.period) params.append("period", filters.period);
   const queryString = params.toString();
-  return apiRequest<Booking[]>(`/bookings/${orgId}${queryString ? `?${queryString}` : ''}`);
+  return apiRequest<Booking[]>(
+    `/bookings/${orgId}${queryString ? `?${queryString}` : ""}`,
+  );
 };
 
 // Saved Fields API
@@ -1428,13 +1619,13 @@ export interface SavedField {
 }
 
 export const getSavedFields = async (): Promise<{ fields: SavedField[] }> => {
-  const response = await fetch('/api/saved-fields', {
+  const response = await fetch("/api/saved-fields", {
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Errore nel recupero dei campi salvati');
+    throw new Error(error.error || "Errore nel recupero dei campi salvati");
   }
 
   return response.json();
@@ -1446,32 +1637,34 @@ export const saveField = async (field: {
   area_ha: number;
   location_json?: any;
 }): Promise<{ field: SavedField }> => {
-  const response = await fetch('/api/saved-fields', {
-    method: 'POST',
+  const response = await fetch("/api/saved-fields", {
+    method: "POST",
     headers: {
       ...getAuthHeaders(),
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(field),
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Errore nel salvataggio del campo');
+    throw new Error(error.error || "Errore nel salvataggio del campo");
   }
 
   return response.json();
 };
 
-export const deleteSavedField = async (fieldId: string): Promise<{ message: string }> => {
+export const deleteSavedField = async (
+  fieldId: string,
+): Promise<{ message: string }> => {
   const response = await fetch(`/api/saved-fields/${fieldId}`, {
-    method: 'DELETE',
+    method: "DELETE",
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Errore nell\'eliminazione del campo');
+    throw new Error(error.error || "Errore nell'eliminazione del campo");
   }
 
   return response.json();
@@ -1502,20 +1695,20 @@ export interface RoutingResponse {
 
 export const getDirections = async (
   origin: RoutingPoint | [number, number],
-  destination: RoutingPoint | [number, number]
+  destination: RoutingPoint | [number, number],
 ): Promise<RoutingResponse> => {
-  const response = await fetch('/api/routing/directions', {
-    method: 'POST',
+  const response = await fetch("/api/routing/directions", {
+    method: "POST",
     headers: {
       ...getAuthHeaders(),
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({ origin, destination }),
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Errore nel calcolo del percorso');
+    throw new Error(error.error || "Errore nel calcolo del percorso");
   }
 
   return response.json();

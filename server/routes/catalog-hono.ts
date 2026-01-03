@@ -1,9 +1,12 @@
-import { Hono } from 'hono';
-import { query } from '../utils/database';
-import { publicObjectUrl } from '../utils/storage';
-import { validateBody } from '../middleware/validation';
-import { authMiddleware } from '../middleware/auth';
-import { ToggleProductSchema, UpdateVendorProductSchema } from '../schemas/api.schemas';
+import { Hono } from "hono";
+import { query } from "../utils/database";
+import { publicObjectUrl } from "../utils/storage";
+import { validateBody } from "../middleware/validation";
+import { authMiddleware } from "../middleware/auth";
+import {
+  ToggleProductSchema,
+  UpdateVendorProductSchema,
+} from "../schemas/api.schemas";
 
 const app = new Hono();
 
@@ -12,159 +15,218 @@ const app = new Hono();
 // Route specifica prima della route generica per evitare conflitti
 // ============================================================================
 
-app.post('/vendor/:orgId/toggle', authMiddleware, validateBody(ToggleProductSchema), async (c) => {
-  try {
-    const orgId = c.req.param('orgId');
-    const { skuId, catalogItemId, isForSale } = c.get('validatedBody');
+app.post(
+  "/vendor/:orgId/toggle",
+  authMiddleware,
+  validateBody(ToggleProductSchema),
+  async (c) => {
+    try {
+      const orgId = c.req.param("orgId");
+      const { skuId, catalogItemId, isForSale } = c.get("validatedBody");
 
-    // Accetta sia skuId che catalogItemId (per compatibilità frontend)
-    // Il frontend potrebbe passare l'ID del catalog item come skuId
-    let actualSkuId = skuId || catalogItemId;
-    
-    if (!actualSkuId) {
-      return c.json({ error: 'skuId o catalogItemId obbligatorio' }, 400);
-    }
+      // Accetta sia skuId che catalogItemId (per compatibilità frontend)
+      // Il frontend potrebbe passare l'ID del catalog item come skuId
+      let actualSkuId = skuId || catalogItemId;
 
-    // Verifica se actualSkuId è uno sku_id valido
-    const skuCheck = await query(`
+      if (!actualSkuId) {
+        return c.json({ error: "skuId o catalogItemId obbligatorio" }, 400);
+      }
+
+      // Verifica se actualSkuId è uno sku_id valido
+      const skuCheck = await query(
+        `
       SELECT id FROM skus WHERE id = $1
-    `, [actualSkuId]);
+    `,
+        [actualSkuId],
+      );
 
-    if (skuCheck.rows.length === 0) {
-      // Non è uno sku_id valido, prova a recuperarlo dal catalog item
-      console.log('⚠️  Valore passato non è uno sku_id valido, provo a recuperarlo dal catalog item:', actualSkuId);
-      const catalogItemResult = await query(`
+      if (skuCheck.rows.length === 0) {
+        // Non è uno sku_id valido, prova a recuperarlo dal catalog item
+        console.log(
+          "⚠️  Valore passato non è uno sku_id valido, provo a recuperarlo dal catalog item:",
+          actualSkuId,
+        );
+        const catalogItemResult = await query(
+          `
         SELECT sku_id FROM vendor_catalog_items
         WHERE id = $1 AND vendor_org_id = $2
-      `, [actualSkuId, orgId]);
-      
-      if (catalogItemResult.rows.length === 0) {
-        return c.json({ error: 'Catalog item o sku non trovato' }, 404);
+      `,
+          [actualSkuId, orgId],
+        );
+
+        if (catalogItemResult.rows.length === 0) {
+          return c.json({ error: "Catalog item o sku non trovato" }, 404);
+        }
+
+        actualSkuId = catalogItemResult.rows[0].sku_id;
+        console.log("🔄 Convertito catalog item ID a skuId:", {
+          originalId: skuId || catalogItemId,
+          actualSkuId,
+        });
+      } else {
+        console.log("✅ skuId valido:", actualSkuId);
       }
-      
-      actualSkuId = catalogItemResult.rows[0].sku_id;
-      console.log('🔄 Convertito catalog item ID a skuId:', { originalId: skuId || catalogItemId, actualSkuId });
-    } else {
-      console.log('✅ skuId valido:', actualSkuId);
-    }
 
-    console.log('🔄 Toggle prodotto:', { orgId, skuId: actualSkuId, isForSale });
+      console.log("🔄 Toggle prodotto:", {
+        orgId,
+        skuId: actualSkuId,
+        isForSale,
+      });
 
-    // Aggiorna is_for_sale nel vendor_catalog_items
-    const result = await query(`
+      // Aggiorna is_for_sale nel vendor_catalog_items
+      const result = await query(
+        `
       UPDATE vendor_catalog_items
       SET is_for_sale = $1
       WHERE vendor_org_id = $2 AND sku_id = $3
       RETURNING id, is_for_sale, is_for_rent
-    `, [isForSale, orgId, actualSkuId]);
+    `,
+        [isForSale, orgId, actualSkuId],
+      );
 
-    if (result.rows.length === 0) {
-      return c.json({ error: 'Prodotto non trovato nel catalogo vendor' }, 404);
+      if (result.rows.length === 0) {
+        return c.json(
+          { error: "Prodotto non trovato nel catalogo vendor" },
+          404,
+        );
+      }
+
+      console.log("✅ Prodotto aggiornato:", result.rows[0]);
+
+      return c.json({
+        success: true,
+        catalogItem: result.rows[0],
+      });
+    } catch (error: any) {
+      console.error("❌ Errore toggle prodotto:", error);
+      console.error("Stack:", error.stack);
+      return c.json(
+        {
+          error: "Errore interno",
+          message: error.message,
+          details:
+            process.env.NODE_ENV === "development"
+              ? error.stack?.split("\n").slice(0, 5)
+              : undefined,
+        },
+        500,
+      );
     }
-
-    console.log('✅ Prodotto aggiornato:', result.rows[0]);
-
-    return c.json({ 
-      success: true,
-      catalogItem: result.rows[0]
-    });
-
-  } catch (error: any) {
-    console.error('❌ Errore toggle prodotto:', error);
-    console.error('Stack:', error.stack);
-    return c.json({ 
-      error: 'Errore interno', 
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
-    }, 500);
-  }
-});
+  },
+);
 
 // ============================================================================
 // UPDATE PRODUCT (Aggiorna prezzo, lead time, notes, stock)
 // Route specifica prima della route generica per evitare conflitti
 // ============================================================================
 
-app.put('/vendor/:orgId/product', authMiddleware, validateBody(UpdateVendorProductSchema), async (c) => {
-  try {
-    const orgId = c.req.param('orgId');
-    const body = c.get('validatedBody');
-    
-    // @ts-ignore - Hono context typing issue
-    const user = c.get('user') as any;
-    const userOrgId = user?.organizationId;
+app.put(
+  "/vendor/:orgId/product",
+  authMiddleware,
+  validateBody(UpdateVendorProductSchema),
+  async (c) => {
+    try {
+      const orgId = c.req.param("orgId");
+      const body = c.get("validatedBody");
 
-    // Verifica che l'utente possa modificare solo il proprio catalogo
-    if (!userOrgId || userOrgId !== orgId) {
-      return c.json({ error: 'Forbidden: Cannot modify another organization catalog' }, 403);
-    }
-    const { skuId, catalogItemId, price, leadTimeDays, notes, stock } = body;
+      // @ts-ignore - Hono context typing issue
+      const user = c.get("user") as any;
+      const userOrgId = user?.organizationId;
 
-    // Accetta sia skuId che catalogItemId (per compatibilità frontend)
-    // Il frontend potrebbe passare l'ID del catalog item come skuId
-    let actualSkuId = skuId || catalogItemId;
-    
-    if (!actualSkuId) {
-      return c.json({ error: 'skuId o catalogItemId obbligatorio' }, 400);
-    }
+      // Verifica che l'utente possa modificare solo il proprio catalogo
+      if (!userOrgId || userOrgId !== orgId) {
+        return c.json(
+          { error: "Forbidden: Cannot modify another organization catalog" },
+          403,
+        );
+      }
+      const { skuId, catalogItemId, price, leadTimeDays, notes, stock } = body;
 
-    // Verifica se actualSkuId è uno sku_id valido
-    const skuCheck = await query(`
+      // Accetta sia skuId che catalogItemId (per compatibilità frontend)
+      // Il frontend potrebbe passare l'ID del catalog item come skuId
+      let actualSkuId = skuId || catalogItemId;
+
+      if (!actualSkuId) {
+        return c.json({ error: "skuId o catalogItemId obbligatorio" }, 400);
+      }
+
+      // Verifica se actualSkuId è uno sku_id valido
+      const skuCheck = await query(
+        `
       SELECT id FROM skus WHERE id = $1
-    `, [actualSkuId]);
+    `,
+        [actualSkuId],
+      );
 
-    if (skuCheck.rows.length === 0) {
-      // Non è uno sku_id valido, prova a recuperarlo dal catalog item
-      console.log('⚠️  Valore passato non è uno sku_id valido, provo a recuperarlo dal catalog item:', actualSkuId);
-      const catalogItemResult = await query(`
+      if (skuCheck.rows.length === 0) {
+        // Non è uno sku_id valido, prova a recuperarlo dal catalog item
+        console.log(
+          "⚠️  Valore passato non è uno sku_id valido, provo a recuperarlo dal catalog item:",
+          actualSkuId,
+        );
+        const catalogItemResult = await query(
+          `
         SELECT sku_id FROM vendor_catalog_items
         WHERE id = $1 AND vendor_org_id = $2
-      `, [actualSkuId, orgId]);
-      
-      if (catalogItemResult.rows.length === 0) {
-        return c.json({ error: 'Catalog item o sku non trovato' }, 404);
+      `,
+          [actualSkuId, orgId],
+        );
+
+        if (catalogItemResult.rows.length === 0) {
+          return c.json({ error: "Catalog item o sku non trovato" }, 404);
+        }
+
+        actualSkuId = catalogItemResult.rows[0].sku_id;
+        console.log("🔄 Convertito catalog item ID a skuId:", {
+          originalId: skuId || catalogItemId,
+          actualSkuId,
+        });
+      } else {
+        console.log("✅ skuId valido:", actualSkuId);
       }
-      
-      actualSkuId = catalogItemResult.rows[0].sku_id;
-      console.log('🔄 Convertito catalog item ID a skuId:', { originalId: skuId || catalogItemId, actualSkuId });
-    } else {
-      console.log('✅ skuId valido:', actualSkuId);
-    }
 
-    console.log('📝 Update prodotto:', { orgId, skuId: actualSkuId, price, leadTimeDays, notes, stock });
+      console.log("📝 Update prodotto:", {
+        orgId,
+        skuId: actualSkuId,
+        price,
+        leadTimeDays,
+        notes,
+        stock,
+      });
 
-    // Aggiorna vendor_catalog_items
-    const updates: string[] = [];
-    const params: any[] = [];
-    let paramIndex = 1;
+      // Aggiorna vendor_catalog_items
+      const updates: string[] = [];
+      const params: any[] = [];
+      let paramIndex = 1;
 
-    if (leadTimeDays !== undefined) {
-      updates.push(`lead_time_days = $${paramIndex}`);
-      params.push(leadTimeDays);
-      paramIndex++;
-    }
+      if (leadTimeDays !== undefined) {
+        updates.push(`lead_time_days = $${paramIndex}`);
+        params.push(leadTimeDays);
+        paramIndex++;
+      }
 
-    if (notes !== undefined) {
-      updates.push(`notes = $${paramIndex}`);
-      params.push(notes);
-      paramIndex++;
-    }
+      if (notes !== undefined) {
+        updates.push(`notes = $${paramIndex}`);
+        params.push(notes);
+        paramIndex++;
+      }
 
-    if (updates.length > 0) {
-      params.push(orgId, actualSkuId);
-      const updateQuery = `
+      if (updates.length > 0) {
+        params.push(orgId, actualSkuId);
+        const updateQuery = `
         UPDATE vendor_catalog_items
-        SET ${updates.join(', ')}
+        SET ${updates.join(", ")}
         WHERE vendor_org_id = $${paramIndex} AND sku_id = $${paramIndex + 1}
         RETURNING id, lead_time_days, notes
       `;
-      await query(updateQuery, params);
-    }
+        await query(updateQuery, params);
+      }
 
-    // Aggiorna prezzo nella price list attiva
-    if (price !== undefined && price > 0) {
-      // Trova price list attiva
-      const priceListResult = await query(`
+      // Aggiorna prezzo nella price list attiva
+      if (price !== undefined && price > 0) {
+        // Trova price list attiva
+        const priceListResult = await query(
+          `
         SELECT id, currency
         FROM price_lists
         WHERE vendor_org_id = $1
@@ -173,144 +235,185 @@ app.put('/vendor/:orgId/product', authMiddleware, validateBody(UpdateVendorProdu
           AND (valid_to IS NULL OR valid_to >= NOW())
         ORDER BY valid_from DESC
         LIMIT 1
-      `, [orgId]);
+      `,
+          [orgId],
+        );
 
-      if (priceListResult.rows.length > 0) {
-        const priceListId = priceListResult.rows[0].id;
-        const priceCents = Math.round(price * 100);
+        if (priceListResult.rows.length > 0) {
+          const priceListId = priceListResult.rows[0].id;
+          const priceCents = Math.round(price * 100);
 
-        // Upsert price list item
-        await query(`
+          // Upsert price list item
+          await query(
+            `
           INSERT INTO price_list_items (id, price_list_id, sku_id, price_cents)
           VALUES (gen_random_uuid(), $1, $2, $3)
           ON CONFLICT (price_list_id, sku_id) 
           DO UPDATE SET price_cents = $3
-        `, [priceListId, actualSkuId, priceCents]);
+        `,
+            [priceListId, actualSkuId, priceCents],
+          );
 
-        console.log('✅ Prezzo aggiornato nella price list');
-      } else {
-        console.warn('⚠️  Nessuna price list attiva trovata per aggiornare il prezzo');
+          console.log("✅ Prezzo aggiornato nella price list");
+        } else {
+          console.warn(
+            "⚠️  Nessuna price list attiva trovata per aggiornare il prezzo",
+          );
+        }
       }
-    }
 
-    // Aggiorna stock (inventario) - Gestione multi-location
-    if (stock !== undefined) {
-      // Calcola stock totale attuale da tutte le location
-      const currentStockResult = await query(`
+      // Aggiorna stock (inventario) - Gestione multi-location
+      if (stock !== undefined) {
+        // Calcola stock totale attuale da tutte le location
+        const currentStockResult = await query(
+          `
         SELECT COALESCE(SUM(qty_on_hand), 0) as total_stock
         FROM inventories
         WHERE vendor_org_id = $1 AND sku_id = $2
-      `, [orgId, actualSkuId]);
+      `,
+          [orgId, actualSkuId],
+        );
 
-      const currentTotalStock = parseInt(currentStockResult.rows[0]?.total_stock || '0');
-      const newTotalStock = stock;
-      const stockDifference = newTotalStock - currentTotalStock;
+        const currentTotalStock = parseInt(
+          currentStockResult.rows[0]?.total_stock || "0",
+        );
+        const newTotalStock = stock;
+        const stockDifference = newTotalStock - currentTotalStock;
 
-      console.log('📦 Stock update:', {
-        currentTotal: currentTotalStock,
-        newTotal: newTotalStock,
-        difference: stockDifference
-      });
+        console.log("📦 Stock update:", {
+          currentTotal: currentTotalStock,
+          newTotal: newTotalStock,
+          difference: stockDifference,
+        });
 
-      // Trova location principale del vendor (o crea una default)
-      let locationResult = await query(`
+        // Trova location principale del vendor (o crea una default)
+        let locationResult = await query(
+          `
         SELECT id, name FROM locations
         WHERE org_id = $1
         ORDER BY is_hub DESC, name ASC
         LIMIT 1
-      `, [orgId]);
+      `,
+          [orgId],
+        );
 
-      let locationId: string;
-      let locationName: string;
+        let locationId: string;
+        let locationName: string;
 
-      if (locationResult.rows.length > 0) {
-        locationId = locationResult.rows[0].id;
-        locationName = locationResult.rows[0].name;
-      } else {
-        // Crea una location di default se non esiste
-        console.log('📍 Creazione location di default per vendor:', orgId);
-        const newLocationResult = await query(`
+        if (locationResult.rows.length > 0) {
+          locationId = locationResult.rows[0].id;
+          locationName = locationResult.rows[0].name;
+        } else {
+          // Crea una location di default se non esiste
+          console.log("📍 Creazione location di default per vendor:", orgId);
+          const newLocationResult = await query(
+            `
           INSERT INTO locations (id, org_id, name, address_json, is_hub)
           VALUES (gen_random_uuid(), $1, 'Magazzino Principale', '{}'::json, false)
           RETURNING id, name
-        `, [orgId]);
-        locationId = newLocationResult.rows[0].id;
-        locationName = newLocationResult.rows[0].name;
-        console.log('✅ Location di default creata:', locationId);
-      }
+        `,
+            [orgId],
+          );
+          locationId = newLocationResult.rows[0].id;
+          locationName = newLocationResult.rows[0].name;
+          console.log("✅ Location di default creata:", locationId);
+        }
 
-      // Se c'è una differenza, aggiorna la prima location
-      if (stockDifference !== 0) {
-        // Ottieni stock attuale nella prima location
-        const firstLocationStockResult = await query(`
+        // Se c'è una differenza, aggiorna la prima location
+        if (stockDifference !== 0) {
+          // Ottieni stock attuale nella prima location
+          const firstLocationStockResult = await query(
+            `
           SELECT qty_on_hand
           FROM inventories
           WHERE vendor_org_id = $1 AND location_id = $2 AND sku_id = $3
-        `, [orgId, locationId, actualSkuId]);
+        `,
+            [orgId, locationId, actualSkuId],
+          );
 
-        const firstLocationCurrentStock = parseInt(firstLocationStockResult.rows[0]?.qty_on_hand || '0');
-        const firstLocationNewStock = Math.max(0, firstLocationCurrentStock + stockDifference);
+          const firstLocationCurrentStock = parseInt(
+            firstLocationStockResult.rows[0]?.qty_on_hand || "0",
+          );
+          const firstLocationNewStock = Math.max(
+            0,
+            firstLocationCurrentStock + stockDifference,
+          );
 
-        // Upsert inventory nella prima location
-        await query(`
+          // Upsert inventory nella prima location
+          await query(
+            `
           INSERT INTO inventories (id, vendor_org_id, location_id, sku_id, qty_on_hand, qty_reserved)
           VALUES (gen_random_uuid(), $1, $2, $3, $4, 0)
           ON CONFLICT (vendor_org_id, location_id, sku_id)
           DO UPDATE SET qty_on_hand = $4
-        `, [orgId, locationId, actualSkuId, firstLocationNewStock]);
+        `,
+            [orgId, locationId, actualSkuId, firstLocationNewStock],
+          );
 
-        console.log('✅ Stock aggiornato nella location principale:', {
-          orgId,
-          locationId,
-          locationName,
-          skuId: actualSkuId,
-          oldStock: firstLocationCurrentStock,
-          newStock: firstLocationNewStock,
-          difference: stockDifference,
-          totalStock: newTotalStock
-        });
-      } else {
-        console.log('ℹ️  Nessuna differenza stock, nessun aggiornamento necessario');
+          console.log("✅ Stock aggiornato nella location principale:", {
+            orgId,
+            locationId,
+            locationName,
+            skuId: actualSkuId,
+            oldStock: firstLocationCurrentStock,
+            newStock: firstLocationNewStock,
+            difference: stockDifference,
+            totalStock: newTotalStock,
+          });
+        } else {
+          console.log(
+            "ℹ️  Nessuna differenza stock, nessun aggiornamento necessario",
+          );
+        }
       }
+
+      return c.json({
+        success: true,
+        message: "Prodotto aggiornato con successo",
+      });
+    } catch (error: any) {
+      console.error("❌ Errore update prodotto:", error);
+      console.error("Stack:", error.stack);
+      return c.json(
+        {
+          error: "Errore interno",
+          message: error.message,
+          details:
+            process.env.NODE_ENV === "development"
+              ? error.stack?.split("\n").slice(0, 5)
+              : undefined,
+        },
+        500,
+      );
     }
-
-    return c.json({ 
-      success: true,
-      message: 'Prodotto aggiornato con successo'
-    });
-
-  } catch (error: any) {
-    console.error('❌ Errore update prodotto:', error);
-    console.error('Stack:', error.stack);
-    return c.json({ 
-      error: 'Errore interno', 
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
-    }, 500);
-  }
-});
+  },
+);
 
 // ============================================================================
 // GET VENDOR CATALOG
 // ============================================================================
 
-app.get('/vendor/:orgId', authMiddleware, async (c) => {
+app.get("/vendor/:orgId", authMiddleware, async (c) => {
   try {
-    const orgId = c.req.param('orgId');
-    
+    const orgId = c.req.param("orgId");
+
     // @ts-ignore - Hono context typing issue
-    const user = c.get('user') as any;
+    const user = c.get("user") as any;
     const userOrgId = user?.organizationId;
 
     // Verifica che l'utente possa accedere solo al proprio catalogo (a meno che non sia admin)
     if (userOrgId && userOrgId !== orgId && !user?.isAdmin) {
-      return c.json({ error: 'Forbidden: Cannot access another organization catalog' }, 403);
+      return c.json(
+        { error: "Forbidden: Cannot access another organization catalog" },
+        403,
+      );
     }
-    
-    console.log('📦 Richiesta catalogo vendor per org:', orgId);
+
+    console.log("📦 Richiesta catalogo vendor per org:", orgId);
 
     // Query per ottenere catalogo vendor con prodotti, SKU, prezzi e stock
-    const catalogResult = await query(`
+    const catalogResult = await query(
+      `
       SELECT 
         vci.id,
         vci.sku_id,
@@ -352,67 +455,78 @@ app.get('/vendor/:orgId', authMiddleware, async (c) => {
                vci.lead_time_days, vci.notes, s.sku_code, s.variant_tags,
                p.id, p.name, p.brand, p.model, p.product_type, p.specs_json, p.images_json, p.glb_files_json
       ORDER BY p.brand, p.model, s.sku_code
-    `, [orgId]);
+    `,
+      [orgId],
+    );
 
-    const catalog = catalogResult.rows.map(row => {
+    const catalog = catalogResult.rows.map((row) => {
       const totalStock = parseInt(row.total_stock) || 0;
       const totalReserved = parseInt(row.total_reserved) || 0;
       const available = totalStock - totalReserved;
-      
+
       // Converti il prezzo da stringa a numero e arrotonda a 2 decimali
       const priceRaw = row.price_euros || null;
-      const price = priceRaw ? (typeof priceRaw === 'string' ? parseFloat(priceRaw) : priceRaw) : null;
+      const price = priceRaw
+        ? typeof priceRaw === "string"
+          ? parseFloat(priceRaw)
+          : priceRaw
+        : null;
       const priceRounded = price ? Math.round(price * 100) / 100 : null;
-      
+
       // Estrai GLB e immagini
       let imageUrl: string | undefined;
       let glbUrl: string | undefined;
-      
+
       // Prima cerca GLB in glb_files_json
       if (row.glb_files_json) {
         try {
-          const glbFiles = typeof row.glb_files_json === 'string' 
-            ? JSON.parse(row.glb_files_json) 
-            : row.glb_files_json;
+          const glbFiles =
+            typeof row.glb_files_json === "string"
+              ? JSON.parse(row.glb_files_json)
+              : row.glb_files_json;
           if (Array.isArray(glbFiles) && glbFiles.length > 0) {
             const firstGlb = glbFiles[0];
             let rawUrl = firstGlb.url || firstGlb.filename || firstGlb;
-            
+
             // Se è un URL completo (http/https), usa direttamente
-            if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+            if (
+              typeof rawUrl === "string" &&
+              (rawUrl.startsWith("http://") || rawUrl.startsWith("https://"))
+            ) {
               glbUrl = rawUrl;
-            } 
+            }
             // Se è un path relativo, costruisci URL Supabase Storage (bucket "Media File")
-            else if (typeof rawUrl === 'string') {
+            else if (typeof rawUrl === "string") {
               try {
                 // Converti path tipo "/glb/t25p/t25p.glb" in "glb/t25p/t25p.glb" per il bucket
-                const storagePath = rawUrl.startsWith('/glb/') 
-                  ? rawUrl.replace(/^\/glb\//, 'glb/') 
-                  : rawUrl.startsWith('/') 
-                    ? rawUrl.substring(1) 
+                const storagePath = rawUrl.startsWith("/glb/")
+                  ? rawUrl.replace(/^\/glb\//, "glb/")
+                  : rawUrl.startsWith("/")
+                    ? rawUrl.substring(1)
                     : rawUrl;
                 glbUrl = publicObjectUrl(undefined, storagePath);
-                console.log('✅ Using Supabase Storage GLB:', glbUrl);
+                console.log("✅ Using Supabase Storage GLB:", glbUrl);
               } catch (e) {
-                console.warn('Errore costruzione URL Supabase Storage:', e);
+                console.warn("Errore costruzione URL Supabase Storage:", e);
                 glbUrl = undefined;
               }
             }
           }
         } catch (e) {
-          console.warn('Errore parsing glb_files_json:', e);
+          console.warn("Errore parsing glb_files_json:", e);
         }
       }
-      
+
       // Poi cerca immagini in images_json come fallback
       if (row.images_json) {
         try {
-          const images = typeof row.images_json === 'string' 
-            ? JSON.parse(row.images_json) 
-            : row.images_json;
+          const images =
+            typeof row.images_json === "string"
+              ? JSON.parse(row.images_json)
+              : row.images_json;
           if (Array.isArray(images) && images.length > 0) {
-            const normalImage = images.find((img: any) => 
-              img.type !== 'glb' && !img.url?.endsWith('.glb')
+            const normalImage = images.find(
+              (img: any) => img.type !== "glb" && !img.url?.endsWith(".glb"),
             );
             if (normalImage) {
               imageUrl = normalImage.url || normalImage;
@@ -421,10 +535,10 @@ app.get('/vendor/:orgId', authMiddleware, async (c) => {
             }
           }
         } catch (e) {
-          console.warn('Errore parsing images_json:', e);
+          console.warn("Errore parsing images_json:", e);
         }
       }
-      
+
       return {
         id: row.id,
         skuId: row.sku_id,
@@ -444,28 +558,34 @@ app.get('/vendor/:orgId', authMiddleware, async (c) => {
         notes: row.notes,
         price: priceRounded, // Prezzo arrotondato a 2 decimali
         stock: available, // Numero disponibile (per compatibilità frontend)
-        stockDetails: { // Dettagli opzionali per uso futuro
+        stockDetails: {
+          // Dettagli opzionali per uso futuro
           total: totalStock,
           reserved: totalReserved,
-          available: available
+          available: available,
         },
         imageUrl,
-        glbUrl
+        glbUrl,
       };
     });
 
     console.log(`✅ Catalogo vendor trovato: ${catalog.length} prodotti`);
 
     return c.json({ catalog });
-
   } catch (error: any) {
-    console.error('Errore get vendor catalog:', error);
-    console.error('Stack:', error.stack);
-    return c.json({ 
-      error: 'Errore interno', 
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 5) : undefined
-    }, 500);
+    console.error("Errore get vendor catalog:", error);
+    console.error("Stack:", error.stack);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+        details:
+          process.env.NODE_ENV === "development"
+            ? error.stack?.split("\n").slice(0, 5)
+            : undefined,
+      },
+      500,
+    );
   }
 });
 
@@ -473,18 +593,26 @@ app.get('/vendor/:orgId', authMiddleware, async (c) => {
 // GET PUBLIC CATALOG (Prodotti dalla tabella products, non raggruppati per vendor)
 // ============================================================================
 
-app.get('/public', async (c) => {
+app.get("/public", async (c) => {
   try {
-    const category = c.req.query('category');
-    const minPrice = c.req.query('minPrice') ? parseInt(c.req.query('minPrice')!) : null;
-    const maxPrice = c.req.query('maxPrice') ? parseInt(c.req.query('maxPrice')!) : null;
+    const category = c.req.query("category");
+    const minPrice = c.req.query("minPrice")
+      ? parseInt(c.req.query("minPrice")!)
+      : null;
+    const maxPrice = c.req.query("maxPrice")
+      ? parseInt(c.req.query("maxPrice")!)
+      : null;
 
-    console.log('🌐 [CATALOG PUBLIC] Richiesta catalogo pubblico prodotti', { category, minPrice, maxPrice });
-    console.log('🌐 [CATALOG PUBLIC] Environment check:', {
+    console.log("🌐 [CATALOG PUBLIC] Richiesta catalogo pubblico prodotti", {
+      category,
+      minPrice,
+      maxPrice,
+    });
+    console.log("🌐 [CATALOG PUBLIC] Environment check:", {
       hasPGHOST: !!process.env.PGHOST,
       hasPGUSER: !!process.env.PGUSER,
       hasPGPASSWORD: !!process.env.PGPASSWORD,
-      isNetlify: !!(process.env.NETLIFY || process.env.NETLIFY_BUILD)
+      isNetlify: !!(process.env.NETLIFY || process.env.NETLIFY_BUILD),
     });
 
     // Query migliorata: aggrega SKU, vendor, prezzi e stock
@@ -533,17 +661,21 @@ app.get('/public', async (c) => {
     // Filtri prezzo (dopo aggregazione)
     const havingConditions: string[] = [];
     if (minPrice !== null) {
-      havingConditions.push(`MIN(CASE WHEN pli.price_cents IS NOT NULL THEN pli.price_cents END) / 100.0 >= $${paramIndex}`);
+      havingConditions.push(
+        `MIN(CASE WHEN pli.price_cents IS NOT NULL THEN pli.price_cents END) / 100.0 >= $${paramIndex}`,
+      );
       params.push(minPrice);
       paramIndex++;
     }
     if (maxPrice !== null) {
-      havingConditions.push(`MIN(CASE WHEN pli.price_cents IS NOT NULL THEN pli.price_cents END) / 100.0 <= $${paramIndex}`);
+      havingConditions.push(
+        `MIN(CASE WHEN pli.price_cents IS NOT NULL THEN pli.price_cents END) / 100.0 <= $${paramIndex}`,
+      );
       params.push(maxPrice);
       paramIndex++;
     }
     if (havingConditions.length > 0) {
-      querySql += ` HAVING ${havingConditions.join(' AND ')}`;
+      querySql += ` HAVING ${havingConditions.join(" AND ")}`;
     }
 
     // Ordina per brand e model
@@ -556,47 +688,62 @@ app.get('/public', async (c) => {
     if (result.rows.length > 0) {
       console.log(`📦 [CATALOG PUBLIC] Primo risultato raw:`, result.rows[0]);
     } else {
-      console.log(`⚠️ [CATALOG PUBLIC] Nessun prodotto trovato con i filtri applicati`);
+      console.log(
+        `⚠️ [CATALOG PUBLIC] Nessun prodotto trovato con i filtri applicati`,
+      );
     }
 
     // Rimuovi debug e procedi con elaborazione normale
 
     // Estrai prodotti con immagini/GLB
-    const products = result.rows.map(row => {
+    const products = result.rows.map((row) => {
       // Estrai GLB URL
       let glbUrl: string | undefined;
       if (row.glb_files_json) {
         try {
-          const glbFiles = typeof row.glb_files_json === 'string' 
-            ? JSON.parse(row.glb_files_json) 
-            : row.glb_files_json;
+          const glbFiles =
+            typeof row.glb_files_json === "string"
+              ? JSON.parse(row.glb_files_json)
+              : row.glb_files_json;
           if (Array.isArray(glbFiles) && glbFiles.length > 0) {
             const firstGlb = glbFiles[0];
             let rawUrl = firstGlb.url || firstGlb.filename || firstGlb;
-            
+
             // Se è un URL completo (http/https), usa direttamente
-            if (typeof rawUrl === 'string' && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+            if (
+              typeof rawUrl === "string" &&
+              (rawUrl.startsWith("http://") || rawUrl.startsWith("https://"))
+            ) {
               glbUrl = rawUrl;
-            } 
+            }
             // Se è un path relativo, costruisci URL Supabase Storage
-            else if (typeof rawUrl === 'string') {
+            else if (typeof rawUrl === "string") {
               try {
                 // Converti path tipo "/glb/t25p/t25p.glb" in "glb/t25p/t25p.glb" per il bucket
-                const storagePath = rawUrl.startsWith('/glb/') 
-                  ? rawUrl.replace(/^\/glb\//, 'glb/') 
-                  : rawUrl.startsWith('/') 
-                    ? rawUrl.substring(1) 
+                const storagePath = rawUrl.startsWith("/glb/")
+                  ? rawUrl.replace(/^\/glb\//, "glb/")
+                  : rawUrl.startsWith("/")
+                    ? rawUrl.substring(1)
                     : rawUrl;
                 glbUrl = publicObjectUrl(undefined, storagePath);
-                console.log('✅ [CATALOG PUBLIC] Using Supabase Storage GLB:', glbUrl);
+                console.log(
+                  "✅ [CATALOG PUBLIC] Using Supabase Storage GLB:",
+                  glbUrl,
+                );
               } catch (e) {
-                console.warn('⚠️  [CATALOG PUBLIC] Errore costruzione URL Supabase Storage:', e);
+                console.warn(
+                  "⚠️  [CATALOG PUBLIC] Errore costruzione URL Supabase Storage:",
+                  e,
+                );
                 glbUrl = undefined;
               }
             }
           }
         } catch (e) {
-          console.warn('⚠️  [CATALOG PUBLIC] Errore parsing glb_files_json:', e);
+          console.warn(
+            "⚠️  [CATALOG PUBLIC] Errore parsing glb_files_json:",
+            e,
+          );
         }
       }
 
@@ -604,12 +751,13 @@ app.get('/public', async (c) => {
       let imageUrl: string | undefined;
       if (row.images_json) {
         try {
-          const images = typeof row.images_json === 'string' 
-            ? JSON.parse(row.images_json) 
-            : row.images_json;
+          const images =
+            typeof row.images_json === "string"
+              ? JSON.parse(row.images_json)
+              : row.images_json;
           if (Array.isArray(images) && images.length > 0) {
-            const normalImage = images.find((img: any) => 
-              img.type !== 'glb' && !img.url?.endsWith('.glb')
+            const normalImage = images.find(
+              (img: any) => img.type !== "glb" && !img.url?.endsWith(".glb"),
             );
             if (normalImage) {
               imageUrl = normalImage.url || normalImage;
@@ -618,13 +766,24 @@ app.get('/public', async (c) => {
             }
           }
         } catch (e) {
-          console.warn('Errore parsing images_json:', e);
+          console.warn("Errore parsing images_json:", e);
         }
       }
 
-      const vendorCount = typeof row.vendor_count === 'number' ? row.vendor_count : parseInt(row.vendor_count as any) || 0;
-      const minPrice = typeof row.min_price_euros === 'number' ? row.min_price_euros : (row.min_price_euros ? parseFloat(row.min_price_euros as any) : null);
-      const totalStock = typeof row.total_stock === 'number' ? row.total_stock : parseInt(row.total_stock as any) || 0;
+      const vendorCount =
+        typeof row.vendor_count === "number"
+          ? row.vendor_count
+          : parseInt(row.vendor_count as any) || 0;
+      const minPrice =
+        typeof row.min_price_euros === "number"
+          ? row.min_price_euros
+          : row.min_price_euros
+            ? parseFloat(row.min_price_euros as any)
+            : null;
+      const totalStock =
+        typeof row.total_stock === "number"
+          ? row.total_stock
+          : parseInt(row.total_stock as any) || 0;
 
       return {
         id: row.product_id,
@@ -640,14 +799,16 @@ app.get('/public', async (c) => {
         specsCore: null, // TODO: aggiungere specs_core_json quando disponibile
         vendorCount, // Numero di vendor che vendono questo prodotto
         price: minPrice, // Prezzo minimo tra tutti i vendor
-        stock: totalStock // Stock totale disponibile
+        stock: totalStock, // Stock totale disponibile
       };
     });
 
     // Applica filtri prezzo se necessario
     let filteredProducts = products;
     if (minPrice !== null || maxPrice !== null) {
-      console.log('⚠️ Filtri prezzo richiedono query aggiuntiva, applicati lato client');
+      console.log(
+        "⚠️ Filtri prezzo richiedono query aggiuntiva, applicati lato client",
+      );
     }
 
     // Query per offerte bundle attive
@@ -670,10 +831,12 @@ app.get('/public', async (c) => {
     `;
 
     const bundlesResult = await query(bundlesQuery, []);
-    console.log(`🎁 [CATALOG PUBLIC] Offerte bundle trovate: ${bundlesResult.rows.length}`);
+    console.log(
+      `🎁 [CATALOG PUBLIC] Offerte bundle trovate: ${bundlesResult.rows.length}`,
+    );
 
     // Mappa le offerte bundle
-    const bundles = bundlesResult.rows.map(row => {
+    const bundles = bundlesResult.rows.map((row) => {
       const rules = row.rules_json; // È già un oggetto JSONB
       const products = rules.products || [];
 
@@ -681,42 +844,50 @@ app.get('/public', async (c) => {
       let bundleImageUrl: string | undefined;
       if (products.length > 0) {
         // Per ora usiamo un'immagine placeholder, in futuro potremmo avere un'immagine dedicata per il bundle
-        bundleImageUrl = '/api/storage/public/bundle-placeholder.jpg';
+        bundleImageUrl = "/api/storage/public/bundle-placeholder.jpg";
       }
 
       return {
         id: row.id,
-        type: 'bundle',
+        type: "bundle",
         name: row.name,
-        description: rules.description || `Bundle con ${products.length} prodotti`,
+        description:
+          rules.description || `Bundle con ${products.length} prodotti`,
         bundlePrice: rules.bundle_price || 0,
         products: products,
         vendorName: row.vendor_name,
         vendorLogo: row.vendor_logo,
         imageUrl: bundleImageUrl,
         validUntil: row.valid_to,
-        savings: products.length > 0 ? 'Risparmia acquistando insieme!' : ''
+        savings: products.length > 0 ? "Risparmia acquistando insieme!" : "",
       };
     });
 
-    console.log(`✅ Catalogo pubblico: ${filteredProducts.length} prodotti + ${bundles.length} bundle`);
+    console.log(
+      `✅ Catalogo pubblico: ${filteredProducts.length} prodotti + ${bundles.length} bundle`,
+    );
     return c.json({
       products: filteredProducts,
-      bundles: bundles
+      bundles: bundles,
     });
-
   } catch (error: any) {
-    console.error('❌ [CATALOG PUBLIC] Errore get public catalog:', error);
-    console.error('❌ [CATALOG PUBLIC] Error message:', error.message);
-    console.error('❌ [CATALOG PUBLIC] Error code:', error.code);
-    console.error('❌ [CATALOG PUBLIC] Stack:', error.stack);
+    console.error("❌ [CATALOG PUBLIC] Errore get public catalog:", error);
+    console.error("❌ [CATALOG PUBLIC] Error message:", error.message);
+    console.error("❌ [CATALOG PUBLIC] Error code:", error.code);
+    console.error("❌ [CATALOG PUBLIC] Stack:", error.stack);
     // params è definito solo nel try block, quindi non possiamo accedervi qui
     // NON restituire dati mock in caso di errore - restituisci solo errore
-    return c.json({
-      error: 'Errore interno',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 10) : undefined
-    }, 500);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+        details:
+          process.env.NODE_ENV === "development"
+            ? error.stack?.split("\n").slice(0, 10)
+            : undefined,
+      },
+      500,
+    );
   }
 });
 
@@ -724,10 +895,10 @@ app.get('/public', async (c) => {
 // GET PRODUCT VENDORS (Venditori che vendono un prodotto specifico)
 // ============================================================================
 
-app.get('/product/:productId/vendors', async (c) => {
+app.get("/product/:productId/vendors", async (c) => {
   try {
-    const productId = c.req.param('productId');
-    console.log('🔍 Richiesta vendor per prodotto:', productId);
+    const productId = c.req.param("productId");
+    console.log("🔍 Richiesta vendor per prodotto:", productId);
 
     // Query per ottenere tutti i vendor che vendono questo prodotto
     const querySql = `
@@ -786,28 +957,29 @@ app.get('/product/:productId/vendors', async (c) => {
 
     const result = await query(querySql, [productId]);
 
-    let vendors = result.rows.map(row => {
+    let vendors = result.rows.map((row) => {
       // Costruisci indirizzo formato: città (provincia)
       const cityProvince = [row.city, row.province].filter(Boolean);
-      const locationDisplay = cityProvince.length > 0 
-        ? `${cityProvince[0]}${cityProvince[1] ? ` (${cityProvince[1]})` : ''}`
-        : 'Indirizzo non disponibile';
+      const locationDisplay =
+        cityProvince.length > 0
+          ? `${cityProvince[0]}${cityProvince[1] ? ` (${cityProvince[1]})` : ""}`
+          : "Indirizzo non disponibile";
 
       return {
         vendorId: row.vendor_id,
         vendorName: row.vendor_name,
         vendorLogo: row.vendor_logo_url,
         vendorAddress: locationDisplay,
-        vendorCity: row.city || '',
-        vendorProvince: row.province || '',
+        vendorCity: row.city || "",
+        vendorProvince: row.province || "",
         skuId: row.sku_id,
         skuCode: row.sku_code,
         leadTimeDays: row.lead_time_days,
         notes: row.vendor_notes,
         availableStock: parseInt(row.available_stock) || 0,
         price: parseFloat(row.price_euros) || 0,
-        currency: row.currency || 'EUR',
-        offer: null // Per ora nessun offerta
+        currency: row.currency || "EUR",
+        offer: null, // Per ora nessun offerta
       };
     });
 
@@ -832,17 +1004,17 @@ app.get('/product/:productId/vendors', async (c) => {
 
     // Crea una mappa delle offerte per vendor
     const offersMap = new Map();
-    offersResult.rows.forEach(offer => {
+    offersResult.rows.forEach((offer) => {
       offersMap.set(offer.vendor_id, {
         id: offer.offer_id,
         name: offer.offer_name,
         type: offer.offer_type,
-        rules: offer.rules_json // È già un oggetto JSONB
+        rules: offer.rules_json, // È già un oggetto JSONB
       });
     });
 
     // Applica le offerte ai vendor esistenti
-    const finalVendors = vendors.map(vendor => {
+    const finalVendors = vendors.map((vendor) => {
       const offer = offersMap.get(vendor.vendorId);
       if (offer) {
         // Calcola prezzo scontato se è un'offerta di sconto
@@ -850,10 +1022,14 @@ app.get('/product/:productId/vendors', async (c) => {
         let discountPercent = 0;
 
         if (offer.rules) {
-          if (offer.type === 'PROMO' && (offer.rules.discount_percent || offer.rules.count_percent)) {
-            discountPercent = offer.rules.discount_percent || offer.rules.count_percent;
+          if (
+            offer.type === "PROMO" &&
+            (offer.rules.discount_percent || offer.rules.count_percent)
+          ) {
+            discountPercent =
+              offer.rules.discount_percent || offer.rules.count_percent;
             discountedPrice = vendor.price * (1 - discountPercent / 100);
-          } else if (offer.type === 'BUNDLE' && offer.rules.bundle_price) {
+          } else if (offer.type === "BUNDLE" && offer.rules.bundle_price) {
             // Per i bundle, usa il prezzo del bundle se applicabile
             discountedPrice = offer.rules.bundle_price;
           }
@@ -868,23 +1044,31 @@ app.get('/product/:productId/vendors', async (c) => {
             type: offer.type,
             discountPercent: discountPercent,
             originalPrice: vendor.price,
-            rules: offer.rules
-          }
+            rules: offer.rules,
+          },
         };
       }
       return vendor;
     });
 
-    console.log(`✅ Trovati ${finalVendors.length} vendor per prodotto ${productId} (${offersResult.rows.length} offerte attive)`);
+    console.log(
+      `✅ Trovati ${finalVendors.length} vendor per prodotto ${productId} (${offersResult.rows.length} offerte attive)`,
+    );
     return c.json({ vendors: finalVendors });
   } catch (error: any) {
-    console.error('❌ Errore get product vendors:', error);
-    console.error('❌ Stack:', error.stack);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n').slice(0, 10) : undefined
-    }, 500);
+    console.error("❌ Errore get product vendors:", error);
+    console.error("❌ Stack:", error.stack);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+        details:
+          process.env.NODE_ENV === "development"
+            ? error.stack?.split("\n").slice(0, 10)
+            : undefined,
+      },
+      500,
+    );
   }
 });
 
@@ -892,22 +1076,26 @@ app.get('/product/:productId/vendors', async (c) => {
 // GET STOCK BY LOCATION (Stock per location di un SKU)
 // ============================================================================
 
-app.get('/vendor/:orgId/stock/:skuId', authMiddleware, async (c) => {
+app.get("/vendor/:orgId/stock/:skuId", authMiddleware, async (c) => {
   try {
-    const orgId = c.req.param('orgId');
-    const skuId = c.req.param('skuId');
-    
+    const orgId = c.req.param("orgId");
+    const skuId = c.req.param("skuId");
+
     // @ts-ignore - Hono context typing issue
-    const user = c.get('user') as any;
+    const user = c.get("user") as any;
     const userOrgId = user?.organizationId;
 
     // Verifica che l'utente possa accedere solo al proprio catalogo
     if (userOrgId && userOrgId !== orgId && !user?.isAdmin) {
-      return c.json({ error: 'Forbidden: Cannot access another organization stock' }, 403);
+      return c.json(
+        { error: "Forbidden: Cannot access another organization stock" },
+        403,
+      );
     }
 
     // Query per ottenere stock per location
-    const stockResult = await query(`
+    const stockResult = await query(
+      `
       SELECT 
         i.location_id,
         l.name as location_name,
@@ -918,18 +1106,26 @@ app.get('/vendor/:orgId/stock/:skuId', authMiddleware, async (c) => {
       JOIN locations l ON i.location_id = l.id
       WHERE i.vendor_org_id = $1 AND i.sku_id = $2
       ORDER BY l.is_hub DESC, l.name ASC
-    `, [orgId, skuId]);
+    `,
+      [orgId, skuId],
+    );
 
-    const stockByLocation = stockResult.rows.map(row => ({
+    const stockByLocation = stockResult.rows.map((row) => ({
       locationId: row.location_id,
       locationName: row.location_name,
       qtyOnHand: parseInt(row.qty_on_hand) || 0,
       qtyReserved: parseInt(row.qty_reserved) || 0,
-      qtyAvailable: parseInt(row.qty_available) || 0
+      qtyAvailable: parseInt(row.qty_available) || 0,
     }));
 
-    const totalStock = stockByLocation.reduce((sum, loc) => sum + loc.qtyOnHand, 0);
-    const totalReserved = stockByLocation.reduce((sum, loc) => sum + loc.qtyReserved, 0);
+    const totalStock = stockByLocation.reduce(
+      (sum, loc) => sum + loc.qtyOnHand,
+      0,
+    );
+    const totalReserved = stockByLocation.reduce(
+      (sum, loc) => sum + loc.qtyReserved,
+      0,
+    );
     const totalAvailable = totalStock - totalReserved;
 
     return c.json({
@@ -938,16 +1134,18 @@ app.get('/vendor/:orgId/stock/:skuId', authMiddleware, async (c) => {
       totals: {
         totalStock,
         totalReserved,
-        totalAvailable
-      }
+        totalAvailable,
+      },
     });
-
   } catch (error: any) {
-    console.error('❌ Errore recupero stock per location:', error);
-    return c.json({ 
-      error: 'Errore interno', 
-      message: error.message
-    }, 500);
+    console.error("❌ Errore recupero stock per location:", error);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+      },
+      500,
+    );
   }
 });
 

@@ -1,18 +1,28 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
-import { X, ChevronLeft, Layers } from 'lucide-react';
-import { area as turfArea } from '@turf/area';
-import { polygon as turfPolygon } from '@turf/helpers';
+import { FormEvent, useEffect, useRef, useState } from "react";
+import L from "leaflet";
+import { X, ChevronLeft, Layers } from "lucide-react";
+import { area as turfArea } from "@turf/area";
+import { polygon as turfPolygon } from "@turf/helpers";
 
 interface LeafletAreaMapProps {
-  onComplete: (data: { area: string; points: L.LatLng[]; slope: number }) => void;
+  onComplete: (data: {
+    area: string;
+    points: L.LatLng[];
+    slope: number;
+  }) => void;
   onBack: () => void;
   gisData?: { area: string; points: L.LatLng[]; slope: number } | null;
   pricing?: { recommendedDrone: string; total: number } | null;
   onProceed?: () => void;
 }
 
-export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed }: LeafletAreaMapProps) {
+export function LeafletAreaMap({
+  onComplete,
+  onBack,
+  gisData,
+  pricing,
+  onProceed,
+}: LeafletAreaMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const firstMarkerRef = useRef<L.CircleMarker | null>(null);
@@ -21,16 +31,20 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
   const [markers, setMarkers] = useState<L.CircleMarker[]>([]);
   const [points, setPoints] = useState<L.LatLng[]>([]);
   const [isClosed, setIsClosed] = useState(false);
-  const [area, setArea] = useState('0');
+  const [area, setArea] = useState("0");
   const [slope, setSlope] = useState(0);
   const [totalAreaHa, setTotalAreaHa] = useState(0);
   const [fieldCount, setFieldCount] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [searchSuggestions, setSearchSuggestions] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
+  const [searchSuggestions, setSearchSuggestions] = useState<
+    Array<{ display_name: string; lat: string; lon: string }>
+  >([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [mapLayer, setMapLayer] = useState<'satellite' | 'street' | 'terrain'>('satellite');
+  const [mapLayer, setMapLayer] = useState<"satellite" | "street" | "terrain">(
+    "satellite",
+  );
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -38,13 +52,16 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     const map = L.map(mapContainerRef.current, {
       center: [44.5, 11.3],
       zoom: 15,
-      zoomControl: false
+      zoomControl: false,
     });
 
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri',
-      maxZoom: 19
-    }).addTo(map);
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: "Tiles &copy; Esri",
+        maxZoom: 19,
+      },
+    ).addTo(map);
 
     mapRef.current = map;
 
@@ -71,13 +88,14 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       );
 
       if (!response.ok) {
-        throw new Error('Geocoding error');
+        throw new Error("Geocoding error");
       }
 
-      const results: { lat: string; lon: string; display_name: string }[] = await response.json();
+      const results: { lat: string; lon: string; display_name: string }[] =
+        await response.json();
 
       if (!results.length) {
-        setSearchError('Nessun risultato per questo luogo');
+        setSearchError("Nessun risultato per questo luogo");
         return;
       }
 
@@ -86,13 +104,13 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       const lonNum = parseFloat(lon);
 
       if (Number.isNaN(latNum) || Number.isNaN(lonNum)) {
-        setSearchError('Risultato non valido per questo luogo');
+        setSearchError("Risultato non valido per questo luogo");
         return;
       }
 
       mapRef.current.setView([latNum, lonNum], 16);
     } catch {
-      setSearchError('Impossibile cercare questo luogo al momento');
+      setSearchError("Impossibile cercare questo luogo al momento");
     } finally {
       setIsSearching(false);
     }
@@ -115,7 +133,8 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
 
       if (!response.ok) return;
 
-      const results: { lat: string; lon: string; display_name: string }[] = await response.json();
+      const results: { lat: string; lon: string; display_name: string }[] =
+        await response.json();
       setSearchSuggestions(results);
       setShowSuggestions(results.length > 0);
     } catch {
@@ -123,7 +142,11 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     }
   };
 
-  const handleSuggestionClick = (suggestion: { lat: string; lon: string; display_name: string }) => {
+  const handleSuggestionClick = (suggestion: {
+    lat: string;
+    lon: string;
+    display_name: string;
+  }) => {
     if (!mapRef.current) return;
 
     const latNum = parseFloat(suggestion.lat);
@@ -157,11 +180,11 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     const pts = [...points, newPoint];
 
     const marker = L.circleMarker(newPoint, {
-      color: '#FFC107',
-      fillColor: '#FFC107',
+      color: "#FFC107",
+      fillColor: "#FFC107",
       fillOpacity: 0.8,
       radius: 6,
-      weight: 2
+      weight: 2,
     }).addTo(mapRef.current);
 
     // Save reference to first marker and make it clickable
@@ -173,7 +196,7 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
           closePolygon(points);
         }
       };
-      marker.on('click', (evt: L.LeafletMouseEvent) => {
+      marker.on("click", (evt: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(evt.originalEvent);
         L.DomEvent.preventDefault(evt.originalEvent);
         checkAndClose();
@@ -192,14 +215,14 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     if (pts.length >= 3 && firstMarkerRef.current) {
       firstMarkerRef.current.setStyle({
         radius: 12,
-        color: '#10B981',
-        fillColor: '#10B981',
+        color: "#10B981",
+        fillColor: "#10B981",
         fillOpacity: 1,
-        weight: 4
+        weight: 4,
       });
       // Re-attach click handler with updated points reference
-      firstMarkerRef.current.off('click');
-      firstMarkerRef.current.on('click', (evt: L.LeafletMouseEvent) => {
+      firstMarkerRef.current.off("click");
+      firstMarkerRef.current.on("click", (evt: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(evt.originalEvent);
         L.DomEvent.preventDefault(evt.originalEvent);
         closePolygon(points);
@@ -217,10 +240,10 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     }
 
     const polyline = L.polyline(pts, {
-      color: '#FFFFFF',
+      color: "#FFFFFF",
       weight: 3,
-      dashArray: '10, 10',
-      opacity: 0.9
+      dashArray: "10, 10",
+      opacity: 0.9,
     }).addTo(mapRef.current);
 
     setTempLine(polyline);
@@ -229,23 +252,28 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
   const calculateSlope = async (pts: L.LatLng[]): Promise<number> => {
     try {
       // Get elevations from Open-Elevation API
-      const locations = pts.map(p => ({ latitude: p.lat, longitude: p.lng }));
+      const locations = pts.map((p) => ({ latitude: p.lat, longitude: p.lng }));
 
-      const response = await fetch('https://api.open-elevation.com/api/v1/lookup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        "https://api.open-elevation.com/api/v1/lookup",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ locations }),
         },
-        body: JSON.stringify({ locations }),
-      });
+      );
 
       if (!response.ok) {
-        console.warn('Elevation API error');
+        console.warn("Elevation API error");
         return 0;
       }
 
       const data = await response.json();
-      const elevations: number[] = data.results.map((r: { elevation: number }) => r.elevation);
+      const elevations: number[] = data.results.map(
+        (r: { elevation: number }) => r.elevation,
+      );
 
       if (elevations.length < 2) return 0;
 
@@ -270,7 +298,7 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
 
       return Math.round(slopePercent * 10) / 10; // Round to 1 decimal
     } catch (error) {
-      console.error('Error calculating slope:', error);
+      console.error("Error calculating slope:", error);
       return 0;
     }
   };
@@ -284,16 +312,16 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     }
 
     const polygon = L.polygon(pts, {
-      color: '#FFC107',
+      color: "#FFC107",
       weight: 3,
-      fillColor: '#FFC107',
-      fillOpacity: 0.25
+      fillColor: "#FFC107",
+      fillOpacity: 0.25,
     }).addTo(mapRef.current);
 
-    setPolygons(prev => [...prev, polygon]);
+    setPolygons((prev) => [...prev, polygon]);
     setIsClosed(true);
 
-    const coords = pts.map(p => [p.lng, p.lat]);
+    const coords = pts.map((p) => [p.lng, p.lat]);
     coords.push([pts[0].lng, pts[0].lat]);
 
     const turfPoly = turfPolygon([coords]);
@@ -314,27 +342,27 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     onComplete({
       area: newTotalArea.toFixed(2),
       points: pts,
-      slope: calculatedSlope
+      slope: calculatedSlope,
     });
   };
 
   const resetMap = () => {
     if (!mapRef.current) return;
 
-    markers.forEach(m => m.remove());
+    markers.forEach((m) => m.remove());
 
     if (tempLine) {
       tempLine.remove();
     }
 
-    polygons.forEach(p => p.remove());
+    polygons.forEach((p) => p.remove());
 
     setMarkers([]);
     setPoints([]);
     setTempLine(null);
     setPolygons([]);
     setIsClosed(false);
-    setArea('0');
+    setArea("0");
     setSlope(0);
     setTotalAreaHa(0);
     setFieldCount(0);
@@ -354,7 +382,7 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     }
   };
 
-  const handleLayerSwitch = (layer: 'satellite' | 'street' | 'terrain') => {
+  const handleLayerSwitch = (layer: "satellite" | "street" | "terrain") => {
     if (!mapRef.current) return;
     setMapLayer(layer);
 
@@ -365,25 +393,27 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
     });
 
     const tileUrls = {
-      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      terrain: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
+      satellite:
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      street: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      terrain:
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
     };
 
     L.tileLayer(tileUrls[layer], {
-      attribution: layer === 'street' ? '&copy; OpenStreetMap' : '&copy; Esri',
-      maxZoom: 19
+      attribution: layer === "street" ? "&copy; OpenStreetMap" : "&copy; Esri",
+      maxZoom: 19,
     }).addTo(mapRef.current);
   };
 
   useEffect(() => {
     if (!mapRef.current) return;
 
-    mapRef.current.on('click', handleMapClick);
+    mapRef.current.on("click", handleMapClick);
 
     return () => {
       if (mapRef.current) {
-        mapRef.current.off('click', handleMapClick);
+        mapRef.current.off("click", handleMapClick);
       }
     };
   }, [points, isClosed, markers, tempLine]);
@@ -393,7 +423,7 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       <div
         ref={mapContainerRef}
         className="w-full h-full z-0"
-        style={{ cursor: isClosed ? 'default' : 'crosshair' }}
+        style={{ cursor: isClosed ? "default" : "crosshair" }}
       />
 
       {/* Back button */}
@@ -408,15 +438,23 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       {/* Floating HUD Panel */}
       <div className="absolute top-4 left-4 md:left-20 right-4 md:right-auto md:w-[360px] z-20 mt-14">
         <div className="bg-white/95 backdrop-blur rounded shadow-2xl border-l-4 border-slate-900 p-5">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900 mb-2">1. DEFINISCI AREA</h2>
-          <p className="text-xs text-slate-600 mb-3">Clicca i vertici del campo sulla mappa satellitare. Chiudi il poligono cliccando sul primo punto.</p>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900 mb-2">
+            1. DEFINISCI AREA
+          </h2>
+          <p className="text-xs text-slate-600 mb-3">
+            Clicca i vertici del campo sulla mappa satellitare. Chiudi il
+            poligono cliccando sul primo punto.
+          </p>
           {totalAreaHa > 0 && (
             <div className="bg-slate-900 text-white p-3 rounded mt-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold">{area}</span>
                 <span className="text-sm">ha</span>
               </div>
-              <p className="text-[10px] text-slate-300 uppercase tracking-wide mt-1">{fieldCount} camp{fieldCount === 1 ? 'o' : 'i'} disegnat{fieldCount === 1 ? 'o' : 'i'}</p>
+              <p className="text-[10px] text-slate-300 uppercase tracking-wide mt-1">
+                {fieldCount} camp{fieldCount === 1 ? "o" : "i"} disegnat
+                {fieldCount === 1 ? "o" : "i"}
+              </p>
             </div>
           )}
         </div>
@@ -431,8 +469,10 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
           <input
             type="text"
             value={searchQuery}
-            onChange={event => handleSearchInputChange(event.target.value)}
-            onFocus={() => searchSuggestions.length > 0 && setShowSuggestions(true)}
+            onChange={(event) => handleSearchInputChange(event.target.value)}
+            onFocus={() =>
+              searchSuggestions.length > 0 && setShowSuggestions(true)
+            }
             placeholder="Cerca località, comune o indirizzo..."
             className="flex-1 bg-transparent border-none text-xs md:text-[11px] text-slate-800 placeholder:text-slate-400 outline-none"
           />
@@ -441,7 +481,7 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
             disabled={isSearching}
             className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 disabled:opacity-50"
           >
-            {isSearching ? '...' : 'Vai'}
+            {isSearching ? "..." : "Vai"}
           </button>
         </form>
         {searchError && (
@@ -467,7 +507,8 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
 
       {points.length > 0 && !isClosed && (
         <div className="absolute top-32 left-4 md:left-20 bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-bold z-10 pointer-events-none md:w-[360px] text-center">
-          {points.length} punt{points.length === 1 ? 'o' : 'i'} • Clicca vicino al primo punto per chiudere
+          {points.length} punt{points.length === 1 ? "o" : "i"} • Clicca vicino
+          al primo punto per chiudere
         </div>
       )}
 
@@ -489,27 +530,33 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
         </button>
         <div className="h-px bg-slate-300 my-1"></div>
         <button
-          onClick={() => handleLayerSwitch('satellite')}
+          onClick={() => handleLayerSwitch("satellite")}
           className={`w-10 h-10 rounded shadow-lg flex items-center justify-center transition ${
-            mapLayer === 'satellite' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
+            mapLayer === "satellite"
+              ? "bg-slate-900 text-white"
+              : "bg-white text-slate-600 hover:bg-slate-100"
           }`}
           title="Satellite"
         >
           <Layers size={18} />
         </button>
         <button
-          onClick={() => handleLayerSwitch('street')}
+          onClick={() => handleLayerSwitch("street")}
           className={`w-10 h-10 rounded shadow-lg flex items-center justify-center text-xs font-bold transition ${
-            mapLayer === 'street' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
+            mapLayer === "street"
+              ? "bg-slate-900 text-white"
+              : "bg-white text-slate-600 hover:bg-slate-100"
           }`}
           title="Stradale"
         >
           <span>🗺️</span>
         </button>
         <button
-          onClick={() => handleLayerSwitch('terrain')}
+          onClick={() => handleLayerSwitch("terrain")}
           className={`w-10 h-10 rounded shadow-lg flex items-center justify-center text-xs font-bold transition ${
-            mapLayer === 'terrain' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
+            mapLayer === "terrain"
+              ? "bg-slate-900 text-white"
+              : "bg-white text-slate-600 hover:bg-slate-100"
           }`}
           title="Terreno"
         >
@@ -540,11 +587,24 @@ export function LeafletAreaMap({ onComplete, onBack, gisData, pricing, onProceed
       {gisData && pricing && onProceed && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 bg-white/95 backdrop-blur rounded-lg shadow-2xl border border-slate-200 p-4 flex flex-col sm:flex-row items-center gap-4">
           <div className="text-xs text-slate-600 flex flex-wrap items-center gap-2">
-            <span>Area: <strong className="text-slate-900">{gisData.area} ha</strong></span>
+            <span>
+              Area:{" "}
+              <strong className="text-slate-900">{gisData.area} ha</strong>
+            </span>
             <span className="text-slate-300">•</span>
-            <span>Drone: <strong className="text-slate-900">{pricing.recommendedDrone}</strong></span>
+            <span>
+              Drone:{" "}
+              <strong className="text-slate-900">
+                {pricing.recommendedDrone}
+              </strong>
+            </span>
             <span className="text-slate-300">•</span>
-            <span>Stima: <strong className="text-emerald-600">€ {pricing.total.toFixed(0)}</strong></span>
+            <span>
+              Stima:{" "}
+              <strong className="text-emerald-600">
+                € {pricing.total.toFixed(0)}
+              </strong>
+            </span>
           </div>
           <button
             onClick={onProceed}

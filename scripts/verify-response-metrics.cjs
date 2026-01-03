@@ -1,5 +1,5 @@
-require('dotenv').config();
-const { Client } = require('pg');
+require("dotenv").config();
+const { Client } = require("pg");
 
 async function verify() {
   const client = new Client({
@@ -8,12 +8,12 @@ async function verify() {
     database: process.env.PGDATABASE,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
-    console.log('✅ Connesso a Supabase\n');
+    console.log("✅ Connesso a Supabase\n");
 
     // Verifica tabelle
     const tables = await client.query(`
@@ -23,8 +23,8 @@ async function verify() {
       AND table_name IN ('response_events', 'response_metrics')
       ORDER BY table_name
     `);
-    console.log('📊 Tabelle:');
-    tables.rows.forEach(r => console.log(`  ✅ ${r.table_name}`));
+    console.log("📊 Tabelle:");
+    tables.rows.forEach((r) => console.log(`  ✅ ${r.table_name}`));
 
     // Verifica enum
     const enumCheck = await client.query(`
@@ -37,10 +37,14 @@ async function verify() {
     }
 
     // Conta eventi e metriche
-    const eventsCount = await client.query('SELECT COUNT(*) as count FROM response_events');
+    const eventsCount = await client.query(
+      "SELECT COUNT(*) as count FROM response_events",
+    );
     console.log(`\n📈 Eventi response_events: ${eventsCount.rows[0].count}`);
-    
-    const metricsCount = await client.query('SELECT COUNT(*) as count FROM response_metrics');
+
+    const metricsCount = await client.query(
+      "SELECT COUNT(*) as count FROM response_metrics",
+    );
     console.log(`📈 Metriche response_metrics: ${metricsCount.rows[0].count}`);
 
     // Verifica conversation OPEN
@@ -59,16 +63,17 @@ async function verify() {
       WHERE c.status = 'OPEN'
         AND m.created_at >= NOW() - INTERVAL '7 days'
     `);
-    console.log(`💬 Messaggi in conversation OPEN (ultimi 7 giorni): ${messagesInOpen.rows[0].count}`);
+    console.log(
+      `💬 Messaggi in conversation OPEN (ultimi 7 giorni): ${messagesInOpen.rows[0].count}`,
+    );
 
     await client.end();
-    console.log('\n✅ Verifica completata');
+    console.log("\n✅ Verifica completata");
   } catch (error) {
-    console.error('❌ Errore:', error.message);
+    console.error("❌ Errore:", error.message);
     await client.end();
     process.exit(1);
   }
 }
 
 verify();
-

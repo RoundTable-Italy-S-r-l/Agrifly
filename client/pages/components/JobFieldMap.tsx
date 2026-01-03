@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-geometryutil';
+import { useEffect, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "leaflet-geometryutil";
 
 interface JobFieldMapProps {
   fieldPolygon: any;
@@ -10,7 +10,12 @@ interface JobFieldMapProps {
   className?: string;
 }
 
-const JobFieldMap = ({ fieldPolygon, areaHa, fieldName, className = '' }: JobFieldMapProps) => {
+const JobFieldMap = ({
+  fieldPolygon,
+  areaHa,
+  fieldName,
+  className = "",
+}: JobFieldMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<L.Map | null>(null);
 
@@ -26,10 +31,13 @@ const JobFieldMap = ({ fieldPolygon, areaHa, fieldName, className = '' }: JobFie
 
     try {
       // Parse polygon data
-      let polygon = typeof fieldPolygon === 'string' ? JSON.parse(fieldPolygon) : fieldPolygon;
+      let polygon =
+        typeof fieldPolygon === "string"
+          ? JSON.parse(fieldPolygon)
+          : fieldPolygon;
 
       // Handle GeoJSON format: {type: "Polygon", coordinates: [[[lng, lat], ...]]}
-      if (polygon && polygon.type === 'Polygon' && polygon.coordinates) {
+      if (polygon && polygon.type === "Polygon" && polygon.coordinates) {
         polygon = polygon.coordinates[0]; // Get first ring
       }
 
@@ -42,17 +50,29 @@ const JobFieldMap = ({ fieldPolygon, areaHa, fieldName, className = '' }: JobFie
           // Check if it's [lng, lat] format (GeoJSON standard, common in database)
           // For Italy, lng is around 6-18, lat is around 36-47
           // If first value is > 10 and < 20, it's likely lng (Italy longitude range)
-          if (firstPoint[0] > 10 && firstPoint[0] < 20 && firstPoint[1] > 35 && firstPoint[1] < 48) {
+          if (
+            firstPoint[0] > 10 &&
+            firstPoint[0] < 20 &&
+            firstPoint[1] > 35 &&
+            firstPoint[1] < 48
+          ) {
             // Format is [lng, lat] - convert to [lat, lng] for Leaflet
-            latLngs = polygon.map((point: [number, number]) => [point[1], point[0]]);
+            latLngs = polygon.map((point: [number, number]) => [
+              point[1],
+              point[0],
+            ]);
           } else {
             // Format is already [lat, lng]
-            latLngs = polygon.map((point: [number, number]) => [point[0], point[1]]);
+            latLngs = polygon.map((point: [number, number]) => [
+              point[0],
+              point[1],
+            ]);
           }
 
           // Calculate center for initial map view
-          let centerLat = 0, centerLng = 0;
-          latLngs.forEach(point => {
+          let centerLat = 0,
+            centerLng = 0;
+          latLngs.forEach((point) => {
             centerLat += point[0];
             centerLng += point[1];
           });
@@ -64,22 +84,25 @@ const JobFieldMap = ({ fieldPolygon, areaHa, fieldName, className = '' }: JobFie
             center: [centerLat, centerLng],
             zoom: 14,
             zoomControl: true,
-            attributionControl: true
+            attributionControl: true,
           });
           leafletMapRef.current = map;
 
           // Add satellite layer (like in GisMapSelector)
-          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: '© Esri'
-          }).addTo(map);
+          L.tileLayer(
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            {
+              maxZoom: 19,
+              attribution: "© Esri",
+            },
+          ).addTo(map);
 
           // Create polygon
           const leafletPolygon = L.polygon(latLngs, {
-            color: '#10B981', // emerald-500
+            color: "#10B981", // emerald-500
             weight: 3,
-            fillColor: '#10B981',
-            fillOpacity: 0.3
+            fillColor: "#10B981",
+            fillOpacity: 0.3,
           }).addTo(map);
 
           // Fit map to polygon bounds
@@ -93,29 +116,35 @@ const JobFieldMap = ({ fieldPolygon, areaHa, fieldName, className = '' }: JobFie
             </div>
           `);
         } else {
-          console.warn('Unexpected polygon format:', firstPoint);
+          console.warn("Unexpected polygon format:", firstPoint);
         }
       } else {
-        console.warn('Polygon is not a valid array:', polygon);
+        console.warn("Polygon is not a valid array:", polygon);
         // Initialize map anyway with default center
         map = L.map(mapRef.current).setView([43.5, 12.0], 10);
         leafletMapRef.current = map;
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          maxZoom: 19,
-          attribution: '© Esri'
-        }).addTo(map);
+        L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          {
+            maxZoom: 19,
+            attribution: "© Esri",
+          },
+        ).addTo(map);
       }
     } catch (error) {
-      console.error('Error parsing field polygon:', error);
-      console.error('Polygon data:', fieldPolygon);
+      console.error("Error parsing field polygon:", error);
+      console.error("Polygon data:", fieldPolygon);
       // Initialize map anyway with default center
       if (!map && mapRef.current) {
         map = L.map(mapRef.current).setView([43.5, 12.0], 10);
         leafletMapRef.current = map;
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          maxZoom: 19,
-          attribution: '© Esri'
-        }).addTo(map);
+        L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          {
+            maxZoom: 19,
+            attribution: "© Esri",
+          },
+        ).addTo(map);
       }
     }
 
@@ -130,7 +159,7 @@ const JobFieldMap = ({ fieldPolygon, areaHa, fieldName, className = '' }: JobFie
     <div
       ref={mapRef}
       className={`w-full h-64 rounded-lg border border-slate-200 ${className}`}
-      style={{ minHeight: '256px' }}
+      style={{ minHeight: "256px" }}
     />
   );
 };

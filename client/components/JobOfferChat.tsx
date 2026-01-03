@@ -1,9 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Loader2, MessageSquare } from 'lucide-react';
-import { fetchJobOfferMessages, sendJobOfferMessage, markJobOfferMessagesAsRead, type JobOfferMessage } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Send, Loader2, MessageSquare } from "lucide-react";
+import {
+  fetchJobOfferMessages,
+  sendJobOfferMessage,
+  markJobOfferMessagesAsRead,
+  type JobOfferMessage,
+} from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface JobOfferChatProps {
   offerId: string;
@@ -13,22 +18,38 @@ interface JobOfferChatProps {
   operatorOrgId: string;
 }
 
-export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId, operatorOrgId }: JobOfferChatProps) {
-  console.log('💬 [CHAT COMPONENT] Rendered with:', { offerId, currentOrgId, currentUserId, buyerOrgId, operatorOrgId });
+export function JobOfferChat({
+  offerId,
+  currentOrgId,
+  currentUserId,
+  buyerOrgId,
+  operatorOrgId,
+}: JobOfferChatProps) {
+  console.log("💬 [CHAT COMPONENT] Rendered with:", {
+    offerId,
+    currentOrgId,
+    currentUserId,
+    buyerOrgId,
+    operatorOrgId,
+  });
 
-  const [messageText, setMessageText] = useState('');
+  const [messageText, setMessageText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
   // Query per messaggi
-  const { data: messagesData, isLoading, error: queryError } = useQuery<JobOfferMessage[]>({
-    queryKey: ['jobOfferMessages', offerId],
+  const {
+    data: messagesData,
+    isLoading,
+    error: queryError,
+  } = useQuery<JobOfferMessage[]>({
+    queryKey: ["jobOfferMessages", offerId],
     queryFn: () => {
-      console.log('💬 [CHAT QUERY] Fetching messages for offerId:', offerId);
+      console.log("💬 [CHAT QUERY] Fetching messages for offerId:", offerId);
       return fetchJobOfferMessages(offerId);
     },
     refetchInterval: 3000, // Auto-refresh ogni 3 secondi
-    enabled: !!offerId
+    enabled: !!offerId,
   });
 
   const messages = messagesData || [];
@@ -36,32 +57,43 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
   // Gestisci success/error con useEffect
   useEffect(() => {
     if (messages.length > 0) {
-      console.log('💬 [CHAT QUERY] Messages loaded:', messages.length, 'messages');
+      console.log(
+        "💬 [CHAT QUERY] Messages loaded:",
+        messages.length,
+        "messages",
+      );
     }
   }, [messages]);
 
   useEffect(() => {
     if (queryError) {
-      console.error('💬 [CHAT QUERY] Error loading messages:', queryError);
+      console.error("💬 [CHAT QUERY] Error loading messages:", queryError);
     }
   }, [queryError]);
 
   // Mutation per inviare messaggio
   const sendMessageMutation = useMutation({
     mutationFn: (text: string) => {
-      console.log('💬 [CHAT SEND] Sending message:', text, 'for offerId:', offerId);
+      console.log(
+        "💬 [CHAT SEND] Sending message:",
+        text,
+        "for offerId:",
+        offerId,
+      );
       return sendJobOfferMessage(offerId, {
-        content: text
+        content: text,
       });
-    }
+    },
   });
 
   // Gestisci success/error con useEffect
   useEffect(() => {
     if (sendMessageMutation.isSuccess) {
-      console.log('💬 [CHAT SEND] Message sent successfully');
-      setMessageText('');
-      queryClient.invalidateQueries({ queryKey: ['jobOfferMessages', offerId] });
+      console.log("💬 [CHAT SEND] Message sent successfully");
+      setMessageText("");
+      queryClient.invalidateQueries({
+        queryKey: ["jobOfferMessages", offerId],
+      });
       // Marca messaggi come letti dopo l'invio
       markJobOfferMessagesAsRead(offerId, currentOrgId).catch(console.error);
     }
@@ -69,7 +101,10 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
 
   useEffect(() => {
     if (sendMessageMutation.error) {
-      console.error('💬 [CHAT SEND] Error sending message:', sendMessageMutation.error);
+      console.error(
+        "💬 [CHAT SEND] Error sending message:",
+        sendMessageMutation.error,
+      );
     }
   }, [sendMessageMutation.error]);
 
@@ -77,7 +112,7 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
   useEffect(() => {
     if (messages.length > 0) {
       const unreadMessages = messages.filter(
-        msg => !msg.is_read && msg.sender_org_id !== currentOrgId
+        (msg) => !msg.is_read && msg.sender_org_id !== currentOrgId,
       );
       if (unreadMessages.length > 0) {
         markJobOfferMessagesAsRead(offerId, currentOrgId).catch(console.error);
@@ -87,7 +122,7 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
 
   // Scroll to bottom quando arrivano nuovi messaggi
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = (e: React.FormEvent) => {
@@ -120,29 +155,31 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
             return (
               <div
                 key={message.id}
-                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
               >
                 <div
                   className={`max-w-[70%] rounded-lg px-4 py-2 ${
                     isOwnMessage
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-100 text-slate-900'
+                      ? "bg-emerald-600 text-white"
+                      : "bg-slate-100 text-slate-900"
                   }`}
                 >
                   {!isOwnMessage && (
                     <div className="text-xs font-medium mb-1 opacity-80">
-                      {message.sender_org_name || 'Altro'}
+                      {message.sender_org_name || "Altro"}
                     </div>
                   )}
-                  <div className="text-sm whitespace-pre-wrap">{message.message_text}</div>
+                  <div className="text-sm whitespace-pre-wrap">
+                    {message.message_text}
+                  </div>
                   <div
                     className={`text-xs mt-1 ${
-                      isOwnMessage ? 'text-emerald-100' : 'text-slate-500'
+                      isOwnMessage ? "text-emerald-100" : "text-slate-500"
                     }`}
                   >
-                    {new Date(message.created_at).toLocaleTimeString('it-IT', {
-                      hour: '2-digit',
-                      minute: '2-digit'
+                    {new Date(message.created_at).toLocaleTimeString("it-IT", {
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </div>
                 </div>
@@ -154,7 +191,10 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="px-4 py-3 border-t border-slate-200">
+      <form
+        onSubmit={handleSend}
+        className="px-4 py-3 border-t border-slate-200"
+      >
         <div className="flex gap-2">
           <Input
             value={messageText}
@@ -179,4 +219,3 @@ export function JobOfferChat({ offerId, currentOrgId, currentUserId, buyerOrgId,
     </div>
   );
 }
-

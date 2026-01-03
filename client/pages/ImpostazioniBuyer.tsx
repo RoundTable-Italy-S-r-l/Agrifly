@@ -1,84 +1,113 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BuyerLayout } from '@/components/BuyerLayout';
-import { User, Building, MapPin, Phone, Mail, Bell, Shield, Save, RefreshCw, Truck, FileText, Plus, Edit, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { getAddresses, createAddress, updateAddress, deleteAddress, type Address } from '@/lib/api';
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { BuyerLayout } from "@/components/BuyerLayout";
+import {
+  User,
+  Building,
+  MapPin,
+  Phone,
+  Mail,
+  Bell,
+  Shield,
+  Save,
+  RefreshCw,
+  Truck,
+  FileText,
+  Plus,
+  Edit,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  getAddresses,
+  createAddress,
+  updateAddress,
+  deleteAddress,
+  type Address,
+} from "@/lib/api";
 
 export default function ImpostazioniBuyer() {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
   const [userData, setUserData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    companyName: '',
-    address: '',
-    city: '',
-    postalCode: '',
-    taxId: ''
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    companyName: "",
+    address: "",
+    city: "",
+    postalCode: "",
+    taxId: "",
   });
 
   const [notifications, setNotifications] = useState({
     emailQuotes: true,
     emailUpdates: true,
     smsAlerts: false,
-    marketingEmails: false
+    marketingEmails: false,
   });
 
   // Stato per form indirizzo
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [addressForm, setAddressForm] = useState({
-    type: 'SHIPPING' as 'SHIPPING' | 'BILLING',
-    name: '',
-    company: '',
-    address_line: '',
-    city: '',
-    province: '',
-    postal_code: '',
-    country: 'IT',
-    phone: '',
-    is_default: false
+    type: "SHIPPING" as "SHIPPING" | "BILLING",
+    name: "",
+    company: "",
+    address_line: "",
+    city: "",
+    province: "",
+    postal_code: "",
+    country: "IT",
+    phone: "",
+    is_default: false,
   });
 
   // Carica dati utente e organizzazione dal localStorage
   useEffect(() => {
     try {
-      const orgData = localStorage.getItem('organization');
+      const orgData = localStorage.getItem("organization");
       if (orgData) {
         const org = JSON.parse(orgData);
         setCurrentOrgId(org.id);
         setUserData({
-          firstName: org.contact_first_name || '',
-          lastName: org.contact_last_name || '',
-          email: org.contact_email || '',
-          phone: org.contact_phone || '',
-          companyName: org.name || '',
-          address: org.address || '',
-          city: org.city || '',
-          postalCode: org.postal_code || '',
-          taxId: org.tax_id || ''
+          firstName: org.contact_first_name || "",
+          lastName: org.contact_last_name || "",
+          email: org.contact_email || "",
+          phone: org.contact_phone || "",
+          companyName: org.name || "",
+          address: org.address || "",
+          city: org.city || "",
+          postalCode: org.postal_code || "",
+          taxId: org.tax_id || "",
         });
       }
     } catch (error) {
-      console.error('Errore nel caricamento dati utente:', error);
+      console.error("Errore nel caricamento dati utente:", error);
     }
   }, []);
 
   // Query per indirizzi spedizione
-  const { data: shippingAddresses = [], isLoading: shippingLoading } = useQuery({
-    queryKey: ['addresses', currentOrgId, 'SHIPPING'],
-    queryFn: () => currentOrgId ? getAddresses(currentOrgId, 'SHIPPING') : Promise.resolve([]),
-    enabled: !!currentOrgId,
-  });
+  const { data: shippingAddresses = [], isLoading: shippingLoading } = useQuery(
+    {
+      queryKey: ["addresses", currentOrgId, "SHIPPING"],
+      queryFn: () =>
+        currentOrgId
+          ? getAddresses(currentOrgId, "SHIPPING")
+          : Promise.resolve([]),
+      enabled: !!currentOrgId,
+    },
+  );
 
   // Query per indirizzi fatturazione
   const { data: billingAddresses = [], isLoading: billingLoading } = useQuery({
-    queryKey: ['addresses', currentOrgId, 'BILLING'],
-    queryFn: () => currentOrgId ? getAddresses(currentOrgId, 'BILLING') : Promise.resolve([]),
+    queryKey: ["addresses", currentOrgId, "BILLING"],
+    queryFn: () =>
+      currentOrgId
+        ? getAddresses(currentOrgId, "BILLING")
+        : Promise.resolve([]),
     enabled: !!currentOrgId,
   });
 
@@ -87,51 +116,56 @@ export default function ImpostazioniBuyer() {
     mutationFn: (addressData: typeof addressForm) =>
       createAddress({ orgId: currentOrgId!, ...addressData }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['addresses'] });
-      toast.success('Indirizzo aggiunto con successo');
+      queryClient.invalidateQueries({ queryKey: ["addresses"] });
+      toast.success("Indirizzo aggiunto con successo");
       resetAddressForm();
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Errore nell\'aggiunta dell\'indirizzo');
-    }
+      toast.error(error.message || "Errore nell'aggiunta dell'indirizzo");
+    },
   });
 
   const updateAddressMutation = useMutation({
-    mutationFn: ({ addressId, updates }: { addressId: string; updates: Partial<Address> }) =>
-      updateAddress(addressId, updates),
+    mutationFn: ({
+      addressId,
+      updates,
+    }: {
+      addressId: string;
+      updates: Partial<Address>;
+    }) => updateAddress(addressId, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['addresses'] });
-      toast.success('Indirizzo aggiornato con successo');
+      queryClient.invalidateQueries({ queryKey: ["addresses"] });
+      toast.success("Indirizzo aggiornato con successo");
       resetAddressForm();
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Errore nell\'aggiornamento dell\'indirizzo');
-    }
+      toast.error(error.message || "Errore nell'aggiornamento dell'indirizzo");
+    },
   });
 
   const deleteAddressMutation = useMutation({
     mutationFn: (addressId: string) => deleteAddress(addressId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['addresses'] });
-      toast.success('Indirizzo eliminato con successo');
+      queryClient.invalidateQueries({ queryKey: ["addresses"] });
+      toast.success("Indirizzo eliminato con successo");
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Errore nell\'eliminazione dell\'indirizzo');
-    }
+      toast.error(error.message || "Errore nell'eliminazione dell'indirizzo");
+    },
   });
 
   const resetAddressForm = () => {
     setAddressForm({
-      type: 'SHIPPING',
-      name: '',
-      company: '',
-      address_line: '',
-      city: '',
-      province: '',
-      postal_code: '',
-      country: 'IT',
-      phone: '',
-      is_default: false
+      type: "SHIPPING",
+      name: "",
+      company: "",
+      address_line: "",
+      city: "",
+      province: "",
+      postal_code: "",
+      country: "IT",
+      phone: "",
+      is_default: false,
     });
     setEditingAddress(null);
     setShowAddressForm(false);
@@ -142,14 +176,14 @@ export default function ImpostazioniBuyer() {
     setAddressForm({
       type: address.type,
       name: address.name,
-      company: address.company || '',
+      company: address.company || "",
       address_line: address.address_line,
       city: address.city,
       province: address.province,
       postal_code: address.postal_code,
       country: address.country,
-      phone: address.phone || '',
-      is_default: address.is_default
+      phone: address.phone || "",
+      is_default: address.is_default,
     });
     setShowAddressForm(true);
   };
@@ -159,7 +193,7 @@ export default function ImpostazioniBuyer() {
     if (editingAddress) {
       updateAddressMutation.mutate({
         addressId: editingAddress.id,
-        updates: addressForm
+        updates: addressForm,
       });
     } else {
       createAddressMutation.mutate(addressForm);
@@ -167,16 +201,16 @@ export default function ImpostazioniBuyer() {
   };
 
   const handleUserDataChange = (field: string, value: string) => {
-    setUserData(prev => ({
+    setUserData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   const handleNotificationChange = (field: string, value: boolean) => {
-    setNotifications(prev => ({
+    setNotifications((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -184,10 +218,10 @@ export default function ImpostazioniBuyer() {
     setIsLoading(true);
     try {
       // Simulazione salvataggio
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Salva nel localStorage (in produzione andrebbe all'API)
-      const orgData = localStorage.getItem('organization');
+      const orgData = localStorage.getItem("organization");
       if (orgData) {
         const org = JSON.parse(orgData);
         const updatedOrg = {
@@ -200,14 +234,14 @@ export default function ImpostazioniBuyer() {
           address: userData.address,
           city: userData.city,
           postal_code: userData.postalCode,
-          tax_id: userData.taxId
+          tax_id: userData.taxId,
         };
-        localStorage.setItem('organization', JSON.stringify(updatedOrg));
+        localStorage.setItem("organization", JSON.stringify(updatedOrg));
       }
 
-      alert('Profilo aggiornato con successo!');
+      alert("Profilo aggiornato con successo!");
     } catch (error) {
-      alert('Errore durante il salvataggio. Riprova.');
+      alert("Errore durante il salvataggio. Riprova.");
     } finally {
       setIsLoading(false);
     }
@@ -217,14 +251,17 @@ export default function ImpostazioniBuyer() {
     setIsLoading(true);
     try {
       // Simulazione salvataggio
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Salva nel localStorage (in produzione andrebbe all'API)
-      localStorage.setItem('buyer_notifications', JSON.stringify(notifications));
+      localStorage.setItem(
+        "buyer_notifications",
+        JSON.stringify(notifications),
+      );
 
-      alert('Preferenze notifiche aggiornate!');
+      alert("Preferenze notifiche aggiornate!");
     } catch (error) {
-      alert('Errore durante il salvataggio. Riprova.');
+      alert("Errore durante il salvataggio. Riprova.");
     } finally {
       setIsLoading(false);
     }
@@ -236,7 +273,9 @@ export default function ImpostazioniBuyer() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Impostazioni</h1>
-          <p className="text-slate-600 mt-1">Gestisci il tuo profilo e le preferenze</p>
+          <p className="text-slate-600 mt-1">
+            Gestisci il tuo profilo e le preferenze
+          </p>
         </div>
 
         {/* Profile Settings */}
@@ -247,8 +286,12 @@ export default function ImpostazioniBuyer() {
                 <User className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Informazioni Personali</h2>
-                <p className="text-slate-600">Aggiorna i tuoi dati personali e aziendali</p>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Informazioni Personali
+                </h2>
+                <p className="text-slate-600">
+                  Aggiorna i tuoi dati personali e aziendali
+                </p>
               </div>
             </div>
           </div>
@@ -270,7 +313,9 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="text"
                       value={userData.firstName}
-                      onChange={(e) => handleUserDataChange('firstName', e.target.value)}
+                      onChange={(e) =>
+                        handleUserDataChange("firstName", e.target.value)
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -281,7 +326,9 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="text"
                       value={userData.lastName}
-                      onChange={(e) => handleUserDataChange('lastName', e.target.value)}
+                      onChange={(e) =>
+                        handleUserDataChange("lastName", e.target.value)
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -296,7 +343,9 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="email"
                       value={userData.email}
-                      onChange={(e) => handleUserDataChange('email', e.target.value)}
+                      onChange={(e) =>
+                        handleUserDataChange("email", e.target.value)
+                      }
                       className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -311,7 +360,9 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="tel"
                       value={userData.phone}
-                      onChange={(e) => handleUserDataChange('phone', e.target.value)}
+                      onChange={(e) =>
+                        handleUserDataChange("phone", e.target.value)
+                      }
                       className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -332,7 +383,9 @@ export default function ImpostazioniBuyer() {
                   <input
                     type="text"
                     value={userData.companyName}
-                    onChange={(e) => handleUserDataChange('companyName', e.target.value)}
+                    onChange={(e) =>
+                      handleUserDataChange("companyName", e.target.value)
+                    }
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                 </div>
@@ -346,7 +399,9 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="text"
                       value={userData.address}
-                      onChange={(e) => handleUserDataChange('address', e.target.value)}
+                      onChange={(e) =>
+                        handleUserDataChange("address", e.target.value)
+                      }
                       className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -360,7 +415,9 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="text"
                       value={userData.city}
-                      onChange={(e) => handleUserDataChange('city', e.target.value)}
+                      onChange={(e) =>
+                        handleUserDataChange("city", e.target.value)
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -371,7 +428,9 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="text"
                       value={userData.postalCode}
-                      onChange={(e) => handleUserDataChange('postalCode', e.target.value)}
+                      onChange={(e) =>
+                        handleUserDataChange("postalCode", e.target.value)
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -384,7 +443,9 @@ export default function ImpostazioniBuyer() {
                   <input
                     type="text"
                     value={userData.taxId}
-                    onChange={(e) => handleUserDataChange('taxId', e.target.value)}
+                    onChange={(e) =>
+                      handleUserDataChange("taxId", e.target.value)
+                    }
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                 </div>
@@ -416,8 +477,12 @@ export default function ImpostazioniBuyer() {
                 <Bell className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Preferenze Notifiche</h2>
-                <p className="text-slate-600">Scegli come ricevere gli aggiornamenti</p>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Preferenze Notifiche
+                </h2>
+                <p className="text-slate-600">
+                  Scegli come ricevere gli aggiornamenti
+                </p>
               </div>
             </div>
           </div>
@@ -425,14 +490,20 @@ export default function ImpostazioniBuyer() {
           <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-slate-900">Preventivi e aggiornamenti</div>
-                <div className="text-sm text-slate-600">Ricevi email quando i tuoi preventivi vengono aggiornati</div>
+                <div className="font-medium text-slate-900">
+                  Preventivi e aggiornamenti
+                </div>
+                <div className="text-sm text-slate-600">
+                  Ricevi email quando i tuoi preventivi vengono aggiornati
+                </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={notifications.emailQuotes}
-                  onChange={(e) => handleNotificationChange('emailQuotes', e.target.checked)}
+                  onChange={(e) =>
+                    handleNotificationChange("emailQuotes", e.target.checked)
+                  }
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
@@ -441,14 +512,20 @@ export default function ImpostazioniBuyer() {
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-slate-900">Aggiornamenti di stato</div>
-                <div className="text-sm text-slate-600">Notifiche sui cambiamenti di stato delle missioni</div>
+                <div className="font-medium text-slate-900">
+                  Aggiornamenti di stato
+                </div>
+                <div className="text-sm text-slate-600">
+                  Notifiche sui cambiamenti di stato delle missioni
+                </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={notifications.emailUpdates}
-                  onChange={(e) => handleNotificationChange('emailUpdates', e.target.checked)}
+                  onChange={(e) =>
+                    handleNotificationChange("emailUpdates", e.target.checked)
+                  }
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
@@ -458,13 +535,17 @@ export default function ImpostazioniBuyer() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium text-slate-900">Avvisi SMS</div>
-                <div className="text-sm text-slate-600">Ricevi SMS per missioni urgenti o problemi</div>
+                <div className="text-sm text-slate-600">
+                  Ricevi SMS per missioni urgenti o problemi
+                </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={notifications.smsAlerts}
-                  onChange={(e) => handleNotificationChange('smsAlerts', e.target.checked)}
+                  onChange={(e) =>
+                    handleNotificationChange("smsAlerts", e.target.checked)
+                  }
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
@@ -473,14 +554,23 @@ export default function ImpostazioniBuyer() {
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-slate-900">Newsletter e promozioni</div>
-                <div className="text-sm text-slate-600">Ricevi aggiornamenti sui nuovi servizi e offerte</div>
+                <div className="font-medium text-slate-900">
+                  Newsletter e promozioni
+                </div>
+                <div className="text-sm text-slate-600">
+                  Ricevi aggiornamenti sui nuovi servizi e offerte
+                </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={notifications.marketingEmails}
-                  onChange={(e) => handleNotificationChange('marketingEmails', e.target.checked)}
+                  onChange={(e) =>
+                    handleNotificationChange(
+                      "marketingEmails",
+                      e.target.checked,
+                    )
+                  }
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
@@ -513,8 +603,12 @@ export default function ImpostazioniBuyer() {
                   <MapPin className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Indirizzi</h2>
-                  <p className="text-slate-600">Gestisci indirizzi di spedizione e fatturazione</p>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Indirizzi
+                  </h2>
+                  <p className="text-slate-600">
+                    Gestisci indirizzi di spedizione e fatturazione
+                  </p>
                 </div>
               </div>
               <button
@@ -546,20 +640,26 @@ export default function ImpostazioniBuyer() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {shippingAddresses.map((address: Address) => (
-                    <div key={address.id} className="border border-slate-200 rounded-lg p-4 relative">
+                    <div
+                      key={address.id}
+                      className="border border-slate-200 rounded-lg p-4 relative"
+                    >
                       {address.is_default && (
                         <div className="absolute top-2 right-2 bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-full">
                           Predefinito
                         </div>
                       )}
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-slate-900">{address.name}</h4>
+                        <h4 className="font-semibold text-slate-900">
+                          {address.name}
+                        </h4>
                         {address.company && (
                           <p className="text-slate-600">{address.company}</p>
                         )}
                         <p className="text-slate-700">{address.address_line}</p>
                         <p className="text-slate-700">
-                          {address.postal_code} {address.city} ({address.province})
+                          {address.postal_code} {address.city} (
+                          {address.province})
                         </p>
                         <p className="text-slate-700">{address.country}</p>
                         {address.phone && (
@@ -579,7 +679,11 @@ export default function ImpostazioniBuyer() {
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm('Sei sicuro di voler eliminare questo indirizzo?')) {
+                            if (
+                              confirm(
+                                "Sei sicuro di voler eliminare questo indirizzo?",
+                              )
+                            ) {
                               deleteAddressMutation.mutate(address.id);
                             }
                           }}
@@ -612,20 +716,26 @@ export default function ImpostazioniBuyer() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {billingAddresses.map((address: Address) => (
-                    <div key={address.id} className="border border-slate-200 rounded-lg p-4 relative">
+                    <div
+                      key={address.id}
+                      className="border border-slate-200 rounded-lg p-4 relative"
+                    >
                       {address.is_default && (
                         <div className="absolute top-2 right-2 bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-full">
                           Predefinito
                         </div>
                       )}
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-slate-900">{address.name}</h4>
+                        <h4 className="font-semibold text-slate-900">
+                          {address.name}
+                        </h4>
                         {address.company && (
                           <p className="text-slate-600">{address.company}</p>
                         )}
                         <p className="text-slate-700">{address.address_line}</p>
                         <p className="text-slate-700">
-                          {address.postal_code} {address.city} ({address.province})
+                          {address.postal_code} {address.city} (
+                          {address.province})
                         </p>
                         <p className="text-slate-700">{address.country}</p>
                         {address.phone && (
@@ -645,7 +755,11 @@ export default function ImpostazioniBuyer() {
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm('Sei sicuro di voler eliminare questo indirizzo?')) {
+                            if (
+                              confirm(
+                                "Sei sicuro di voler eliminare questo indirizzo?",
+                              )
+                            ) {
                               deleteAddressMutation.mutate(address.id);
                             }
                           }}
@@ -669,7 +783,7 @@ export default function ImpostazioniBuyer() {
               <div className="p-6 border-b border-slate-200">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-slate-900">
-                    {editingAddress ? 'Modifica Indirizzo' : 'Nuovo Indirizzo'}
+                    {editingAddress ? "Modifica Indirizzo" : "Nuovo Indirizzo"}
                   </h3>
                   <button
                     onClick={resetAddressForm}
@@ -688,10 +802,12 @@ export default function ImpostazioniBuyer() {
                     </label>
                     <select
                       value={addressForm.type}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        type: e.target.value as 'SHIPPING' | 'BILLING'
-                      }))}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          type: e.target.value as "SHIPPING" | "BILLING",
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     >
                       <option value="SHIPPING">Spedizione</option>
@@ -707,10 +823,12 @@ export default function ImpostazioniBuyer() {
                       type="text"
                       required
                       value={addressForm.name}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        name: e.target.value
-                      }))}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       placeholder="Mario Rossi"
                     />
@@ -723,10 +841,12 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="text"
                       value={addressForm.company}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        company: e.target.value
-                      }))}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          company: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       placeholder="Azienda Srl"
                     />
@@ -739,10 +859,12 @@ export default function ImpostazioniBuyer() {
                     <input
                       type="tel"
                       value={addressForm.phone}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        phone: e.target.value
-                      }))}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          phone: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       placeholder="+39 123 456 7890"
                     />
@@ -757,10 +879,12 @@ export default function ImpostazioniBuyer() {
                     type="text"
                     required
                     value={addressForm.address_line}
-                    onChange={(e) => setAddressForm(prev => ({
-                      ...prev,
-                      address_line: e.target.value
-                    }))}
+                    onChange={(e) =>
+                      setAddressForm((prev) => ({
+                        ...prev,
+                        address_line: e.target.value,
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     placeholder="Via Roma 123"
                   />
@@ -775,10 +899,12 @@ export default function ImpostazioniBuyer() {
                       type="text"
                       required
                       value={addressForm.postal_code}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        postal_code: e.target.value
-                      }))}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          postal_code: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       placeholder="00100"
                     />
@@ -792,10 +918,12 @@ export default function ImpostazioniBuyer() {
                       type="text"
                       required
                       value={addressForm.city}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        city: e.target.value
-                      }))}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          city: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       placeholder="Roma"
                     />
@@ -809,10 +937,12 @@ export default function ImpostazioniBuyer() {
                       type="text"
                       required
                       value={addressForm.province}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        province: e.target.value
-                      }))}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          province: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       placeholder="RM"
                     />
@@ -824,13 +954,18 @@ export default function ImpostazioniBuyer() {
                     type="checkbox"
                     id="is_default"
                     checked={addressForm.is_default}
-                    onChange={(e) => setAddressForm(prev => ({
-                      ...prev,
-                      is_default: e.target.checked
-                    }))}
+                    onChange={(e) =>
+                      setAddressForm((prev) => ({
+                        ...prev,
+                        is_default: e.target.checked,
+                      }))
+                    }
                     className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                   />
-                  <label htmlFor="is_default" className="text-sm text-slate-700">
+                  <label
+                    htmlFor="is_default"
+                    className="text-sm text-slate-700"
+                  >
                     Imposta come indirizzo predefinito
                   </label>
                 </div>
@@ -845,13 +980,17 @@ export default function ImpostazioniBuyer() {
                   </button>
                   <button
                     type="submit"
-                    disabled={createAddressMutation.isPending || updateAddressMutation.isPending}
+                    disabled={
+                      createAddressMutation.isPending ||
+                      updateAddressMutation.isPending
+                    }
                     className="flex-1 px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                   >
-                    {(createAddressMutation.isPending || updateAddressMutation.isPending) && (
+                    {(createAddressMutation.isPending ||
+                      updateAddressMutation.isPending) && (
                       <RefreshCw className="w-4 h-4 animate-spin" />
                     )}
-                    {editingAddress ? 'Salva Modifiche' : 'Aggiungi Indirizzo'}
+                    {editingAddress ? "Salva Modifiche" : "Aggiungi Indirizzo"}
                   </button>
                 </div>
               </form>
@@ -868,7 +1007,9 @@ export default function ImpostazioniBuyer() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Sicurezza</h2>
-                <p className="text-slate-600">Gestisci la sicurezza del tuo account</p>
+                <p className="text-slate-600">
+                  Gestisci la sicurezza del tuo account
+                </p>
               </div>
             </div>
           </div>
@@ -876,8 +1017,12 @@ export default function ImpostazioniBuyer() {
           <div className="p-6 space-y-4">
             <div className="flex items-center justify-between py-4">
               <div>
-                <div className="font-medium text-slate-900">Cambia Password</div>
-                <div className="text-sm text-slate-600">Aggiorna la password del tuo account</div>
+                <div className="font-medium text-slate-900">
+                  Cambia Password
+                </div>
+                <div className="text-sm text-slate-600">
+                  Aggiorna la password del tuo account
+                </div>
               </div>
               <button className="px-4 py-2 text-emerald-600 font-medium hover:bg-emerald-50 rounded-lg transition-colors">
                 Cambia
@@ -886,8 +1031,12 @@ export default function ImpostazioniBuyer() {
 
             <div className="flex items-center justify-between py-4 border-t border-slate-200">
               <div>
-                <div className="font-medium text-slate-900">Autenticazione a due fattori</div>
-                <div className="text-sm text-slate-600">Aggiungi un ulteriore livello di sicurezza</div>
+                <div className="font-medium text-slate-900">
+                  Autenticazione a due fattori
+                </div>
+                <div className="text-sm text-slate-600">
+                  Aggiungi un ulteriore livello di sicurezza
+                </div>
               </div>
               <button className="px-4 py-2 text-emerald-600 font-medium hover:bg-emerald-50 rounded-lg transition-colors">
                 Attiva
@@ -896,8 +1045,12 @@ export default function ImpostazioniBuyer() {
 
             <div className="flex items-center justify-between py-4 border-t border-slate-200">
               <div>
-                <div className="font-medium text-slate-900">Sessioni attive</div>
-                <div className="text-sm text-slate-600">Visualizza e gestisci le tue sessioni</div>
+                <div className="font-medium text-slate-900">
+                  Sessioni attive
+                </div>
+                <div className="text-sm text-slate-600">
+                  Visualizza e gestisci le tue sessioni
+                </div>
               </div>
               <button className="px-4 py-2 text-emerald-600 font-medium hover:bg-emerald-50 rounded-lg transition-colors">
                 Gestisci

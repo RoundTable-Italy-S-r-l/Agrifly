@@ -2,8 +2,8 @@
  * Test catalogo pubblico: verifica query, aggregazioni, vendor, prezzi
  */
 
-require('dotenv').config();
-const { Client } = require('pg');
+require("dotenv").config();
+const { Client } = require("pg");
 
 async function testCatalogPublic() {
   const client = new Client({
@@ -12,31 +12,37 @@ async function testCatalogPublic() {
     database: process.env.PGDATABASE,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
-    console.log('✅ Connesso al database\n');
+    console.log("✅ Connesso al database\n");
 
     // TEST 1: Verifica struttura base (Product, SKU, VendorCatalogItem)
-    console.log('📋 TEST 1: Verifica struttura base');
-    const productCount = await client.query('SELECT COUNT(*) as count FROM products WHERE status = \'ACTIVE\'');
-    const skuCount = await client.query('SELECT COUNT(*) as count FROM skus WHERE status = \'ACTIVE\'');
-    const vciCount = await client.query('SELECT COUNT(*) as count FROM vendor_catalog_items WHERE is_for_sale = true');
-    
+    console.log("📋 TEST 1: Verifica struttura base");
+    const productCount = await client.query(
+      "SELECT COUNT(*) as count FROM products WHERE status = 'ACTIVE'",
+    );
+    const skuCount = await client.query(
+      "SELECT COUNT(*) as count FROM skus WHERE status = 'ACTIVE'",
+    );
+    const vciCount = await client.query(
+      "SELECT COUNT(*) as count FROM vendor_catalog_items WHERE is_for_sale = true",
+    );
+
     console.log(`  Products attivi: ${productCount.rows[0].count}`);
     console.log(`  SKU attivi: ${skuCount.rows[0].count}`);
     console.log(`  VendorCatalogItem in vendita: ${vciCount.rows[0].count}`);
 
     if (parseInt(productCount.rows[0].count) === 0) {
-      console.log('  ⚠️  Nessun prodotto attivo nel database');
+      console.log("  ⚠️  Nessun prodotto attivo nel database");
     } else {
-      console.log('  ✅ Struttura base presente\n');
+      console.log("  ✅ Struttura base presente\n");
     }
 
     // TEST 2: Query catalogo pubblico (stessa query del backend)
-    console.log('📋 TEST 2: Query catalogo pubblico');
+    console.log("📋 TEST 2: Query catalogo pubblico");
     const catalogQuery = `
       SELECT
         p.id as product_id,
@@ -71,24 +77,30 @@ async function testCatalogPublic() {
     console.log(`  Prodotti trovati: ${catalogResult.rows.length}`);
 
     if (catalogResult.rows.length > 0) {
-      console.log('\n  📊 Dettagli primi prodotti:');
+      console.log("\n  📊 Dettagli primi prodotti:");
       catalogResult.rows.forEach((row, idx) => {
         console.log(`\n  ${idx + 1}. ${row.brand} ${row.model}`);
         console.log(`     Product ID: ${row.product_id}`);
         console.log(`     Vendor count: ${row.vendor_count || 0}`);
-        const minPrice = row.min_price_euros ? (typeof row.min_price_euros === 'number' ? row.min_price_euros : parseFloat(row.min_price_euros)) : null;
-        console.log(`     Min price: ${minPrice ? `€${minPrice.toFixed(2)}` : 'N/A'}`);
+        const minPrice = row.min_price_euros
+          ? typeof row.min_price_euros === "number"
+            ? row.min_price_euros
+            : parseFloat(row.min_price_euros)
+          : null;
+        console.log(
+          `     Min price: ${minPrice ? `€${minPrice.toFixed(2)}` : "N/A"}`,
+        );
         console.log(`     Total stock: ${row.total_stock || 0}`);
         console.log(`     Has images: ${!!row.images_json}`);
         console.log(`     Has GLB: ${!!row.glb_files_json}`);
       });
-      console.log('\n  ✅ Query catalogo funziona correttamente');
+      console.log("\n  ✅ Query catalogo funziona correttamente");
     } else {
-      console.log('  ⚠️  Nessun prodotto restituito dalla query');
+      console.log("  ⚠️  Nessun prodotto restituito dalla query");
     }
 
     // TEST 3: Verifica aggregazione vendor
-    console.log('\n📋 TEST 3: Verifica aggregazione vendor');
+    console.log("\n📋 TEST 3: Verifica aggregazione vendor");
     const vendorAggQuery = `
       SELECT 
         p.id as product_id,
@@ -107,16 +119,20 @@ async function testCatalogPublic() {
 
     const vendorResult = await client.query(vendorAggQuery);
     if (vendorResult.rows.length > 0) {
-      console.log(`  ✅ ${vendorResult.rows.length} prodotti con vendor associati`);
-      vendorResult.rows.forEach(row => {
-        console.log(`     ${row.name}: ${row.vendor_count} vendor - ${row.vendor_names.slice(0, 3).join(', ')}${row.vendor_count > 3 ? '...' : ''}`);
+      console.log(
+        `  ✅ ${vendorResult.rows.length} prodotti con vendor associati`,
+      );
+      vendorResult.rows.forEach((row) => {
+        console.log(
+          `     ${row.name}: ${row.vendor_count} vendor - ${row.vendor_names.slice(0, 3).join(", ")}${row.vendor_count > 3 ? "..." : ""}`,
+        );
       });
     } else {
-      console.log('  ⚠️  Nessun prodotto con vendor associati');
+      console.log("  ⚠️  Nessun prodotto con vendor associati");
     }
 
     // TEST 4: Verifica aggregazione prezzi
-    console.log('\n📋 TEST 4: Verifica aggregazione prezzi');
+    console.log("\n📋 TEST 4: Verifica aggregazione prezzi");
     const priceAggQuery = `
       SELECT 
         p.id as product_id,
@@ -142,17 +158,27 @@ async function testCatalogPublic() {
     const priceResult = await client.query(priceAggQuery);
     if (priceResult.rows.length > 0) {
       console.log(`  ✅ ${priceResult.rows.length} prodotti con prezzi`);
-      priceResult.rows.forEach(row => {
-        const minPrice = row.min_price ? (typeof row.min_price === 'number' ? row.min_price : parseFloat(row.min_price)) : null;
-        const maxPrice = row.max_price ? (typeof row.max_price === 'number' ? row.max_price : parseFloat(row.max_price)) : null;
-        console.log(`     ${row.name}: ${minPrice ? `€${minPrice.toFixed(2)}` : 'N/A'} - ${maxPrice ? `€${maxPrice.toFixed(2)}` : 'N/A'} (${row.price_count} prezzi)`);
+      priceResult.rows.forEach((row) => {
+        const minPrice = row.min_price
+          ? typeof row.min_price === "number"
+            ? row.min_price
+            : parseFloat(row.min_price)
+          : null;
+        const maxPrice = row.max_price
+          ? typeof row.max_price === "number"
+            ? row.max_price
+            : parseFloat(row.max_price)
+          : null;
+        console.log(
+          `     ${row.name}: ${minPrice ? `€${minPrice.toFixed(2)}` : "N/A"} - ${maxPrice ? `€${maxPrice.toFixed(2)}` : "N/A"} (${row.price_count} prezzi)`,
+        );
       });
     } else {
-      console.log('  ⚠️  Nessun prodotto con prezzi configurati');
+      console.log("  ⚠️  Nessun prodotto con prezzi configurati");
     }
 
     // TEST 5: Verifica aggregazione stock
-    console.log('\n📋 TEST 4: Verifica aggregazione stock');
+    console.log("\n📋 TEST 4: Verifica aggregazione stock");
     const stockAggQuery = `
       SELECT 
         p.id as product_id,
@@ -170,30 +196,33 @@ async function testCatalogPublic() {
 
     const stockResult = await client.query(stockAggQuery);
     if (stockResult.rows.length > 0) {
-      console.log(`  ✅ ${stockResult.rows.length} prodotti con stock disponibile`);
-      stockResult.rows.forEach(row => {
-        console.log(`     ${row.name}: ${row.total_stock} unità in ${row.location_count} location`);
+      console.log(
+        `  ✅ ${stockResult.rows.length} prodotti con stock disponibile`,
+      );
+      stockResult.rows.forEach((row) => {
+        console.log(
+          `     ${row.name}: ${row.total_stock} unità in ${row.location_count} location`,
+        );
       });
     } else {
-      console.log('  ⚠️  Nessun prodotto con stock disponibile');
+      console.log("  ⚠️  Nessun prodotto con stock disponibile");
     }
 
     // TEST 6: Verifica endpoint API (simula chiamata)
-    console.log('\n📋 TEST 6: Verifica endpoint API');
-    console.log('  Endpoint: GET /api/catalog/public');
-    console.log('  ✅ Endpoint configurato correttamente in catalog-hono.ts');
-    console.log('  ✅ Query SQL testata e funzionante');
+    console.log("\n📋 TEST 6: Verifica endpoint API");
+    console.log("  Endpoint: GET /api/catalog/public");
+    console.log("  ✅ Endpoint configurato correttamente in catalog-hono.ts");
+    console.log("  ✅ Query SQL testata e funzionante");
 
-    console.log('\n✅ Tutti i test completati!');
-    console.log('\n📝 Riepilogo:');
-    console.log('  - Query catalogo pubblico: ✅ Funzionante');
-    console.log('  - Aggregazione vendor: ✅ Funzionante');
-    console.log('  - Aggregazione prezzi: ✅ Funzionante');
-    console.log('  - Aggregazione stock: ✅ Funzionante');
-    console.log('  - Endpoint API: ✅ Configurato');
-
+    console.log("\n✅ Tutti i test completati!");
+    console.log("\n📝 Riepilogo:");
+    console.log("  - Query catalogo pubblico: ✅ Funzionante");
+    console.log("  - Aggregazione vendor: ✅ Funzionante");
+    console.log("  - Aggregazione prezzi: ✅ Funzionante");
+    console.log("  - Aggregazione stock: ✅ Funzionante");
+    console.log("  - Endpoint API: ✅ Configurato");
   } catch (error) {
-    console.error('❌ Errore durante i test:', error);
+    console.error("❌ Errore durante i test:", error);
     throw error;
   } finally {
     await client.end();
@@ -203,11 +232,10 @@ async function testCatalogPublic() {
 // Esegui test
 testCatalogPublic()
   .then(() => {
-    console.log('\n🎉 Test completato');
+    console.log("\n🎉 Test completato");
     process.exit(0);
   })
   .catch((error) => {
-    console.error('\n💥 Test fallito:', error);
+    console.error("\n💥 Test fallito:", error);
     process.exit(1);
   });
-

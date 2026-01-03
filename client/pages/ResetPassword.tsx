@@ -50,7 +50,6 @@ export default function ResetPassword() {
       setTimeout(() => {
         navigate("/login");
       }, 3000);
-
     } catch (err: any) {
       setError(err?.message || "Errore nel reset password");
     } finally {
@@ -63,9 +62,12 @@ export default function ResetPassword() {
       <Layout>
         <div className="max-w-md mx-auto mt-12">
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-6">
-            <p className="font-semibold mb-2">Password resettata con successo!</p>
+            <p className="font-semibold mb-2">
+              Password resettata con successo!
+            </p>
             <p className="text-sm">
-              La tua password è stata aggiornata. Verrai reindirizzato al login...
+              La tua password è stata aggiornata. Verrai reindirizzato al
+              login...
             </p>
           </div>
         </div>
@@ -80,9 +82,7 @@ export default function ResetPassword() {
           Reset Password
         </h1>
 
-        <p className="text-slate-600 mb-8">
-          Inserisci la tua nuova password
-        </p>
+        <p className="text-slate-600 mb-8">Inserisci la tua nuova password</p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
@@ -143,4 +143,3 @@ export default function ResetPassword() {
     </Layout>
   );
 }
-

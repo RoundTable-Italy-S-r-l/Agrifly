@@ -1,16 +1,16 @@
-import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../utils/auth';
-import 'dotenv/config';
+import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../utils/auth";
+import "dotenv/config";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'giacomo.cavalcabo14@gmail.com';
-  const password = process.env.SEED_ADMIN_PASSWORD || 'Palemone01!';
-  const firstName = 'Giacomo';
-  const lastName = 'Cavalcabo';
+  const email = "giacomo.cavalcabo14@gmail.com";
+  const password = process.env.SEED_ADMIN_PASSWORD || "Palemone01!";
+  const firstName = "Giacomo";
+  const lastName = "Cavalcabo";
 
-  console.log('🔐 Creando utente admin...');
+  console.log("🔐 Creando utente admin...");
 
   // Hash password
   const password_hash = hashPassword(password);
@@ -18,27 +18,27 @@ async function main() {
   // Cerca o crea organization Lenzi
   let lenziOrg = await prisma.organization.findFirst({
     where: {
-      legal_name: { contains: 'Lenzi', mode: 'insensitive' }
-    }
+      legal_name: { contains: "Lenzi", mode: "insensitive" },
+    },
   });
 
   if (!lenziOrg) {
-    console.log('📦 Creando organization Lenzi...');
+    console.log("📦 Creando organization Lenzi...");
     lenziOrg = await prisma.organization.create({
       data: {
-        legal_name: 'Lenzi',
-        org_type: 'VENDOR',
-        address_line: '',
-        city: '',
-        province: '',
-        region: '',
-        country: 'IT',
-        status: 'ACTIVE',
+        legal_name: "Lenzi",
+        org_type: "VENDOR",
+        address_line: "",
+        city: "",
+        province: "",
+        region: "",
+        country: "IT",
+        status: "ACTIVE",
       },
     });
-    console.log('✅ Organization Lenzi creata:', lenziOrg.id);
+    console.log("✅ Organization Lenzi creata:", lenziOrg.id);
   } else {
-    console.log('✅ Organization Lenzi trovata:', lenziOrg.id);
+    console.log("✅ Organization Lenzi trovata:", lenziOrg.id);
   }
 
   // Crea o aggiorna utente
@@ -50,7 +50,7 @@ async function main() {
       last_name: lastName,
       email_verified: true,
       email_verified_at: new Date(),
-      status: 'ACTIVE',
+      status: "ACTIVE",
     },
     create: {
       email,
@@ -59,11 +59,11 @@ async function main() {
       last_name: lastName,
       email_verified: true,
       email_verified_at: new Date(),
-      status: 'ACTIVE',
+      status: "ACTIVE",
     },
   });
 
-  console.log('✅ Utente creato/aggiornato:', user.id);
+  console.log("✅ Utente creato/aggiornato:", user.id);
 
   // Crea o aggiorna membership come VENDOR_ADMIN
   const membership = await prisma.orgMembership.upsert({
@@ -74,32 +74,33 @@ async function main() {
       },
     },
     update: {
-      role: 'VENDOR_ADMIN',
+      role: "VENDOR_ADMIN",
       is_active: true,
     },
     create: {
       org_id: lenziOrg.id,
       user_id: user.id,
-      role: 'VENDOR_ADMIN',
+      role: "VENDOR_ADMIN",
       is_active: true,
     },
   });
 
-  console.log('✅ Membership creata/aggiornata:', membership.id);
-  console.log('');
-  console.log('🎉 Account creato con successo!');
-  console.log('📧 Email:', email);
-  console.log(`🔑 Password: ${password} (configura SEED_ADMIN_PASSWORD per cambiarla)`);
-  console.log('👤 Ruolo: VENDOR_ADMIN');
-  console.log('🏢 Organization: Lenzi');
+  console.log("✅ Membership creata/aggiornata:", membership.id);
+  console.log("");
+  console.log("🎉 Account creato con successo!");
+  console.log("📧 Email:", email);
+  console.log(
+    `🔑 Password: ${password} (configura SEED_ADMIN_PASSWORD per cambiarla)`,
+  );
+  console.log("👤 Ruolo: VENDOR_ADMIN");
+  console.log("🏢 Organization: Lenzi");
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Errore:', e);
+    console.error("❌ Errore:", e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
   });
-

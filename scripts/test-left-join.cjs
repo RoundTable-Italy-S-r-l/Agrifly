@@ -1,24 +1,27 @@
-const { Client } = require('pg');
-require('dotenv').config();
+const { Client } = require("pg");
+require("dotenv").config();
 
 async function testLeftJoin() {
   const client = new Client({
     host: process.env.PGHOST,
     port: process.env.PGPORT || 5432,
-    database: process.env.PGDATABASE || 'postgres',
+    database: process.env.PGDATABASE || "postgres",
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
-    console.log('✅ Connesso a Supabase\n');
+    console.log("✅ Connesso a Supabase\n");
 
-    const orgId = 'lenzi-org-id';
+    const orgId = "lenzi-org-id";
 
-    console.log('Test query "made" con LEFT JOIN (come nel codice aggiornato)...');
-    const result = await client.query(`
+    console.log(
+      'Test query "made" con LEFT JOIN (come nel codice aggiornato)...',
+    );
+    const result = await client.query(
+      `
       SELECT 
         jo.id, jo.job_id, jo.operator_org_id, jo.status, jo.pricing_snapshot_json,
         jo.total_cents, jo.currency, jo.proposed_start, jo.proposed_end, jo.provider_note,
@@ -34,26 +37,31 @@ async function testLeftJoin() {
       LEFT JOIN organizations operator_org ON jo.operator_org_id = operator_org.id
       WHERE jo.operator_org_id = $1
       ORDER BY jo.created_at DESC
-    `, [orgId]);
-    
+    `,
+      [orgId],
+    );
+
     console.log(`Risultati: ${result.rows.length}`);
     if (result.rows.length > 0) {
       const first = result.rows[0];
-      console.log('\nPrima offerta:');
+      console.log("\nPrima offerta:");
       console.log(`- ID: ${first.id}`);
       console.log(`- job_id: ${first.job_id}`);
       console.log(`- operator_org_id: ${first.operator_org_id}`);
       console.log(`- status: ${first.status}`);
-      console.log(`- field_name: ${first.field_name || 'NULL'}`);
-      console.log(`- buyer_org_id: ${first.buyer_org_id || 'NULL'}`);
-      console.log(`- buyer_org_legal_name: ${first.buyer_org_legal_name || 'NULL'}`);
-      console.log(`- operator_org_legal_name: ${first.operator_org_legal_name || 'NULL'}`);
+      console.log(`- field_name: ${first.field_name || "NULL"}`);
+      console.log(`- buyer_org_id: ${first.buyer_org_id || "NULL"}`);
+      console.log(
+        `- buyer_org_legal_name: ${first.buyer_org_legal_name || "NULL"}`,
+      );
+      console.log(
+        `- operator_org_legal_name: ${first.operator_org_legal_name || "NULL"}`,
+      );
     } else {
-      console.log('❌ Nessun risultato!');
+      console.log("❌ Nessun risultato!");
     }
-
   } catch (error) {
-    console.error('❌ Errore:', error.message);
+    console.error("❌ Errore:", error.message);
     console.error(error.stack);
   } finally {
     await client.end();
@@ -61,4 +69,3 @@ async function testLeftJoin() {
 }
 
 testLeftJoin();
-

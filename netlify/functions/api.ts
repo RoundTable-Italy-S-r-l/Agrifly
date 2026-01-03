@@ -1,10 +1,10 @@
-import { Hono } from 'hono';
+import { Hono } from "hono";
 // Import dinamico per evitare problemi con moduli ESM/CJS
 let app: any;
 async function getApp() {
   if (!app) {
     // Import dinamico per evitare problemi con file-db.ts e altri moduli problematici
-    const module = await import('../../server/hono-app');
+    const module = await import("../../server/hono-app");
     app = module.default;
   }
   return app;
@@ -13,9 +13,9 @@ async function getApp() {
 // Crea handler per Netlify Functions
 export async function handler(event: any, context: any) {
   try {
-    console.log('🚀 Netlify Function chiamata:', event.httpMethod, event.path);
-    console.log('📋 Headers:', Object.keys(event.headers));
-    console.log('🔧 Context disponibile');
+    console.log("🚀 Netlify Function chiamata:", event.httpMethod, event.path);
+    console.log("📋 Headers:", Object.keys(event.headers));
+    console.log("🔧 Context disponibile");
 
     // Verifica env variables critiche
     const hasPgHost = !!process.env.PGHOST;
@@ -23,58 +23,63 @@ export async function handler(event: any, context: any) {
     const hasPgPassword = !!process.env.PGPASSWORD;
     const hasJwtSecret = !!process.env.JWT_SECRET;
 
-    console.log('✅ PGHOST:', hasPgHost ? 'presente' : 'MANCANTE');
-    console.log('✅ PGUSER:', hasPgUser ? 'presente' : 'MANCANTE');
-    console.log('✅ PGPASSWORD:', hasPgPassword ? 'presente' : 'MANCANTE');
-    console.log('✅ JWT_SECRET:', hasJwtSecret ? 'presente' : 'MANCANTE');
+    console.log("✅ PGHOST:", hasPgHost ? "presente" : "MANCANTE");
+    console.log("✅ PGUSER:", hasPgUser ? "presente" : "MANCANTE");
+    console.log("✅ PGPASSWORD:", hasPgPassword ? "presente" : "MANCANTE");
+    console.log("✅ JWT_SECRET:", hasJwtSecret ? "presente" : "MANCANTE");
 
     if (!hasPgHost || !hasPgUser || !hasPgPassword || !hasJwtSecret) {
-      console.error('❌ Env variables critiche mancanti');
+      console.error("❌ Env variables critiche mancanti");
       return {
         statusCode: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          error: 'Server configuration error',
+          error: "Server configuration error",
           details: {
             pghost: hasPgHost,
             pguser: hasPgUser,
             pgpassword: hasPgPassword,
-            jwt: hasJwtSecret
-          }
-        })
+            jwt: hasJwtSecret,
+          },
+        }),
       };
     }
 
     // Carica l'app dinamicamente
     const honoAppInstance = await getApp();
-    
+
     // Wrappa l'app Hono per Netlify
     const honoApp = new Hono();
 
     // Monta l'app principale
-    honoApp.route('/', honoAppInstance);
+    honoApp.route("/", honoAppInstance);
 
     // Costruisci URL corretto per Netlify
-    const host = event.headers.host || 'localhost';
-    const protocol = event.headers['x-forwarded-proto'] || 'https';
+    const host = event.headers.host || "localhost";
+    const protocol = event.headers["x-forwarded-proto"] || "https";
 
     // Prepara il body per Hono (Netlify passa il body come stringa)
     let requestBody: string | undefined = undefined;
-    if (event.body && event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD') {
-      const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
-      
+    if (
+      event.body &&
+      event.httpMethod !== "GET" &&
+      event.httpMethod !== "HEAD"
+    ) {
+      const contentType =
+        event.headers["content-type"] || event.headers["Content-Type"] || "";
+
       // Se è JSON, mantieni come stringa (Hono lo parserà)
-      if (contentType.includes('application/json')) {
+      if (contentType.includes("application/json")) {
         requestBody = event.body;
       }
       // Se è multipart/form-data, gestisci correttamente il body
       // Netlify passa multipart come stringa base64 quando isBase64Encoded è true
-      else if (contentType.includes('multipart/form-data')) {
+      else if (contentType.includes("multipart/form-data")) {
         // Se è base64, convertilo in Buffer per Hono
         // Hono ha bisogno del body come Buffer o stringa per multipart
         if (event.isBase64Encoded) {
           // Converti base64 in Buffer - Hono lo gestirà correttamente
-          requestBody = Buffer.from(event.body, 'base64');
+          requestBody = Buffer.from(event.body, "base64");
         } else {
           // Se non è base64, passa come stringa
           requestBody = event.body;
@@ -87,46 +92,51 @@ export async function handler(event: any, context: any) {
     }
 
     // Log dettagliato per debug routing
-    const fullUrl = `${protocol}://${host}${event.path}${event.queryStringParameters ? '?' + new URLSearchParams(event.queryStringParameters).toString() : ''}`;
-    console.log('🔍 [NETLIFY HANDLER] Full URL:', fullUrl);
-    console.log('🔍 [NETLIFY HANDLER] Event path:', event.path);
-    console.log('🔍 [NETLIFY HANDLER] Has Authorization header:', !!event.headers.authorization);
-    
+    const fullUrl = `${protocol}://${host}${event.path}${event.queryStringParameters ? "?" + new URLSearchParams(event.queryStringParameters).toString() : ""}`;
+    console.log("🔍 [NETLIFY HANDLER] Full URL:", fullUrl);
+    console.log("🔍 [NETLIFY HANDLER] Event path:", event.path);
+    console.log(
+      "🔍 [NETLIFY HANDLER] Has Authorization header:",
+      !!event.headers.authorization,
+    );
+
     // Gestisci la richiesta con Hono
     const response = await honoApp.fetch(
       new Request(fullUrl, {
         method: event.httpMethod,
         headers: event.headers,
-        body: requestBody
+        body: requestBody,
       }),
       {
         ...context,
-        event
-      }
+        event,
+      },
     );
-    
-    console.log('🔍 [NETLIFY HANDLER] Response status:', response.status);
-    console.log('🔍 [NETLIFY HANDLER] Response headers:', Object.fromEntries(response.headers.entries()));
 
-    console.log('📤 Response:', response.status);
+    console.log("🔍 [NETLIFY HANDLER] Response status:", response.status);
+    console.log(
+      "🔍 [NETLIFY HANDLER] Response headers:",
+      Object.fromEntries(response.headers.entries()),
+    );
+
+    console.log("📤 Response:", response.status);
 
     // Converte la Response di Hono in formato Netlify
     return {
       statusCode: response.status,
       headers: Object.fromEntries(response.headers.entries()),
-      body: await response.text()
+      body: await response.text(),
     };
-
   } catch (error: any) {
-    console.error('❌ Errore nella Netlify Function:', error);
+    console.error("❌ Errore nella Netlify Function:", error);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        error: 'Internal server error',
+        error: "Internal server error",
         message: error.message,
-        stack: error.stack?.split('\n').slice(0, 5)
-      })
+        stack: error.stack?.split("\n").slice(0, 5),
+      }),
     };
   }
 }

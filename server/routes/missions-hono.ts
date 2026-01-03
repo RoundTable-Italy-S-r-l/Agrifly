@@ -1,5 +1,5 @@
-import { Hono } from 'hono';
-import { query } from '../utils/database';
+import { Hono } from "hono";
+import { query } from "../utils/database";
 
 const app = new Hono();
 
@@ -7,15 +7,15 @@ const app = new Hono();
 // MISSIONS STATS
 // ============================================================================
 
-app.get('/stats', async (c) => {
+app.get("/stats", async (c) => {
   try {
-    const orgId = c.req.query('orgId');
+    const orgId = c.req.query("orgId");
 
     if (!orgId) {
-      return c.json({ error: 'orgId parameter required' }, 400);
+      return c.json({ error: "orgId parameter required" }, 400);
     }
 
-    console.log('📊 Richiesta statistiche missioni per org:', orgId);
+    console.log("📊 Richiesta statistiche missioni per org:", orgId);
 
     // Query per ottenere le statistiche delle missioni
     // Nota: La tabella missions attuale ha una struttura diversa, restituiamo valori di default
@@ -39,7 +39,7 @@ app.get('/stats', async (c) => {
         totalMissions: 0,
         activeMissions: 0,
         completedThisMonth: 0,
-        totalAreaTreated: 0
+        totalAreaTreated: 0,
       });
     }
 
@@ -49,19 +49,21 @@ app.get('/stats', async (c) => {
       totalMissions: parseInt(stats.total_missions) || 0,
       activeMissions: parseInt(stats.active_missions) || 0,
       completedThisMonth: parseInt(stats.completed_this_month) || 0,
-      totalAreaTreated: parseFloat(stats.total_area_treated) || 0
+      totalAreaTreated: parseFloat(stats.total_area_treated) || 0,
     };
 
-    console.log('✅ Statistiche missioni calcolate:', response);
+    console.log("✅ Statistiche missioni calcolate:", response);
 
     return c.json(response);
-
   } catch (error: any) {
-    console.error('❌ Errore get missions stats:', error);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message
-    }, 500);
+    console.error("❌ Errore get missions stats:", error);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+      },
+      500,
+    );
   }
 });
 
@@ -69,15 +71,15 @@ app.get('/stats', async (c) => {
 // ACTIVE MISSIONS
 // ============================================================================
 
-app.get('/active', async (c) => {
+app.get("/active", async (c) => {
   try {
-    const orgId = c.req.query('orgId');
+    const orgId = c.req.query("orgId");
 
     if (!orgId) {
-      return c.json({ error: 'orgId parameter required' }, 400);
+      return c.json({ error: "orgId parameter required" }, 400);
     }
 
-    console.log('🎯 Richiesta missioni attive per org:', orgId);
+    console.log("🎯 Richiesta missioni attive per org:", orgId);
 
     // Query per ottenere le missioni attive
     // Adattata alla struttura reale della tabella missions
@@ -107,16 +109,18 @@ app.get('/active', async (c) => {
 
     const result = await query(activeMissionsQuery, [orgId]);
 
-    console.log('✅ Missioni attive recuperate:', result.rows.length);
+    console.log("✅ Missioni attive recuperate:", result.rows.length);
 
     return c.json(result.rows || []);
-
   } catch (error: any) {
-    console.error('❌ Errore get active missions:', error);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message
-    }, 500);
+    console.error("❌ Errore get active missions:", error);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+      },
+      500,
+    );
   }
 });
 
@@ -124,17 +128,24 @@ app.get('/active', async (c) => {
 // MISSIONS LIST
 // ============================================================================
 
-app.get('/', async (c) => {
+app.get("/", async (c) => {
   try {
-    const orgId = c.req.query('orgId');
-    const limit = parseInt(c.req.query('limit') || '20');
-    const offset = parseInt(c.req.query('offset') || '0');
+    const orgId = c.req.query("orgId");
+    const limit = parseInt(c.req.query("limit") || "20");
+    const offset = parseInt(c.req.query("offset") || "0");
 
     if (!orgId) {
-      return c.json({ error: 'orgId parameter required' }, 400);
+      return c.json({ error: "orgId parameter required" }, 400);
     }
 
-    console.log('📋 Richiesta lista missioni per org:', orgId, 'limit:', limit, 'offset:', offset);
+    console.log(
+      "📋 Richiesta lista missioni per org:",
+      orgId,
+      "limit:",
+      limit,
+      "offset:",
+      offset,
+    );
 
     // Query per ottenere la lista delle missioni
     // Adattata alla struttura reale della tabella missions
@@ -163,16 +174,18 @@ app.get('/', async (c) => {
 
     const result = await query(missionsQuery, [orgId, limit, offset]);
 
-    console.log('✅ Missioni recuperate:', result.rows.length);
+    console.log("✅ Missioni recuperate:", result.rows.length);
 
     return c.json(result.rows || []);
-
   } catch (error: any) {
-    console.error('❌ Errore get missions:', error);
-    return c.json({
-      error: 'Errore interno',
-      message: error.message
-    }, 500);
+    console.error("❌ Errore get missions:", error);
+    return c.json(
+      {
+        error: "Errore interno",
+        message: error.message,
+      },
+      500,
+    );
   }
 });
 

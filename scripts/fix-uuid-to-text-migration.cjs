@@ -1,5 +1,5 @@
-const { Client } = require('pg');
-require('dotenv').config();
+const { Client } = require("pg");
+require("dotenv").config();
 
 const client = new Client({
   host: process.env.PGHOST,
@@ -7,50 +7,51 @@ const client = new Client({
   database: process.env.PGDATABASE,
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 
 // Tabelle che usano CUID invece di UUID
 const tablesToFix = [
-  'jobs',
-  'job_offers',
-  'organizations',
-  'users',
-  'org_memberships',
-  'products',
-  'skus',
-  'rate_cards',
-  'bookings',
-  'orders',
-  'order_lines',
-  'shopping_carts',
-  'cart_items',
-  'saved_fields',
-  'service_configurations',
-  'conversations',
-  'conversation_participants',
-  'messages',
-  'job_offer_messages',
-  'order_messages',
-  'assets',
-  'vendor_catalog_items',
-  'inventories',
-  'price_lists',
-  'price_list_items',
-  'wishlist_items',
-  'operator_profiles',
-  'external_calendar_connections',
-  'verification_codes',
-  'organization_invitations',
-  'notification_preferences',
-  'service_area_sets',
-  'service_area_set_items'
+  "jobs",
+  "job_offers",
+  "organizations",
+  "users",
+  "org_memberships",
+  "products",
+  "skus",
+  "rate_cards",
+  "bookings",
+  "orders",
+  "order_lines",
+  "shopping_carts",
+  "cart_items",
+  "saved_fields",
+  "service_configurations",
+  "conversations",
+  "conversation_participants",
+  "messages",
+  "job_offer_messages",
+  "order_messages",
+  "assets",
+  "vendor_catalog_items",
+  "inventories",
+  "price_lists",
+  "price_list_items",
+  "wishlist_items",
+  "operator_profiles",
+  "external_calendar_connections",
+  "verification_codes",
+  "organization_invitations",
+  "notification_preferences",
+  "service_area_sets",
+  "service_area_set_items",
 ];
 
 async function fixTableIdColumn(tableName) {
   try {
     // Verifica il tipo attuale della colonna id
-    const columnInfo = await client.query(`
+    const columnInfo = await client.query(
+      `
       SELECT 
         column_name,
         data_type,
@@ -59,20 +60,27 @@ async function fixTableIdColumn(tableName) {
       WHERE table_name = $1 
         AND column_name = 'id'
         AND table_schema = 'public'
-    `, [tableName]);
+    `,
+      [tableName],
+    );
 
     if (columnInfo.rows.length === 0) {
-      console.log(`   ⚠️  Tabella ${tableName} non trovata o colonna id non esiste`);
+      console.log(
+        `   ⚠️  Tabella ${tableName} non trovata o colonna id non esiste`,
+      );
       return false;
     }
 
     const currentType = columnInfo.rows[0].udt_name; // uuid, varchar, text, etc.
 
-    if (currentType === 'uuid') {
-      console.log(`   🔄 Modifica colonna id da UUID a VARCHAR(255) in ${tableName}...`);
-      
+    if (currentType === "uuid") {
+      console.log(
+        `   🔄 Modifica colonna id da UUID a VARCHAR(255) in ${tableName}...`,
+      );
+
       // Prima, verifica se ci sono foreign key che referenziano questa colonna
-      const fkCheck = await client.query(`
+      const fkCheck = await client.query(
+        `
         SELECT 
           tc.constraint_name,
           kcu.table_name as referencing_table,
@@ -86,15 +94,24 @@ async function fixTableIdColumn(tableName) {
           AND tc.table_schema = 'public'
           AND ccu.table_name = $1
           AND ccu.column_name = 'id'
-      `, [tableName]);
+      `,
+        [tableName],
+      );
 
       // Rimuovi temporaneamente le foreign key se esistono
       for (const fk of fkCheck.rows) {
-        console.log(`      🔓 Rimozione FK ${fk.constraint_name} da ${fk.referencing_table}...`);
+        console.log(
+          `      🔓 Rimozione FK ${fk.constraint_name} da ${fk.referencing_table}...`,
+        );
         try {
-          await client.query(`ALTER TABLE ${fk.referencing_table} DROP CONSTRAINT IF EXISTS ${fk.constraint_name}`);
+          await client.query(
+            `ALTER TABLE ${fk.referencing_table} DROP CONSTRAINT IF EXISTS ${fk.constraint_name}`,
+          );
         } catch (e) {
-          console.log(`      ⚠️  Errore rimozione FK ${fk.constraint_name}:`, e.message);
+          console.log(
+            `      ⚠️  Errore rimozione FK ${fk.constraint_name}:`,
+            e.message,
+          );
         }
       }
 
@@ -106,7 +123,9 @@ async function fixTableIdColumn(tableName) {
 
       // Ricrea le foreign key se esistevano
       for (const fk of fkCheck.rows) {
-        console.log(`      🔒 Ricreazione FK ${fk.constraint_name} su ${fk.referencing_table}...`);
+        console.log(
+          `      🔒 Ricreazione FK ${fk.constraint_name} su ${fk.referencing_table}...`,
+        );
         try {
           await client.query(`
             ALTER TABLE ${fk.referencing_table}
@@ -115,17 +134,26 @@ async function fixTableIdColumn(tableName) {
             REFERENCES ${tableName}(id)
           `);
         } catch (e) {
-          console.log(`      ⚠️  Errore ricreazione FK ${fk.constraint_name}:`, e.message);
+          console.log(
+            `      ⚠️  Errore ricreazione FK ${fk.constraint_name}:`,
+            e.message,
+          );
         }
       }
 
       console.log(`   ✅ Colonna id modificata in ${tableName}`);
       return true;
-    } else if (currentType === 'varchar' || currentType === 'text' || currentType === 'character varying') {
+    } else if (
+      currentType === "varchar" ||
+      currentType === "text" ||
+      currentType === "character varying"
+    ) {
       console.log(`   ✅ Colonna id già di tipo TEXT/VARCHAR in ${tableName}`);
       return false;
     } else {
-      console.log(`   ⚠️  Tipo colonna id sconosciuto in ${tableName}: ${currentType}`);
+      console.log(
+        `   ⚠️  Tipo colonna id sconosciuto in ${tableName}: ${currentType}`,
+      );
       return false;
     }
   } catch (error) {
@@ -136,11 +164,13 @@ async function fixTableIdColumn(tableName) {
 
 async function runMigration() {
   try {
-    console.log('🔗 Connessione a Supabase...');
+    console.log("🔗 Connessione a Supabase...");
     await client.connect();
-    console.log('✅ Connesso a Supabase\n');
+    console.log("✅ Connesso a Supabase\n");
 
-    console.log(`📋 Verifica e correzione colonne id da UUID a VARCHAR(255)...\n`);
+    console.log(
+      `📋 Verifica e correzione colonne id da UUID a VARCHAR(255)...\n`,
+    );
     console.log(`   Verificando ${tablesToFix.length} tabelle...\n`);
 
     let fixed = 0;
@@ -165,11 +195,10 @@ async function runMigration() {
 
     await client.end();
   } catch (error) {
-    console.error('❌ Errore durante la migrazione:', error);
+    console.error("❌ Errore durante la migrazione:", error);
     await client.end();
     process.exit(1);
   }
 }
 
 runMigration();
-

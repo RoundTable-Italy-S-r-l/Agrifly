@@ -13,7 +13,9 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
-  const [isAuthenticated, setIsAuthenticated] = useState(authAPI.isAuthenticated());
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    authAPI.isAuthenticated(),
+  );
   const [cartItemCount, setCartItemCount] = useState(0);
 
   // Aggiorna lo stato di autenticazione quando cambia il token o l'organizzazione
@@ -27,7 +29,7 @@ export function Layout({ children }: LayoutProps) {
 
     // Ascolta cambiamenti nel localStorage
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'auth_token' || e.key === 'organization') {
+      if (e.key === "auth_token" || e.key === "organization") {
         checkAuth();
       }
     };
@@ -37,15 +39,15 @@ export function Layout({ children }: LayoutProps) {
       checkAuth();
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('authChanged', handleAuthChange);
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("authChanged", handleAuthChange);
 
     // Controlla periodicamente (ogni 5 secondi) per gestire cambiamenti nella stessa tab
     const interval = setInterval(checkAuth, 5000);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('authChanged', handleAuthChange);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("authChanged", handleAuthChange);
       clearInterval(interval);
     };
   }, [location.pathname]);
@@ -59,19 +61,19 @@ export function Layout({ children }: LayoutProps) {
         let sessionId = null;
 
         // Prova a ottenere orgId da localStorage (utenti autenticati)
-        const orgData = localStorage.getItem('organization');
+        const orgData = localStorage.getItem("organization");
         if (orgData) {
           try {
             const org = JSON.parse(orgData);
             orgId = org.id;
           } catch (e) {
-            console.warn('Errore parsing organization:', e);
+            console.warn("Errore parsing organization:", e);
           }
         }
 
         // Se non abbiamo orgId da organization, prova guest_org_id (utenti guest)
         if (!orgId) {
-          orgId = localStorage.getItem('guest_org_id');
+          orgId = localStorage.getItem("guest_org_id");
         }
 
         // Se non abbiamo orgId, non possiamo avere un carrello
@@ -81,37 +83,41 @@ export function Layout({ children }: LayoutProps) {
         }
 
         // Prova a ottenere userId da token JWT
-        const token = localStorage.getItem('auth_token');
+        const token = localStorage.getItem("auth_token");
         if (token) {
           try {
-            const parts = token.split('.');
+            const parts = token.split(".");
             const body = parts.length === 3 ? parts[1] : parts[0];
-            const base64 = body.replace(/-/g, '+').replace(/_/g, '/');
-            const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const base64 = body.replace(/-/g, "+").replace(/_/g, "/");
+            const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
             const decoded = atob(padded);
             const payload = JSON.parse(decoded);
             userId = payload.userId;
           } catch (e) {
-            console.warn('❌ Errore parsing token:', e);
+            console.warn("❌ Errore parsing token:", e);
           }
         }
 
         // Se non abbiamo userId, usa sessionId per carrelli guest
         if (!userId) {
-          sessionId = localStorage.getItem('session_id');
+          sessionId = localStorage.getItem("session_id");
           if (!sessionId) {
             // Genera un sessionId se non esiste
             sessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            localStorage.setItem('session_id', sessionId);
+            localStorage.setItem("session_id", sessionId);
           }
         }
 
-        const cartData = await getCart(orgId, userId || undefined, sessionId || undefined);
+        const cartData = await getCart(
+          orgId,
+          userId || undefined,
+          sessionId || undefined,
+        );
         const itemCount = cartData.items?.length || 0;
         setCartItemCount(itemCount);
       } catch (error) {
-        console.warn('❌ Errore caricamento carrello:', error);
-        console.error('Error details:', error);
+        console.warn("❌ Errore caricamento carrello:", error);
+        console.error("Error details:", error);
         setCartItemCount(0);
       }
     };
@@ -126,41 +132,42 @@ export function Layout({ children }: LayoutProps) {
       updateCartCount();
     };
 
-    window.addEventListener('cartUpdated', handleCartUpdate);
+    window.addEventListener("cartUpdated", handleCartUpdate);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener("cartUpdated", handleCartUpdate);
     };
   }, [location.pathname]);
 
   // Funzione per ottenere il tipo organizzazione e dashboard path
   const getOrgType = () => {
     try {
-      const orgData = localStorage.getItem('organization');
+      const orgData = localStorage.getItem("organization");
       if (orgData) {
         const org = JSON.parse(orgData);
         return org.type || org.org_type || null;
       }
     } catch (e) {
-      console.warn('Errore lettura tipo organizzazione:', e);
+      console.warn("Errore lettura tipo organizzazione:", e);
     }
     return null;
   };
 
   const getDashboardLabel = () => {
     const orgType = getOrgType();
-    if (orgType === 'buyer') return 'Dashboard Buyer';
-    if (orgType === 'provider') return 'Dashboard Admin';
+    if (orgType === "buyer") return "Dashboard Buyer";
+    if (orgType === "provider") return "Dashboard Admin";
     // Fallback per retrocompatibilità
-    if (orgType === 'vendor' || orgType === 'operator') return 'Dashboard Admin';
-    return 'Dashboard';
+    if (orgType === "vendor" || orgType === "operator")
+      return "Dashboard Admin";
+    return "Dashboard";
   };
 
   const handleLogout = () => {
     authAPI.logout();
-    navigate('/login');
-    };
+    navigate("/login");
+  };
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-200">
@@ -188,7 +195,9 @@ export function Layout({ children }: LayoutProps) {
               <Link
                 to="/"
                 className={`px-3 py-1 rounded-full transition-colors ${
-                  isActive("/") ? "bg-slate-900 text-white" : "hover:bg-white hover:text-slate-900"
+                  isActive("/")
+                    ? "bg-slate-900 text-white"
+                    : "hover:bg-white hover:text-slate-900"
                 }`}
               >
                 Home
@@ -220,16 +229,16 @@ export function Layout({ children }: LayoutProps) {
             {/* Carrello - sempre visibile per buyer, solo quando loggato per altri */}
             {(() => {
               const orgType = getOrgType();
-              const showCart = !isAuthenticated || orgType === 'buyer';
-              
+              const showCart = !isAuthenticated || orgType === "buyer";
+
               if (showCart) {
                 return (
                   <button
                     onClick={() => {
                       if (isAuthenticated) {
-                        navigate('/buyer/carrello');
+                        navigate("/buyer/carrello");
                       } else {
-                        navigate('/login?redirect=/buyer/carrello');
+                        navigate("/login?redirect=/buyer/carrello");
                       }
                     }}
                     className="relative inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
@@ -238,7 +247,7 @@ export function Layout({ children }: LayoutProps) {
                     <ShoppingCart className="w-4 h-4" />
                     {cartItemCount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[8px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
-                        {cartItemCount > 99 ? '99+' : cartItemCount}
+                        {cartItemCount > 99 ? "99+" : cartItemCount}
                       </span>
                     )}
                   </button>
@@ -258,7 +267,10 @@ export function Layout({ children }: LayoutProps) {
                 <Link
                   to={(() => {
                     const orgType = getOrgType();
-                    return getDashboardPath({ type: orgType, org_type: orgType } as any);
+                    return getDashboardPath({
+                      type: orgType,
+                      org_type: orgType,
+                    } as any);
                   })()}
                   className="text-xs md:text-sm py-2 px-4 md:px-5 font-semibold tracking-wide rounded-full bg-slate-900 text-white hover:bg-black transition-colors flex items-center gap-2"
                 >
@@ -287,9 +299,13 @@ export function Layout({ children }: LayoutProps) {
 
       <footer className="border-t border-slate-200 bg-white mt-20">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-slate-500">
-          <p>© 2024 DJI Agriculture Partner Platform – soluzione white-label per rivenditori autorizzati.</p>
+          <p>
+            © 2024 DJI Agriculture Partner Platform – soluzione white-label per
+            rivenditori autorizzati.
+          </p>
           <p className="text-xs mt-2">
-            Dati ROI basati su medie di mercato reali. Consulta il tuo commerciale per dettagli.
+            Dati ROI basati su medie di mercato reali. Consulta il tuo
+            commerciale per dettagli.
           </p>
         </div>
       </footer>

@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { GisMapSelector } from './components/GisMapSelector';
-import { ServiceConfigurator } from './components/ServiceConfigurator';
-import { OperatorMatcher } from './components/OperatorMatcher';
-import { CheckoutForm } from './components/CheckoutForm';
-import { usePreventivoState } from './hooks/usePreventivoState';
-import { CheckoutData, PreventivoStep } from './types/preventivo.types';
-import { Layout } from '@/components/Layout';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { GisMapSelector } from "./components/GisMapSelector";
+import { ServiceConfigurator } from "./components/ServiceConfigurator";
+import { OperatorMatcher } from "./components/OperatorMatcher";
+import { CheckoutForm } from "./components/CheckoutForm";
+import { usePreventivoState } from "./hooks/usePreventivoState";
+import { CheckoutData, PreventivoStep } from "./types/preventivo.types";
+import { Layout } from "@/components/Layout";
 
 export default function PreventivoLanding() {
   const navigate = useNavigate();
@@ -16,10 +16,10 @@ export default function PreventivoLanding() {
 
   // Progress indicator
   const steps = [
-    { id: 1, label: 'Campo', description: 'Seleziona area' },
-    { id: 2, label: 'Servizio', description: 'Configura intervento' },
-    { id: 3, label: 'Operatore', description: 'Scegli professionista' },
-    { id: 4, label: 'Conferma', description: 'Completa prenotazione' }
+    { id: 1, label: "Campo", description: "Seleziona area" },
+    { id: 2, label: "Servizio", description: "Configura intervento" },
+    { id: 3, label: "Operatore", description: "Scegli professionista" },
+    { id: 4, label: "Conferma", description: "Completa prenotazione" },
   ];
 
   const handleGisComplete = (gisData: any) => {
@@ -44,7 +44,7 @@ export default function PreventivoLanding() {
 
     try {
       // Check if field data is already saved from ServiziGIS page
-      let existingFieldData = localStorage.getItem('temp_field_data');
+      let existingFieldData = localStorage.getItem("temp_field_data");
 
       if (!existingFieldData) {
         // Save field data temporarily for anonymous users
@@ -56,39 +56,45 @@ export default function PreventivoLanding() {
           crop_type: state.serviceConfig?.cropType,
           treatment_type: state.serviceConfig?.treatmentType,
           terrain_conditions: state.serviceConfig?.terrainConditions,
-          field_name: state.gisData?.fieldName || `Campo ${state.gisData?.area_ha?.toFixed(2)} ha`,
-          timestamp: Date.now()
+          field_name:
+            state.gisData?.fieldName ||
+            `Campo ${state.gisData?.area_ha?.toFixed(2)} ha`,
+          timestamp: Date.now(),
         };
 
-        localStorage.setItem('temp_field_data', JSON.stringify(fieldData));
+        localStorage.setItem("temp_field_data", JSON.stringify(fieldData));
         existingFieldData = JSON.stringify(fieldData);
-        console.log('💾 Field data saved from PreventivoLanding:', fieldData);
+        console.log("💾 Field data saved from PreventivoLanding:", fieldData);
       } else {
         // Update existing data with service configuration
         const existingData = JSON.parse(existingFieldData);
         const updatedData = {
           ...existingData,
-          service_type: state.serviceConfig?.serviceType || existingData.service_type,
+          service_type:
+            state.serviceConfig?.serviceType || existingData.service_type,
           crop_type: state.serviceConfig?.cropType || existingData.crop_type,
-          treatment_type: state.serviceConfig?.treatmentType || existingData.treatment_type,
-          terrain_conditions: state.serviceConfig?.terrainConditions || existingData.terrain_conditions,
+          treatment_type:
+            state.serviceConfig?.treatmentType || existingData.treatment_type,
+          terrain_conditions:
+            state.serviceConfig?.terrainConditions ||
+            existingData.terrain_conditions,
         };
-        localStorage.setItem('temp_field_data', JSON.stringify(updatedData));
-        console.log('📝 Field data updated with service config:', updatedData);
+        localStorage.setItem("temp_field_data", JSON.stringify(updatedData));
+        console.log("📝 Field data updated with service config:", updatedData);
       }
 
-      toast.info('Dati salvati! Procedi con la registrazione.', {
-        description: 'I tuoi dati del campo sono stati salvati temporaneamente.'
+      toast.info("Dati salvati! Procedi con la registrazione.", {
+        description:
+          "I tuoi dati del campo sono stati salvati temporaneamente.",
       });
 
       // Navigate to login with registration flag and redirect to nuovo-preventivo
       setTimeout(() => {
-        navigate('/login?mode=register&redirect=nuovo-preventivo');
+        navigate("/login?mode=register&redirect=nuovo-preventivo");
       }, 1500);
-
     } catch (error) {
-      toast.error('Errore nel salvataggio dei dati', {
-        description: 'Riprova più tardi o contatta il supporto.'
+      toast.error("Errore nel salvataggio dei dati", {
+        description: "Riprova più tardi o contatta il supporto.",
       });
     } finally {
       setIsSubmitting(false);
@@ -97,7 +103,7 @@ export default function PreventivoLanding() {
 
   const handleBack = () => {
     if (state.currentStep === 1) {
-      navigate('/');
+      navigate("/");
     } else {
       actions.prevStep();
     }
@@ -114,16 +120,16 @@ export default function PreventivoLanding() {
                 onClick={handleBack}
                 className="text-slate-600 hover:text-slate-900 transition"
               >
-                ← {state.currentStep === 1 ? 'Torna alla home' : 'Indietro'}
+                ← {state.currentStep === 1 ? "Torna alla home" : "Indietro"}
               </button>
-
               <div className="text-center">
-                <h1 className="text-2xl font-bold text-slate-900">Richiedi Preventivo</h1>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  Richiedi Preventivo
+                </h1>
                 <p className="text-sm text-slate-600 mt-1">
                   Preventivo gratuito e senza impegno per trattamenti con droni
                 </p>
               </div>
-
               <div className="w-20"></div> {/* Spacer for centering */}
             </div>
 
@@ -131,27 +137,39 @@ export default function PreventivoLanding() {
             <div className="flex items-center justify-between">
               {steps.map((step, index) => (
                 <div key={step.id} className="flex items-center">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                    state.currentStep >= step.id
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {state.currentStep > step.id ? '✓' : step.id}
+                  <div
+                    className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                      state.currentStep >= step.id
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-200 text-slate-600"
+                    }`}
+                  >
+                    {state.currentStep > step.id ? "✓" : step.id}
                   </div>
 
                   <div className="ml-3">
-                    <div className={`text-sm font-medium ${
-                      state.currentStep >= step.id ? 'text-emerald-700' : 'text-slate-500'
-                    }`}>
+                    <div
+                      className={`text-sm font-medium ${
+                        state.currentStep >= step.id
+                          ? "text-emerald-700"
+                          : "text-slate-500"
+                      }`}
+                    >
                       {step.label}
                     </div>
-                    <div className="text-xs text-slate-400">{step.description}</div>
+                    <div className="text-xs text-slate-400">
+                      {step.description}
+                    </div>
                   </div>
 
                   {index < steps.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-4 ${
-                      state.currentStep > step.id ? 'bg-emerald-600' : 'bg-slate-200'
-                    }`} />
+                    <div
+                      className={`flex-1 h-0.5 mx-4 ${
+                        state.currentStep > step.id
+                          ? "bg-emerald-600"
+                          : "bg-slate-200"
+                      }`}
+                    />
                   )}
                 </div>
               ))}
@@ -222,8 +240,8 @@ export default function PreventivoLanding() {
               <div>
                 <h3 className="font-bold text-lg mb-4">DJI Agras</h3>
                 <p className="text-slate-300 text-sm">
-                  Specialisti in trattamenti agricoli con droni DJI.
-                  Tecnologia avanzata per agricoltura di precisione.
+                  Specialisti in trattamenti agricoli con droni DJI. Tecnologia
+                  avanzata per agricoltura di precisione.
                 </p>
               </div>
 

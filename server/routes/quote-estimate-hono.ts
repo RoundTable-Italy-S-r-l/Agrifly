@@ -1,15 +1,15 @@
-import { Hono } from 'hono';
-import { query } from '../utils/database';
-import { expandRateCardsTable } from '../utils/database-migrations';
-import { validateBody } from '../middleware/validation';
-import { QuoteEstimateSchema } from '../schemas/api.schemas';
+import { Hono } from "hono";
+import { query } from "../utils/database";
+import { expandRateCardsTable } from "../utils/database-migrations";
+import { validateBody } from "../middleware/validation";
+import { QuoteEstimateSchema } from "../schemas/api.schemas";
 
 const app = new Hono();
 
 /**
  * POST /api/quote-estimate
  * Calculate quote/estimate based on rate_card for a specific job
- * 
+ *
  * Request body:
  * {
  *   seller_org_id: string,
@@ -23,9 +23,9 @@ const app = new Hono();
  *   month?: number (1-12, for seasonal multipliers)
  * }
  */
-app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
+app.post("/", validateBody(QuoteEstimateSchema), async (c) => {
   try {
-    const body = c.get('validatedBody');
+    const body = c.get("validatedBody");
     const {
       seller_org_id,
       service_type,
@@ -35,18 +35,19 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
       has_obstacles = false,
       custom_multipliers = {},
       custom_surcharges = {},
-      month = new Date().getMonth() + 1
+      month = new Date().getMonth() + 1,
     } = body;
 
     // Ensure rate_cards table has latest columns
     try {
       await expandRateCardsTable();
     } catch (error: any) {
-      console.warn('⚠️  Migration warning (non-critical):', error.message);
+      console.warn("⚠️  Migration warning (non-critical):", error.message);
     }
 
     // Fetch rate card for this service type
-    const rateCardResult = await query(`
+    const rateCardResult = await query(
+      `
       SELECT
         base_rate_per_ha_cents,
         min_charge_cents,
@@ -60,37 +61,42 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
         risk_multipliers_json
       FROM rate_cards
       WHERE seller_org_id = $1 AND service_type = $2
-    `, [seller_org_id, service_type]);
+    `,
+      [seller_org_id, service_type],
+    );
 
     if (rateCardResult.rows.length === 0) {
-      return c.json({ error: 'Rate card not found for this service type' }, 404);
+      return c.json(
+        { error: "Rate card not found for this service type" },
+        404,
+      );
     }
 
     const rateCard = rateCardResult.rows[0];
 
     // Parse JSON fields
     const seasonalMultipliers = rateCard.seasonal_multipliers_json
-      ? (typeof rateCard.seasonal_multipliers_json === 'string'
-          ? JSON.parse(rateCard.seasonal_multipliers_json)
-          : rateCard.seasonal_multipliers_json)
+      ? typeof rateCard.seasonal_multipliers_json === "string"
+        ? JSON.parse(rateCard.seasonal_multipliers_json)
+        : rateCard.seasonal_multipliers_json
       : {};
 
     const riskMultipliers = rateCard.risk_multipliers_json
-      ? (typeof rateCard.risk_multipliers_json === 'string'
-          ? JSON.parse(rateCard.risk_multipliers_json)
-          : rateCard.risk_multipliers_json)
+      ? typeof rateCard.risk_multipliers_json === "string"
+        ? JSON.parse(rateCard.risk_multipliers_json)
+        : rateCard.risk_multipliers_json
       : {};
 
     const storedCustomMultipliers = rateCard.custom_multipliers_json
-      ? (typeof rateCard.custom_multipliers_json === 'string'
-          ? JSON.parse(rateCard.custom_multipliers_json)
-          : rateCard.custom_multipliers_json)
+      ? typeof rateCard.custom_multipliers_json === "string"
+        ? JSON.parse(rateCard.custom_multipliers_json)
+        : rateCard.custom_multipliers_json
       : {};
 
     const storedCustomSurcharges = rateCard.custom_surcharges_json
-      ? (typeof rateCard.custom_surcharges_json === 'string'
-          ? JSON.parse(rateCard.custom_surcharges_json)
-          : rateCard.custom_surcharges_json)
+      ? typeof rateCard.custom_surcharges_json === "string"
+        ? JSON.parse(rateCard.custom_surcharges_json)
+        : rateCard.custom_surcharges_json
       : {};
 
     // Calculate base service cost (area × base_rate_per_ha)
@@ -102,10 +108,10 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
     if (seasonalMultipliers) {
       // Determine season from month
       let season: string | undefined;
-      if (month >= 3 && month <= 5) season = 'spring';
-      else if (month >= 6 && month <= 8) season = 'summer';
-      else if (month >= 9 && month <= 11) season = 'autumn';
-      else season = 'winter';
+      if (month >= 3 && month <= 5) season = "spring";
+      else if (month >= 6 && month <= 8) season = "summer";
+      else if (month >= 9 && month <= 11) season = "autumn";
+      else season = "winter";
 
       if (season && seasonalMultipliers[season]) {
         seasonalMult = parseFloat(seasonalMultipliers[season]);
@@ -116,7 +122,10 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
 
     // Apply terrain multipliers
     let terrainMult = 1.0;
-    const terrainMultipliers: Record<string, number> = { ...storedCustomMultipliers, ...custom_multipliers };
+    const terrainMultipliers: Record<string, number> = {
+      ...storedCustomMultipliers,
+      ...custom_multipliers,
+    };
 
     // Hilly terrain multiplier
     if (is_hilly_terrain && rateCard.hilly_terrain_multiplier) {
@@ -130,7 +139,7 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
 
     // Apply any other custom multipliers
     Object.entries(terrainMultipliers).forEach(([key, value]) => {
-      if (key !== 'obstacles' && typeof value === 'number') {
+      if (key !== "obstacles" && typeof value === "number") {
         terrainMult *= value;
       }
     });
@@ -138,8 +147,12 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
     const multipliedCents = Math.round(seasonalAdjustedCents * terrainMult);
 
     // Calculate travel costs (fixed + variable per km)
-    const travelFixedCents = rateCard.travel_fixed_cents ? parseInt(rateCard.travel_fixed_cents) : 0;
-    const travelRatePerKmCents = rateCard.travel_rate_per_km_cents ? parseInt(rateCard.travel_rate_per_km_cents) : 0;
+    const travelFixedCents = rateCard.travel_fixed_cents
+      ? parseInt(rateCard.travel_fixed_cents)
+      : 0;
+    const travelRatePerKmCents = rateCard.travel_rate_per_km_cents
+      ? parseInt(rateCard.travel_rate_per_km_cents)
+      : 0;
     const travelVariableCents = Math.round(distance_km * travelRatePerKmCents);
     const travelCents = travelFixedCents + travelVariableCents;
 
@@ -154,14 +167,14 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
     // Custom surcharges (from rate card + request)
     // storedCustomSurcharges are already in cents (from database JSON)
     Object.values(storedCustomSurcharges).forEach((value) => {
-      if (typeof value === 'number') {
+      if (typeof value === "number") {
         surchargesCents += Math.round(value); // Already in cents from database
       }
     });
-    
+
     // custom_surcharges from request might be in euros, convert to cents
     Object.values(custom_surcharges).forEach((value) => {
-      if (typeof value === 'number') {
+      if (typeof value === "number") {
         // Assume values from API request are in euros, convert to cents
         surchargesCents += Math.round(value * 100);
       }
@@ -187,7 +200,7 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
       surchargesCents,
       subtotalCents,
       minChargeCents,
-      totalCents
+      totalCents,
     };
 
     // Build pricing snapshot for storage
@@ -199,7 +212,7 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
         distance_km,
         is_hilly_terrain,
         has_obstacles,
-        month
+        month,
       },
       rateCard: {
         base_rate_per_ha_cents: baseRatePerHaCents,
@@ -207,25 +220,26 @@ app.post('/', validateBody(QuoteEstimateSchema), async (c) => {
         travel_fixed_cents: travelFixedCents,
         travel_rate_per_km_cents: travelRatePerKmCents,
         hilly_terrain_multiplier: rateCard.hilly_terrain_multiplier,
-        hilly_terrain_surcharge_cents: rateCard.hilly_terrain_surcharge_cents
+        hilly_terrain_surcharge_cents: rateCard.hilly_terrain_surcharge_cents,
       },
-      calculation: breakdown
+      calculation: breakdown,
     };
 
     return c.json({
       total_estimated_cents: totalCents,
       breakdown,
-      pricing_snapshot_json: pricingSnapshot
+      pricing_snapshot_json: pricingSnapshot,
     });
-
   } catch (error: any) {
-    console.error('❌ Error calculating quote estimate:', error);
-    return c.json({
-      error: 'Internal server error',
-      message: error.message
-    }, 500);
+    console.error("❌ Error calculating quote estimate:", error);
+    return c.json(
+      {
+        error: "Internal server error",
+        message: error.message,
+      },
+      500,
+    );
   }
 });
 
 export default app;
-

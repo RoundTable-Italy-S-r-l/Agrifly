@@ -1,30 +1,36 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { Layout } from '@/components/Layout';
-import { Button } from '@/components/ui/button';
-import { authAPI } from '@/lib/auth';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { addToWishlist } from '@/lib/api';
-import { handlePostAuthRedirect, migrateGuestCart } from '@/lib/auth-redirect';
-import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { Layout } from "@/components/Layout";
+import { Button } from "@/components/ui/button";
+import { authAPI } from "@/lib/auth";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { addToWishlist } from "@/lib/api";
+import { handlePostAuthRedirect, migrateGuestCart } from "@/lib/auth-redirect";
+import {
+  Mail,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     // Verifica che l'utente sia autenticato (deve avere token)
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem("auth_token");
     if (!token) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
   }, [navigate]);
@@ -33,68 +39,75 @@ export default function VerifyEmail() {
     e.preventDefault();
 
     if (!code || code.length !== 6) {
-      setError('Inserisci un codice a 6 cifre');
+      setError("Inserisci un codice a 6 cifre");
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
       await authAPI.verifyEmail(code);
-      
+
       setSuccess(true);
-      toast.success('Email verificata con successo!');
+      toast.success("Email verificata con successo!");
 
       // Attendi 2 secondi prima del redirect
       setTimeout(async () => {
-        const orgData = localStorage.getItem('organization');
-        const userData = localStorage.getItem('user');
-        
+        const orgData = localStorage.getItem("organization");
+        const userData = localStorage.getItem("user");
+
         if (!orgData || !userData) {
-          navigate('/dashboard', { replace: true });
+          navigate("/dashboard", { replace: true });
           return;
         }
 
         try {
           const org = JSON.parse(orgData);
           const user = JSON.parse(userData);
-          
+
           // Migra carrello guest se esiste
           await migrateGuestCart(org, user, queryClient);
-          
+
           // Gestisci wishlist action se presente
-          const wishlistAction = localStorage.getItem('wishlist_action');
-          const wishlistProductId = localStorage.getItem('wishlist_product_id');
-          if (wishlistAction === 'true' && wishlistProductId) {
+          const wishlistAction = localStorage.getItem("wishlist_action");
+          const wishlistProductId = localStorage.getItem("wishlist_product_id");
+          if (wishlistAction === "true" && wishlistProductId) {
             try {
               await addToWishlist(org.id, wishlistProductId);
-              console.log('✅ Prodotto aggiunto automaticamente ai preferiti dopo verifica email');
+              console.log(
+                "✅ Prodotto aggiunto automaticamente ai preferiti dopo verifica email",
+              );
             } catch (error) {
-              console.error('⚠️ Errore aggiunta automatica ai preferiti:', error);
+              console.error(
+                "⚠️ Errore aggiunta automatica ai preferiti:",
+                error,
+              );
             }
-            localStorage.removeItem('wishlist_action');
-            localStorage.removeItem('wishlist_product_id');
+            localStorage.removeItem("wishlist_action");
+            localStorage.removeItem("wishlist_product_id");
           }
-          
+
           await queryClient.invalidateQueries();
-          
+
           // Usa utility centralizzata per redirect
           await handlePostAuthRedirect({
             organization: org,
             user: user,
             queryClient,
-            navigate
+            navigate,
           });
         } catch (error) {
-          console.error('Errore parsing org/user data:', error);
-          navigate('/dashboard', { replace: true });
+          console.error("Errore parsing org/user data:", error);
+          navigate("/dashboard", { replace: true });
         }
       }, 2000);
-
     } catch (err: any) {
-      console.error('Errore verifica email:', err);
-      setError(err?.message || 'Codice non valido. Controlla di aver inserito il codice corretto.');
+      console.error("Errore verifica email:", err);
+      setError(
+        err?.message ||
+          "Codice non valido. Controlla di aver inserito il codice corretto.",
+      );
     } finally {
       setLoading(false);
     }
@@ -103,13 +116,13 @@ export default function VerifyEmail() {
   const handleResend = async () => {
     try {
       setResending(true);
-      setError('');
+      setError("");
 
       await authAPI.resendVerification();
-      toast.success('Codice reinviato! Controlla la tua email.');
+      toast.success("Codice reinviato! Controlla la tua email.");
     } catch (err: any) {
-      console.error('Errore reinvio codice:', err);
-      setError(err?.message || 'Errore nel reinvio del codice');
+      console.error("Errore reinvio codice:", err);
+      setError(err?.message || "Errore nel reinvio del codice");
     } finally {
       setResending(false);
     }
@@ -121,7 +134,9 @@ export default function VerifyEmail() {
         <div className="max-w-md mx-auto mt-12">
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-8 text-center">
             <CheckCircle className="w-16 h-16 text-emerald-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-emerald-900 mb-2">Email verificata!</h1>
+            <h1 className="text-2xl font-bold text-emerald-900 mb-2">
+              Email verificata!
+            </h1>
             <p className="text-emerald-700">Stai per essere reindirizzato...</p>
           </div>
         </div>
@@ -134,7 +149,7 @@ export default function VerifyEmail() {
       <div className="max-w-md mx-auto mt-12">
         <div className="mb-6">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate("/login")}
             className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -170,9 +185,9 @@ export default function VerifyEmail() {
               type="text"
               value={code}
               onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                const value = e.target.value.replace(/\D/g, "").slice(0, 6);
                 setCode(value);
-                setError('');
+                setError("");
               }}
               placeholder="000000"
               maxLength={6}
@@ -196,7 +211,7 @@ export default function VerifyEmail() {
                 Verifica in corso...
               </>
             ) : (
-              'Verifica email'
+              "Verifica email"
             )}
           </Button>
         </form>
@@ -217,7 +232,7 @@ export default function VerifyEmail() {
                 Invio in corso...
               </>
             ) : (
-              'Reinvia codice'
+              "Reinvia codice"
             )}
           </button>
         </div>
@@ -225,4 +240,3 @@ export default function VerifyEmail() {
     </Layout>
   );
 }
-

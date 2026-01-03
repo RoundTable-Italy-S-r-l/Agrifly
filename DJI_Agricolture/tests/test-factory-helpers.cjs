@@ -1,12 +1,11 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+const { createClient } = require("@supabase/supabase-js");
+require("dotenv").config();
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = supabaseUrl && supabaseKey 
-  ? createClient(supabaseUrl, supabaseKey)
-  : null;
+const supabase =
+  supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Test data builders
 class TestDataFactory {
@@ -15,98 +14,98 @@ class TestDataFactory {
   }
 
   async createOrg(overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
     const org = {
       id: `test-org-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       legal_name: `Test Org ${Date.now()}`,
-      kind: overrides.kind || 'VENDOR',
-      address_line: 'Via Test 123',
-      city: 'Test City',
-      province: 'TN',
-      postal_code: '38051',
-      country: 'IT',
-      ...overrides
+      kind: overrides.kind || "VENDOR",
+      address_line: "Via Test 123",
+      city: "Test City",
+      province: "TN",
+      postal_code: "38051",
+      country: "IT",
+      ...overrides,
     };
 
     const { data, error } = await supabase
-      .from('organizations')
+      .from("organizations")
       .insert(org)
       .select()
       .single();
 
-    if (error && !error.message.includes('already exists')) {
+    if (error && !error.message.includes("already exists")) {
       throw error;
     }
 
     if (data) {
-      this.createdRecords.push({ type: 'organization', id: data.id });
+      this.createdRecords.push({ type: "organization", id: data.id });
       return data;
     }
 
     // Se esiste già, recuperalo
     const { data: existing } = await supabase
-      .from('organizations')
+      .from("organizations")
       .select()
-      .eq('id', org.id)
+      .eq("id", org.id)
       .single();
 
     return existing || org;
   }
 
   async createProduct(overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
     const product = {
       id: `test-prd-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: `Test Product ${Date.now()}`,
-      brand: 'Test Brand',
-      model: 'Test Model',
-      product_type: 'DRONE',
-      status: 'ACTIVE',
+      brand: "Test Brand",
+      model: "Test Model",
+      product_type: "DRONE",
+      status: "ACTIVE",
       specs_json: JSON.stringify({}),
       images_json: JSON.stringify([]),
-      ...overrides
+      ...overrides,
     };
 
     const { data, error } = await supabase
-      .from('products')
+      .from("products")
       .insert(product)
       .select()
       .single();
 
     if (error) throw error;
 
-    this.createdRecords.push({ type: 'product', id: data.id });
+    this.createdRecords.push({ type: "product", id: data.id });
     return data;
   }
 
   async createInventory(orgId, productId, overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
     // Prima crea SKU se non esiste
     let skuId = overrides.sku_id;
-    
+
     if (!skuId) {
       const newSkuId = `test-sku-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const { data: newSku, error: skuError } = await supabase
-        .from('skus')
+        .from("skus")
         .insert({
           id: newSkuId,
           product_id: productId,
           sku_code: `SKU-${Date.now()}`,
-          variant_tags: []  // PostgreSQL array, non JSON string
+          variant_tags: [], // PostgreSQL array, non JSON string
         })
         .select()
         .single();
 
-      if (skuError && !skuError.message.includes('duplicate')) {
+      if (skuError && !skuError.message.includes("duplicate")) {
         throw skuError;
       }
 
       skuId = newSku?.id || newSkuId;
-      this.createdRecords.push({ type: 'sku', id: skuId });
+      this.createdRecords.push({ type: "sku", id: skuId });
     }
 
     // Crea location se non specificata
@@ -114,22 +113,22 @@ class TestDataFactory {
     if (!locationId) {
       try {
         const { data: locations } = await supabase
-          .from('locations')
-          .select('id')
+          .from("locations")
+          .select("id")
           .limit(1);
         if (locations && locations.length > 0) {
           locationId = locations[0].id;
         } else {
           // Crea location di default se non esiste
           const { data: newLocation } = await supabase
-            .from('locations')
+            .from("locations")
             .insert({
               id: `test-loc-${Date.now()}`,
               vendor_org_id: orgId,
-              name: 'Test Location',
-              address_line: 'Test Address',
-              city: 'Test City',
-              postal_code: '38051'
+              name: "Test Location",
+              address_line: "Test Address",
+              city: "Test City",
+              postal_code: "38051",
             })
             .select()
             .single();
@@ -148,43 +147,44 @@ class TestDataFactory {
       location_id: locationId,
       qty_on_hand: overrides.qty_on_hand || 100, // Stock alto per test
       qty_reserved: overrides.qty_reserved || 0,
-      ...overrides
+      ...overrides,
     };
 
     const { data, error } = await supabase
-      .from('inventories')
+      .from("inventories")
       .insert(inventory)
       .select()
       .single();
 
     if (error) throw error;
 
-    this.createdRecords.push({ type: 'inventory', id: data.id });
+    this.createdRecords.push({ type: "inventory", id: data.id });
     return data;
   }
 
   async createVendorCatalogItem(orgId, skuId, overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
     const item = {
       id: `test-vci-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       vendor_org_id: orgId,
       sku_id: skuId,
-      is_for_sale: overrides.is_for_sale !== undefined ? overrides.is_for_sale : true,
+      is_for_sale:
+        overrides.is_for_sale !== undefined ? overrides.is_for_sale : true,
       is_for_rent: false,
       lead_time_days: 7,
-      ...overrides
+      ...overrides,
     };
 
     const { data, error } = await supabase
-      .from('vendor_catalog_items')
+      .from("vendor_catalog_items")
       .insert(item)
       .select()
       .single();
 
     if (error) throw error;
 
-    this.createdRecords.push({ type: 'vendor_catalog_item', id: data.id });
+    this.createdRecords.push({ type: "vendor_catalog_item", id: data.id });
     return data;
   }
 
@@ -192,12 +192,21 @@ class TestDataFactory {
     if (!supabase) return;
 
     // Pulisci in ordine inverso (per evitare FK constraints)
-    const order = ['offers', 'vendor_catalog_items', 'inventories', 'skus', 'products', 'organizations'];
-    
+    const order = [
+      "offers",
+      "vendor_catalog_items",
+      "inventories",
+      "skus",
+      "products",
+      "organizations",
+    ];
+
     for (const type of order) {
-      for (const record of this.createdRecords.filter(r => r.type === type.replace('s', '').replace('ies', 'y'))) {
+      for (const record of this.createdRecords.filter(
+        (r) => r.type === type.replace("s", "").replace("ies", "y"),
+      )) {
         try {
-          await supabase.from(type).delete().eq('id', record.id);
+          await supabase.from(type).delete().eq("id", record.id);
         } catch (e) {
           // Ignora errori di cleanup
         }
@@ -213,8 +222,8 @@ class TestDataFactory {
 
     const { data, error } = await supabase
       .from(table)
-      .select('*')
-      .eq('id', id)
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (error || !data) return false;
@@ -235,8 +244,8 @@ class TestDataFactory {
 
     const { data, error } = await supabase
       .from(table)
-      .select('*')
-      .eq('id', id)
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (error || !data) return false;
@@ -252,38 +261,41 @@ class TestDataFactory {
   }
 
   async createJob(orgId, overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
     const jobId = `test-job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const job = {
       id: jobId,
       buyer_org_id: orgId,
       field_name: overrides.field_name || `Test Field ${Date.now()}`,
-      service_type: overrides.service_type || 'SPRAY',
+      service_type: overrides.service_type || "SPRAY",
       area_ha: overrides.area_ha || 10,
       location_json: overrides.location_json || { coordinates: [11.0, 46.0] },
-      status: overrides.status || 'OPEN',
-      ...overrides
+      status: overrides.status || "OPEN",
+      ...overrides,
     };
 
     // Prova prima con Supabase
     try {
       const { data, error } = await supabase
-        .from('jobs')
+        .from("jobs")
         .insert({
           id: job.id,
           buyer_org_id: job.buyer_org_id,
           field_name: job.field_name,
           service_type: job.service_type,
           area_ha: job.area_ha,
-          location_json: typeof job.location_json === 'string' ? job.location_json : JSON.stringify(job.location_json),
-          status: job.status
+          location_json:
+            typeof job.location_json === "string"
+              ? job.location_json
+              : JSON.stringify(job.location_json),
+          status: job.status,
         })
         .select()
         .single();
 
       if (!error && data) {
-        this.createdRecords.push({ type: 'job', id: jobId });
+        this.createdRecords.push({ type: "job", id: jobId });
         return data;
       }
     } catch (e) {
@@ -292,12 +304,12 @@ class TestDataFactory {
 
     // Se Supabase fallisce, restituisci comunque il job mock per i test
     // I test useranno questo ID e l'endpoint creerà il job
-    this.createdRecords.push({ type: 'job', id: jobId });
+    this.createdRecords.push({ type: "job", id: jobId });
     return job;
   }
 
   async createJobOffer(jobId, vendorOrgId, overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
     const offerId = `test-offer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const offer = {
@@ -305,20 +317,20 @@ class TestDataFactory {
       job_id: jobId,
       operator_org_id: vendorOrgId, // Backend usa operator_org_id, non provider_org_id
       total_cents: overrides.total_cents || 50000,
-      currency: overrides.currency || 'EUR',
-      status: overrides.status || 'OFFERED', // Default OFFERED per match backend
-      ...overrides
+      currency: overrides.currency || "EUR",
+      status: overrides.status || "OFFERED", // Default OFFERED per match backend
+      ...overrides,
     };
 
     try {
       const { data, error } = await supabase
-        .from('job_offers')
+        .from("job_offers")
         .insert(offer)
         .select()
         .single();
 
       if (!error && data) {
-        this.createdRecords.push({ type: 'job_offer', id: offerId });
+        this.createdRecords.push({ type: "job_offer", id: offerId });
         return data;
       }
     } catch (error) {
@@ -326,40 +338,45 @@ class TestDataFactory {
     }
 
     // Se Supabase fallisce, restituisci comunque l'offer mock per i test
-    this.createdRecords.push({ type: 'job_offer', id: offerId });
+    this.createdRecords.push({ type: "job_offer", id: offerId });
     return offer;
   }
 
   async createOperator(orgId, overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
     const operatorId = `test-op-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const serviceTags = overrides.service_tags || ['SPRAY'];
+    const serviceTags = overrides.service_tags || ["SPRAY"];
     const operator = {
       id: operatorId,
       org_id: orgId,
       user_id: overrides.user_id || null,
-      service_tags: Array.isArray(serviceTags) ? serviceTags : (typeof serviceTags === 'string' ? JSON.parse(serviceTags) : ['SPRAY']),
-      status: overrides.status || 'ACTIVE',
-      ...overrides
+      service_tags: Array.isArray(serviceTags)
+        ? serviceTags
+        : typeof serviceTags === "string"
+          ? JSON.parse(serviceTags)
+          : ["SPRAY"],
+      status: overrides.status || "ACTIVE",
+      ...overrides,
     };
 
     // Prova prima con Supabase
     try {
       const { data, error } = await supabase
-        .from('operator_profiles')
+        .from("operator_profiles")
         .insert({
           id: operator.id,
           org_id: operator.org_id,
           user_id: operator.user_id,
           service_tags: operator.service_tags, // Supabase gestisce array/jsonb
-          status: operator.status
+          max_ha_per_day: operator.max_ha_per_day || null,
+          status: operator.status,
         })
         .select()
         .single();
 
       if (!error && data) {
-        this.createdRecords.push({ type: 'operator', id: operatorId });
+        this.createdRecords.push({ type: "operator", id: operatorId });
         return data;
       }
     } catch (e) {
@@ -367,67 +384,79 @@ class TestDataFactory {
     }
 
     // Se Supabase fallisce, restituisci comunque l'operator mock per i test
-    this.createdRecords.push({ type: 'operator', id: operatorId });
+    this.createdRecords.push({ type: "operator", id: operatorId });
     return operator;
   }
 
   async createAddress(orgId, overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
-    const addressId = `addr_${Date.now()}${Math.random().toString(36).substr(2, 9)}`.substring(0, 30);
+    const addressId =
+      `addr_${Date.now()}${Math.random().toString(36).substr(2, 9)}`.substring(
+        0,
+        30,
+      );
     const address = {
       id: addressId,
       org_id: orgId,
-      type: overrides.type || 'SHIPPING',
+      type: overrides.type || "SHIPPING",
       name: overrides.name || `Test Address ${Date.now()}`,
-      address_line: overrides.address_line || 'Via Test 123',
-      city: overrides.city || 'Test City',
-      province: overrides.province || 'TN',
-      postal_code: overrides.postal_code || '38051',
-      country: overrides.country || 'IT',
+      address_line: overrides.address_line || "Via Test 123",
+      city: overrides.city || "Test City",
+      province: overrides.province || "TN",
+      postal_code: overrides.postal_code || "38051",
+      country: overrides.country || "IT",
       is_default: overrides.is_default || false,
-      ...overrides
+      ...overrides,
     };
 
     try {
       const { data, error } = await supabase
-        .from('addresses')
+        .from("addresses")
         .insert(address)
         .select()
         .single();
 
       if (!error && data) {
-        this.createdRecords.push({ type: 'address', id: addressId });
+        this.createdRecords.push({ type: "address", id: addressId });
         return data;
       }
     } catch (e) {
       // Ignora - prosegui con mock
     }
 
-    this.createdRecords.push({ type: 'address', id: addressId });
+    this.createdRecords.push({ type: "address", id: addressId });
     return address;
   }
 
   async createNotificationPreferences(userId, overrides = {}) {
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) throw new Error("Supabase not available");
 
     const prefs = {
       user_id: userId,
-      email_orders: overrides.email_orders !== undefined ? overrides.email_orders : true,
-      email_payments: overrides.email_payments !== undefined ? overrides.email_payments : true,
-      email_updates: overrides.email_updates !== undefined ? overrides.email_updates : true,
-      ...overrides
+      email_orders:
+        overrides.email_orders !== undefined ? overrides.email_orders : true,
+      email_payments:
+        overrides.email_payments !== undefined
+          ? overrides.email_payments
+          : true,
+      email_updates:
+        overrides.email_updates !== undefined ? overrides.email_updates : true,
+      ...overrides,
     };
 
     try {
       const { data, error } = await supabase
-        .from('user_notification_preferences')
-        .upsert(prefs, { onConflict: 'user_id' })
+        .from("user_notification_preferences")
+        .upsert(prefs, { onConflict: "user_id" })
         .select()
         .single();
 
       if (!error && data) {
-        this.createdRecords.push({ type: 'notification_preference', id: data.id || userId });
+        this.createdRecords.push({
+          type: "notification_preference",
+          id: data.id || userId,
+        });
         return data;
       }
     } catch (e) {
@@ -440,4 +469,3 @@ class TestDataFactory {
 }
 
 module.exports = { TestDataFactory };
-

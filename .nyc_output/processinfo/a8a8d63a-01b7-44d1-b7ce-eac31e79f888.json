@@ -1,1 +1,16 @@
-{"parent":"da063bf3-1dcb-4573-a131-cb15c0e9e722","pid":43606,"argv":["/Users/macbook/.nvm/versions/node/v22.12.0/bin/node","/Users/macbook/Desktop/DJI Agras/DJI_Agricolture/node_modules/tinypool/dist/entry/process.js"],"execArgv":["--conditions","node","--conditions","development"],"cwd":"/Users/macbook/Desktop/DJI Agras/DJI_Agricolture","time":1767113259262,"ppid":43575,"coverageFilename":"/Users/macbook/Desktop/DJI Agras/DJI_Agricolture/.nyc_output/a8a8d63a-01b7-44d1-b7ce-eac31e79f888.json","externalId":"","uuid":"a8a8d63a-01b7-44d1-b7ce-eac31e79f888","files":[]}
+{
+  "parent": "da063bf3-1dcb-4573-a131-cb15c0e9e722",
+  "pid": 43606,
+  "argv": [
+    "/Users/macbook/.nvm/versions/node/v22.12.0/bin/node",
+    "/Users/macbook/Desktop/DJI Agras/DJI_Agricolture/node_modules/tinypool/dist/entry/process.js"
+  ],
+  "execArgv": ["--conditions", "node", "--conditions", "development"],
+  "cwd": "/Users/macbook/Desktop/DJI Agras/DJI_Agricolture",
+  "time": 1767113259262,
+  "ppid": 43575,
+  "coverageFilename": "/Users/macbook/Desktop/DJI Agras/DJI_Agricolture/.nyc_output/a8a8d63a-01b7-44d1-b7ce-eac31e79f888.json",
+  "externalId": "",
+  "uuid": "a8a8d63a-01b7-44d1-b7ce-eac31e79f888",
+  "files": []
+}

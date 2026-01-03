@@ -1,5 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-import 'dotenv/config';
+import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
 
 const prisma = new PrismaClient();
 
@@ -68,9 +68,9 @@ async function createSampleOrders() {
 
     // 4. Crea Ordine 1: PAID - Azienda Agricola Rossi
     const order1Items = [
-      { sku: skus.find(s => s.sku_code === "DJI_T30") || skus[0], qty: 1 },
-      { sku: skus.find(s => s.sku_code === "DJI_T25") || skus[1], qty: 2 },
-    ].filter(item => item.sku);
+      { sku: skus.find((s) => s.sku_code === "DJI_T30") || skus[0], qty: 1 },
+      { sku: skus.find((s) => s.sku_code === "DJI_T25") || skus[1], qty: 2 },
+    ].filter((item) => item.sku);
 
     let total1 = 0;
     const orderLines1 = [];
@@ -112,9 +112,12 @@ async function createSampleOrders() {
 
     // 5. Crea Ordine 2: FULFILLED - Cooperativa Agricola Verdi
     const order2Items = [
-      { sku: skus.find(s => s.sku_code === "DJI_T50") || skus[2], qty: 1 },
-      { sku: skus.find(s => s.sku_code === "DJI_MAVIC3M") || skus[6], qty: 1 },
-    ].filter(item => item.sku);
+      { sku: skus.find((s) => s.sku_code === "DJI_T50") || skus[2], qty: 1 },
+      {
+        sku: skus.find((s) => s.sku_code === "DJI_MAVIC3M") || skus[6],
+        qty: 1,
+      },
+    ].filter((item) => item.sku);
 
     let total2 = 0;
     const orderLines2 = [];
@@ -169,4 +172,3 @@ async function createSampleOrders() {
 }
 
 createSampleOrders();
-

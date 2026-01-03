@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BuyerLayout } from '@/components/BuyerLayout';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { GisMapSelector } from '../landing-preventivo/components/GisMapSelector';
-import { fetchCertifiedQuotes, CertifiedQuote } from '@/lib/api';
-import { CheckCircle } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { BuyerLayout } from "@/components/BuyerLayout";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { GisMapSelector } from "../landing-preventivo/components/GisMapSelector";
+import { fetchCertifiedQuotes, CertifiedQuote } from "@/lib/api";
+import { CheckCircle } from "lucide-react";
 
 interface JobFormData {
   field_name: string;
@@ -22,47 +22,46 @@ interface JobFormData {
 }
 
 const SERVICE_TYPES = [
-  { value: 'SPRAY', label: 'Trattamento fitosanitario', icon: '🌿' },
-  { value: 'SPREAD', label: 'Spandimento fertilizzanti', icon: '🌱' },
-  { value: 'MAPPING', label: 'Mappatura territoriale', icon: '🗺️' }
+  { value: "SPRAY", label: "Trattamento fitosanitario", icon: "🌿" },
+  { value: "SPREAD", label: "Spandimento fertilizzanti", icon: "🌱" },
+  { value: "MAPPING", label: "Mappatura territoriale", icon: "🗺️" },
 ];
 
 const CROP_TYPES = [
-  { value: 'VINEYARD', label: 'Vigneto' },
-  { value: 'OLIVE_GROVE', label: 'Oliveto' },
-  { value: 'CEREAL', label: 'Cereali' },
-  { value: 'VEGETABLES', label: 'Ortaggi' },
-  { value: 'FRUIT', label: 'Frutteto' },
-  { value: 'OTHER', label: 'Altro' }
+  { value: "VINEYARD", label: "Vigneto" },
+  { value: "OLIVE_GROVE", label: "Oliveto" },
+  { value: "CEREAL", label: "Cereali" },
+  { value: "VEGETABLES", label: "Ortaggi" },
+  { value: "FRUIT", label: "Frutteto" },
+  { value: "OTHER", label: "Altro" },
 ];
 
 const TREATMENT_TYPES = {
   SPRAY: [
-    { value: 'FUNGICIDE', label: 'Trattamento fungicida' },
-    { value: 'INSECTICIDE', label: 'Trattamento insetticida' },
-    { value: 'HERBICIDE', label: 'Trattamento erbicida' },
-    { value: 'FERTILIZER', label: 'Concimazione fogliare' }
+    { value: "FUNGICIDE", label: "Trattamento fungicida" },
+    { value: "INSECTICIDE", label: "Trattamento insetticida" },
+    { value: "HERBICIDE", label: "Trattamento erbicida" },
+    { value: "FERTILIZER", label: "Concimazione fogliare" },
   ],
   SPREAD: [
-    { value: 'ORGANIC_FERTILIZER', label: 'Concime organico' },
-    { value: 'CHEMICAL_FERTILIZER', label: 'Concime chimico' },
-    { value: 'LIME', label: 'Spandimento calce' },
-    { value: 'OTHER', label: 'Altro' }
+    { value: "ORGANIC_FERTILIZER", label: "Concime organico" },
+    { value: "CHEMICAL_FERTILIZER", label: "Concime chimico" },
+    { value: "LIME", label: "Spandimento calce" },
+    { value: "OTHER", label: "Altro" },
   ],
   MAPPING: [
-    { value: 'NDVI', label: 'Mappatura NDVI' },
-    { value: 'THERMAL', label: 'Termografia' },
-    { value: 'MULTISPECTRAL', label: 'Multispettrale' },
-    { value: 'ORTHOPHOTO', label: 'Ortofoto' }
-  ]
+    { value: "NDVI", label: "Mappatura NDVI" },
+    { value: "THERMAL", label: "Termografia" },
+    { value: "MULTISPECTRAL", label: "Multispettrale" },
+    { value: "ORTHOPHOTO", label: "Ortofoto" },
+  ],
 };
 
 const TERRAIN_CONDITIONS = [
-  { value: 'FLAT', label: 'Terreno pianeggiante', icon: '🏞️' },
-  { value: 'HILLY', label: 'Terreno collinare', icon: '🏔️' },
-  { value: 'MOUNTAINOUS', label: 'Terreno montuoso', icon: '⛰️' }
+  { value: "FLAT", label: "Terreno pianeggiante", icon: "🏞️" },
+  { value: "HILLY", label: "Terreno collinare", icon: "🏔️" },
+  { value: "MOUNTAINOUS", label: "Terreno montuoso", icon: "⛰️" },
 ];
-
 
 export default function NuovoPreventivoBuyer() {
   const navigate = useNavigate();
@@ -73,33 +72,36 @@ export default function NuovoPreventivoBuyer() {
   const [loadingCertifiedQuotes, setLoadingCertifiedQuotes] = useState(false);
 
   const [jobData, setJobData] = useState<Partial<JobFormData>>({
-    service_type: 'SPRAY'
+    service_type: "SPRAY",
   });
 
   // Check for pending field data from preventivo flow
   useEffect(() => {
-    console.log('🔍 NuovoPreventivoBuyer loaded, checking for pending field data...');
+    console.log(
+      "🔍 NuovoPreventivoBuyer loaded, checking for pending field data...",
+    );
 
-    const pendingFieldData = localStorage.getItem('pending_field_data');
-    const tempFieldData = localStorage.getItem('temp_field_data');
+    const pendingFieldData = localStorage.getItem("pending_field_data");
+    const tempFieldData = localStorage.getItem("temp_field_data");
 
-    console.log('📊 localStorage status:', {
+    console.log("📊 localStorage status:", {
       pendingFieldData: !!pendingFieldData,
-      tempFieldData: !!tempFieldData
+      tempFieldData: !!tempFieldData,
     });
 
     if (pendingFieldData) {
       try {
         const fieldData = JSON.parse(pendingFieldData);
-        console.log('📋 Loading pending field data:', fieldData);
+        console.log("📋 Loading pending field data:", fieldData);
 
-        setJobData(prev => ({
+        setJobData((prev) => ({
           ...prev,
           field_name: fieldData.field_name || prev.field_name,
           service_type: fieldData.service_type || prev.service_type,
           crop_type: fieldData.crop_type || prev.crop_type,
           treatment_type: fieldData.treatment_type || prev.treatment_type,
-          terrain_conditions: fieldData.terrain_conditions || prev.terrain_conditions,
+          terrain_conditions:
+            fieldData.terrain_conditions || prev.terrain_conditions,
           field_polygon: fieldData.field_polygon || prev.field_polygon,
           area_ha: fieldData.area_ha || prev.area_ha,
           location_json: fieldData.location_json || prev.location_json,
@@ -110,25 +112,24 @@ export default function NuovoPreventivoBuyer() {
           setGisData({
             polygon: fieldData.field_polygon,
             area_ha: fieldData.area_ha,
-            location: fieldData.location_json
+            location: fieldData.location_json,
           });
           setCurrentStep(2); // Skip to service configuration
         }
 
         // Clean up after loading
-        localStorage.removeItem('pending_field_data');
-        console.log('✅ Pending field data loaded and cleaned up');
-
+        localStorage.removeItem("pending_field_data");
+        console.log("✅ Pending field data loaded and cleaned up");
       } catch (error) {
-        console.error('❌ Error loading pending field data:', error);
-        localStorage.removeItem('pending_field_data'); // Clean up corrupted data
+        console.error("❌ Error loading pending field data:", error);
+        localStorage.removeItem("pending_field_data"); // Clean up corrupted data
       }
     }
   }, []);
 
   // Debug: log quando il componente si inizializza
-  console.log('🚀 NuovoPreventivoBuyer inizializzato');
-  console.log('📊 jobData attuale:', jobData);
+  console.log("🚀 NuovoPreventivoBuyer inizializzato");
+  console.log("📊 jobData attuale:", jobData);
 
   // Fetch certified quotes when all required fields are filled
   useEffect(() => {
@@ -151,11 +152,13 @@ export default function NuovoPreventivoBuyer() {
 
       try {
         setLoadingCertifiedQuotes(true);
-        
+
         // Extract location coordinates from gisData
         const location = gisData.location;
-        const location_lat = location?.lat || location?.center?.lat || location?.coordinates?.[1];
-        const location_lng = location?.lng || location?.center?.lng || location?.coordinates?.[0];
+        const location_lat =
+          location?.lat || location?.center?.lat || location?.coordinates?.[1];
+        const location_lng =
+          location?.lng || location?.center?.lng || location?.coordinates?.[0];
 
         const quotes = await fetchCertifiedQuotes({
           service_type: jobData.service_type,
@@ -169,7 +172,7 @@ export default function NuovoPreventivoBuyer() {
 
         setCertifiedQuotes(quotes.quotes || []);
       } catch (error: any) {
-        console.error('Error fetching certified quotes:', error);
+        console.error("Error fetching certified quotes:", error);
         // Don't show error toast - it's optional feature
         setCertifiedQuotes([]);
       } finally {
@@ -178,15 +181,22 @@ export default function NuovoPreventivoBuyer() {
     };
 
     loadCertifiedQuotes();
-  }, [currentStep, jobData.service_type, jobData.terrain_conditions, jobData.crop_type, jobData.treatment_type, gisData]);
+  }, [
+    currentStep,
+    jobData.service_type,
+    jobData.terrain_conditions,
+    jobData.crop_type,
+    jobData.treatment_type,
+    gisData,
+  ]);
 
   const handleGisComplete = (data: any) => {
     setGisData(data);
-    setJobData(prev => ({
+    setJobData((prev) => ({
       ...prev,
       field_polygon: data.polygon,
       area_ha: data.area_ha,
-      location_json: data.location
+      location_json: data.location,
     }));
     setCurrentStep(2);
   };
@@ -194,41 +204,47 @@ export default function NuovoPreventivoBuyer() {
   const handleServiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log('🔍 DEBUG - Valori attuali del form:');
-    console.log('  field_name:', `"${jobData.field_name}"`);
-    console.log('  service_type:', `"${jobData.service_type}"`);
-    console.log('  crop_type:', `"${jobData.crop_type}"`);
-    console.log('  treatment_type:', `"${jobData.treatment_type}"`);
-    console.log('  terrain_conditions:', `"${jobData.terrain_conditions}"`);
-    console.log('  area_ha:', gisData?.area_ha);
-    console.log('  jobData completo:', jobData);
+    console.log("🔍 DEBUG - Valori attuali del form:");
+    console.log("  field_name:", `"${jobData.field_name}"`);
+    console.log("  service_type:", `"${jobData.service_type}"`);
+    console.log("  crop_type:", `"${jobData.crop_type}"`);
+    console.log("  treatment_type:", `"${jobData.treatment_type}"`);
+    console.log("  terrain_conditions:", `"${jobData.terrain_conditions}"`);
+    console.log("  area_ha:", gisData?.area_ha);
+    console.log("  jobData completo:", jobData);
 
-    if (!jobData.field_name || !jobData.service_type || !jobData.crop_type || !jobData.treatment_type || !jobData.terrain_conditions) {
-      console.log('❌ DEBUG - Campi mancanti:', {
+    if (
+      !jobData.field_name ||
+      !jobData.service_type ||
+      !jobData.crop_type ||
+      !jobData.treatment_type ||
+      !jobData.terrain_conditions
+    ) {
+      console.log("❌ DEBUG - Campi mancanti:", {
         field_name: !!jobData.field_name,
         service_type: !!jobData.service_type,
         crop_type: !!jobData.crop_type,
         treatment_type: !!jobData.treatment_type,
-        terrain_conditions: !!jobData.terrain_conditions
+        terrain_conditions: !!jobData.terrain_conditions,
       });
-      toast.error('Compila tutti i campi obbligatori');
+      toast.error("Compila tutti i campi obbligatori");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem("auth_token");
       if (!token) {
-        toast.error('Devi essere autenticato');
+        toast.error("Devi essere autenticato");
         return;
       }
 
-      const response = await fetch('/api/jobs', {
-        method: 'POST',
+      const response = await fetch("/api/jobs", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           field_name: jobData.field_name,
@@ -245,34 +261,35 @@ export default function NuovoPreventivoBuyer() {
             ...jobData.constraints_json,
             crop_type: jobData.crop_type,
             treatment_type: jobData.treatment_type,
-            terrain_conditions: jobData.terrain_conditions
-          }
-        })
+            terrain_conditions: jobData.terrain_conditions,
+          },
+        }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Errore nella creazione del job');
+        throw new Error(error.error || "Errore nella creazione del job");
       }
 
       const result = await response.json();
 
-      toast.success('Job pubblicato con successo! Gli operatori riceveranno le notifiche.');
+      toast.success(
+        "Job pubblicato con successo! Gli operatori riceveranno le notifiche.",
+      );
 
       // Navigate to job details or jobs list
-      navigate('/buyer/servizi');
-
+      navigate("/buyer/servizi");
     } catch (error: any) {
-      console.error('Error creating job:', error);
-      toast.error(error.message || 'Errore nella creazione del job');
+      console.error("Error creating job:", error);
+      toast.error(error.message || "Errore nella creazione del job");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const steps = [
-    { id: 1, label: 'Campo', description: 'Seleziona area' },
-    { id: 2, label: 'Dettagli', description: 'Configura servizio' }
+    { id: 1, label: "Campo", description: "Seleziona area" },
+    { id: 2, label: "Dettagli", description: "Configura servizio" },
   ];
 
   if (currentStep === 1) {
@@ -282,7 +299,8 @@ export default function NuovoPreventivoBuyer() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900">Nuovo Job</h1>
             <p className="text-slate-600 mt-1">
-              Pubblica una richiesta di servizio - gli operatori ti manderanno le loro offerte
+              Pubblica una richiesta di servizio - gli operatori ti manderanno
+              le loro offerte
             </p>
           </div>
 
@@ -291,27 +309,39 @@ export default function NuovoPreventivoBuyer() {
             <div className="flex items-center space-x-4">
               {steps.map((step, index) => (
                 <div key={step.id} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step.id === currentStep
-                      ? 'bg-emerald-600 text-white'
-                      : step.id < currentStep
-                      ? 'bg-emerald-100 text-emerald-600'
-                      : 'bg-slate-200 text-slate-600'
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      step.id === currentStep
+                        ? "bg-emerald-600 text-white"
+                        : step.id < currentStep
+                          ? "bg-emerald-100 text-emerald-600"
+                          : "bg-slate-200 text-slate-600"
+                    }`}
+                  >
                     {step.id}
                   </div>
                   <div className="ml-3">
-                    <div className={`text-sm font-medium ${
-                      step.id === currentStep ? 'text-slate-900' : 'text-slate-600'
-                    }`}>
+                    <div
+                      className={`text-sm font-medium ${
+                        step.id === currentStep
+                          ? "text-slate-900"
+                          : "text-slate-600"
+                      }`}
+                    >
                       {step.label}
                     </div>
-                    <div className="text-xs text-slate-500">{step.description}</div>
+                    <div className="text-xs text-slate-500">
+                      {step.description}
+                    </div>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`w-12 h-px mx-4 ${
-                      step.id < currentStep ? 'bg-emerald-600' : 'bg-slate-200'
-                    }`} />
+                    <div
+                      className={`w-12 h-px mx-4 ${
+                        step.id < currentStep
+                          ? "bg-emerald-600"
+                          : "bg-slate-200"
+                      }`}
+                    />
                   )}
                 </div>
               ))}
@@ -331,7 +361,9 @@ export default function NuovoPreventivoBuyer() {
     <BuyerLayout>
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Dettagli del Job</h1>
+          <h1 className="text-3xl font-bold text-slate-900">
+            Dettagli del Job
+          </h1>
           <p className="text-slate-600 mt-1">
             Configura i dettagli del servizio richiesto
           </p>
@@ -342,27 +374,37 @@ export default function NuovoPreventivoBuyer() {
           <div className="flex items-center space-x-4">
             {steps.map((step, index) => (
               <div key={step.id} className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step.id === currentStep
-                    ? 'bg-emerald-600 text-white'
-                    : step.id < currentStep
-                    ? 'bg-emerald-100 text-emerald-600'
-                    : 'bg-slate-200 text-slate-600'
-                }`}>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    step.id === currentStep
+                      ? "bg-emerald-600 text-white"
+                      : step.id < currentStep
+                        ? "bg-emerald-100 text-emerald-600"
+                        : "bg-slate-200 text-slate-600"
+                  }`}
+                >
                   {step.id}
                 </div>
                 <div className="ml-3">
-                  <div className={`text-sm font-medium ${
-                    step.id === currentStep ? 'text-slate-900' : 'text-slate-600'
-                  }`}>
+                  <div
+                    className={`text-sm font-medium ${
+                      step.id === currentStep
+                        ? "text-slate-900"
+                        : "text-slate-600"
+                    }`}
+                  >
                     {step.label}
                   </div>
-                  <div className="text-xs text-slate-500">{step.description}</div>
+                  <div className="text-xs text-slate-500">
+                    {step.description}
+                  </div>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className={`w-12 h-px mx-4 ${
-                    step.id < currentStep ? 'bg-emerald-600' : 'bg-slate-200'
-                  }`} />
+                  <div
+                    className={`w-12 h-px mx-4 ${
+                      step.id < currentStep ? "bg-emerald-600" : "bg-slate-200"
+                    }`}
+                  />
                 )}
               </div>
             ))}
@@ -374,11 +416,15 @@ export default function NuovoPreventivoBuyer() {
           <form onSubmit={handleServiceSubmit} className="space-y-6">
             {/* Campo selezionato info */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-              <h3 className="font-medium text-emerald-900 mb-2">Campo Selezionato</h3>
+              <h3 className="font-medium text-emerald-900 mb-2">
+                Campo Selezionato
+              </h3>
               <div className="text-sm text-emerald-700">
                 <div>Area: {gisData?.area_ha?.toFixed(2)} ha</div>
                 {gisData?.location && (
-                  <div>Ubicazione: {gisData.location.address || 'Non specificata'}</div>
+                  <div>
+                    Ubicazione: {gisData.location.address || "Non specificata"}
+                  </div>
                 )}
               </div>
             </div>
@@ -391,8 +437,13 @@ export default function NuovoPreventivoBuyer() {
               <input
                 type="text"
                 required
-                value={jobData.field_name || ''}
-                onChange={(e) => setJobData(prev => ({ ...prev, field_name: e.target.value }))}
+                value={jobData.field_name || ""}
+                onChange={(e) =>
+                  setJobData((prev) => ({
+                    ...prev,
+                    field_name: e.target.value,
+                  }))
+                }
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 placeholder="es. Vigneto Chianti Classico"
               />
@@ -409,17 +460,23 @@ export default function NuovoPreventivoBuyer() {
                     key={service.value}
                     type="button"
                     onClick={() => {
-                      console.log('🎯 Click servizio:', service.value);
-                      setJobData(prev => {
-                        const newData = { ...prev, service_type: service.value };
-                        console.log('📝 Nuovo stato servizio:', newData.service_type);
+                      console.log("🎯 Click servizio:", service.value);
+                      setJobData((prev) => {
+                        const newData = {
+                          ...prev,
+                          service_type: service.value,
+                        };
+                        console.log(
+                          "📝 Nuovo stato servizio:",
+                          newData.service_type,
+                        );
                         return newData;
                       });
                     }}
                     className={`p-4 border rounded-lg text-left transition-colors ${
                       jobData.service_type === service.value
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     <div className="text-2xl mb-2">{service.icon}</div>
@@ -435,12 +492,12 @@ export default function NuovoPreventivoBuyer() {
                 Tipo di Coltura *
               </label>
               <select
-                value={jobData.crop_type || ''}
+                value={jobData.crop_type || ""}
                 onChange={(e) => {
-                  console.log('🌾 Cambio coltura:', e.target.value);
-                  setJobData(prev => {
+                  console.log("🌾 Cambio coltura:", e.target.value);
+                  setJobData((prev) => {
                     const newData = { ...prev, crop_type: e.target.value };
-                    console.log('📝 Nuovo stato coltura:', newData.crop_type);
+                    console.log("📝 Nuovo stato coltura:", newData.crop_type);
                     return newData;
                   });
                 }}
@@ -457,36 +514,53 @@ export default function NuovoPreventivoBuyer() {
             </div>
 
             {/* Treatment Type - shown only when service is selected */}
-            {jobData.service_type && TREATMENT_TYPES[jobData.service_type as keyof typeof TREATMENT_TYPES] && (
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-3">
-                  Tipo di {jobData.service_type === 'SPRAY' ? 'Trattamento' : jobData.service_type === 'SPREAD' ? 'Spandimento' : 'Mappatura'} *
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {TREATMENT_TYPES[jobData.service_type as keyof typeof TREATMENT_TYPES].map((treatment) => (
-                    <button
-                      key={treatment.value}
-                      type="button"
-                      onClick={() => {
-                      console.log('💊 Click trattamento:', treatment.value);
-                      setJobData(prev => {
-                        const newData = { ...prev, treatment_type: treatment.value };
-                        console.log('📝 Nuovo stato trattamento:', newData.treatment_type);
-                        return newData;
-                      });
-                    }}
-                      className={`p-3 border rounded-lg text-left transition-colors ${
-                        jobData.treatment_type === treatment.value
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="font-medium">{treatment.label}</div>
-                    </button>
-                  ))}
+            {jobData.service_type &&
+              TREATMENT_TYPES[
+                jobData.service_type as keyof typeof TREATMENT_TYPES
+              ] && (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-3">
+                    Tipo di{" "}
+                    {jobData.service_type === "SPRAY"
+                      ? "Trattamento"
+                      : jobData.service_type === "SPREAD"
+                        ? "Spandimento"
+                        : "Mappatura"}{" "}
+                    *
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {TREATMENT_TYPES[
+                      jobData.service_type as keyof typeof TREATMENT_TYPES
+                    ].map((treatment) => (
+                      <button
+                        key={treatment.value}
+                        type="button"
+                        onClick={() => {
+                          console.log("💊 Click trattamento:", treatment.value);
+                          setJobData((prev) => {
+                            const newData = {
+                              ...prev,
+                              treatment_type: treatment.value,
+                            };
+                            console.log(
+                              "📝 Nuovo stato trattamento:",
+                              newData.treatment_type,
+                            );
+                            return newData;
+                          });
+                        }}
+                        className={`p-3 border rounded-lg text-left transition-colors ${
+                          jobData.treatment_type === treatment.value
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="font-medium">{treatment.label}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Terrain Conditions */}
             <div>
@@ -499,17 +573,23 @@ export default function NuovoPreventivoBuyer() {
                     key={condition.value}
                     type="button"
                     onClick={() => {
-                      console.log('🏔️ Click terreno:', condition.value);
-                      setJobData(prev => {
-                        const newData = { ...prev, terrain_conditions: condition.value };
-                        console.log('📝 Nuovo stato terreno:', newData.terrain_conditions);
+                      console.log("🏔️ Click terreno:", condition.value);
+                      setJobData((prev) => {
+                        const newData = {
+                          ...prev,
+                          terrain_conditions: condition.value,
+                        };
+                        console.log(
+                          "📝 Nuovo stato terreno:",
+                          newData.terrain_conditions,
+                        );
                         return newData;
                       });
                     }}
                     className={`p-3 border rounded-lg text-center transition-colors ${
                       jobData.terrain_conditions === condition.value
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     <div className="text-2xl mb-1">{condition.icon}</div>
@@ -519,7 +599,6 @@ export default function NuovoPreventivoBuyer() {
               </div>
             </div>
 
-
             {/* Time Window */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -528,8 +607,13 @@ export default function NuovoPreventivoBuyer() {
                 </label>
                 <input
                   type="date"
-                  value={jobData.requested_window_start || ''}
-                  onChange={(e) => setJobData(prev => ({ ...prev, requested_window_start: e.target.value }))}
+                  value={jobData.requested_window_start || ""}
+                  onChange={(e) =>
+                    setJobData((prev) => ({
+                      ...prev,
+                      requested_window_start: e.target.value,
+                    }))
+                  }
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
@@ -540,8 +624,13 @@ export default function NuovoPreventivoBuyer() {
                 </label>
                 <input
                   type="date"
-                  value={jobData.requested_window_end || ''}
-                  onChange={(e) => setJobData(prev => ({ ...prev, requested_window_end: e.target.value }))}
+                  value={jobData.requested_window_end || ""}
+                  onChange={(e) =>
+                    setJobData((prev) => ({
+                      ...prev,
+                      requested_window_end: e.target.value,
+                    }))
+                  }
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
@@ -553,14 +642,16 @@ export default function NuovoPreventivoBuyer() {
                 Note Aggiuntive (opzionale)
               </label>
               <textarea
-                value={jobData.constraints_json?.notes || ''}
-                onChange={(e) => setJobData(prev => ({
-                  ...prev,
-                  constraints_json: {
-                    ...prev.constraints_json,
-                    notes: e.target.value
-                  }
-                }))}
+                value={jobData.constraints_json?.notes || ""}
+                onChange={(e) =>
+                  setJobData((prev) => ({
+                    ...prev,
+                    constraints_json: {
+                      ...prev.constraints_json,
+                      notes: e.target.value,
+                    },
+                  }))
+                }
                 rows={3}
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 placeholder="Specifiche particolari, condizioni del terreno, urgenza, ecc."
@@ -577,7 +668,8 @@ export default function NuovoPreventivoBuyer() {
                   </h3>
                 </div>
                 <p className="text-sm text-emerald-700 mb-4">
-                  Ecco i preventivi immediati delle aziende certificate per questo servizio:
+                  Ecco i preventivi immediati delle aziende certificate per
+                  questo servizio:
                 </p>
                 <div className="space-y-3">
                   {certifiedQuotes.map((quote) => (
@@ -600,7 +692,9 @@ export default function NuovoPreventivoBuyer() {
                           </div>
                         )}
                         <div>
-                          <div className="font-semibold text-slate-900">{quote.org_name}</div>
+                          <div className="font-semibold text-slate-900">
+                            {quote.org_name}
+                          </div>
                           <div className="text-xs text-slate-500">
                             Distanza: {quote.distance_km} km
                           </div>
@@ -608,12 +702,18 @@ export default function NuovoPreventivoBuyer() {
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-emerald-600">
-                          € {((quote.total_cents || 0) / 100).toLocaleString('it-IT', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}
+                          €{" "}
+                          {((quote.total_cents || 0) / 100).toLocaleString(
+                            "it-IT",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            },
+                          )}
                         </div>
-                        <div className="text-xs text-slate-500">Preventivo immediato</div>
+                        <div className="text-xs text-slate-500">
+                          Preventivo immediato
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -624,7 +724,9 @@ export default function NuovoPreventivoBuyer() {
             {loadingCertifiedQuotes && (
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 mt-6 text-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 mx-auto mb-2"></div>
-                <p className="text-sm text-slate-600">Caricamento preventivi certificati...</p>
+                <p className="text-sm text-slate-600">
+                  Caricamento preventivi certificati...
+                </p>
               </div>
             )}
 
@@ -644,7 +746,7 @@ export default function NuovoPreventivoBuyer() {
                 disabled={isSubmitting}
                 className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700"
               >
-                {isSubmitting ? 'Pubblicando...' : 'Pubblica Job'}
+                {isSubmitting ? "Pubblicando..." : "Pubblica Job"}
               </Button>
             </div>
           </form>
