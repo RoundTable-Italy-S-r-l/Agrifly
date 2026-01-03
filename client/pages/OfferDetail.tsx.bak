@@ -1480,8 +1480,6 @@ export default function OfferDetail() {
                 </Button>
               </div>
             </div>
-            {/* SEZIONE DUPLICATA RIMOSSA */}
-            {false && <div>
               <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-slate-600" />
                 {existingOffer ? "Modifica Offerta" : "Crea Offerta"}

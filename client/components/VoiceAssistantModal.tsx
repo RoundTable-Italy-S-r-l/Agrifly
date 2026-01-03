@@ -25,7 +25,6 @@ interface ParsedFields {
 
 interface VoiceAssistantResponse {
   parsed_fields: ParsedFields;
-  confidence: number;
   suggestions: string[];
   unrecognized: string[];
 }
@@ -175,7 +174,7 @@ export function VoiceAssistantModal({ onParsedFields, trigger }: VoiceAssistantM
 
       // Mostra un toast con il risultato
       const fieldsCount = Object.values(data.parsed_fields).filter(v => v !== undefined).length;
-      toast.success(`Analizzati ${fieldsCount} campi con confidenza ${(data.confidence * 100).toFixed(0)}%`);
+      toast.success(`Analizzati ${fieldsCount} campi automaticamente`);
 
     } catch (error: any) {
       console.error('Voice assistant error:', error);
@@ -296,14 +295,9 @@ export function VoiceAssistantModal({ onParsedFields, trigger }: VoiceAssistantM
           {result && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Badge variant={result.confidence > 0.7 ? "default" : "secondary"}>
-                  Confidenza: {(result.confidence * 100).toFixed(0)}%
+                <Badge variant="outline">
+                  🤖 AI Analizzato
                 </Badge>
-                {result.parsed_fields.service_type && (
-                  <Badge variant="outline">
-                    🤖 AI Analizzato
-                  </Badge>
-                )}
               </div>
 
               {/* Parsed Fields */}

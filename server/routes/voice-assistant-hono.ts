@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { parseVoiceTextSimple } from "../utils/voice-parser.js";
 
 const app = new Hono();
 
@@ -24,10 +23,8 @@ interface ParsedFields {
 
 interface VoiceAssistantResponse {
   parsed_fields: ParsedFields;
-  confidence: number;
   suggestions: string[];
   unrecognized: string[];
-  raw_response?: any;
 }
 
 // Function to call Grok API
@@ -55,9 +52,7 @@ Restituisci un oggetto JSON con le categorie identificate:
   "treatment_type": "valore appropriato o null",
   "terrain_conditions": "FLAT/HILLY/MOUNTAINOUS o null",
   "field_name": "nome del campo se presente, altrimenti null",
-  "notes": "qualsiasi altra informazione rilevante",
-  "confidence": 0.0-1.0,
-  "explanation": "perché hai scelto questi valori"
+  "notes": "qualsiasi altra informazione rilevante"
 }`;
 
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -86,7 +81,7 @@ Restituisci un oggetto JSON con le categorie identificate:
 }
 
 // Function to parse Grok response
-function parseGrokResponse(grokText: string): ParsedFields & { confidence: number; explanation: string } {
+function parseGrokResponse(grokText: string): ParsedFields {
   try {
     const parsed = JSON.parse(grokText);
     return {
@@ -95,9 +90,7 @@ function parseGrokResponse(grokText: string): ParsedFields & { confidence: numbe
       crop_type: parsed.crop_type || undefined,
       treatment_type: parsed.treatment_type || undefined,
       terrain_conditions: parsed.terrain_conditions || undefined,
-      notes: parsed.notes || undefined,
-      confidence: parsed.confidence || 0.5,
-      explanation: parsed.explanation || ''
+      notes: parsed.notes || undefined
     };
   } catch (error) {
     console.warn('Failed to parse Grok response as JSON:', grokText);
@@ -112,9 +105,7 @@ function parseGrokResponse(grokText: string): ParsedFields & { confidence: numbe
           crop_type: parsed.crop_type || undefined,
           treatment_type: parsed.treatment_type || undefined,
           terrain_conditions: parsed.terrain_conditions || undefined,
-          notes: parsed.notes || undefined,
-          confidence: parsed.confidence || 0.5,
-          explanation: parsed.explanation || ''
+          notes: parsed.notes || undefined
         };
       } catch (e) {
         console.error('Fallback JSON parsing also failed');
@@ -186,47 +177,17 @@ app.post('/parse-service-description', async (c) => {
 
     const finalContext = { ...defaultContext, ...context };
 
-    // Try Grok API first
-    let parsed;
-    let rawResponse = null;
+    // Call Grok API
+    const grokResponse = await callGrokAPI(text, finalContext);
+    console.log('🤖 [VOICE ASSISTANT] Grok response:', grokResponse);
 
-    try {
-      const grokResponse = await callGrokAPI(text, finalContext);
-      console.log('🤖 [VOICE ASSISTANT] Grok response:', grokResponse);
-      rawResponse = grokResponse;
+    // Parse the response
+    const parsed = parseGrokResponse(grokResponse);
+    console.log('📝 [VOICE ASSISTANT] Parsed result:', parsed);
 
-      // Parse the response
-      parsed = parseGrokResponse(grokResponse);
-      console.log('📝 [VOICE ASSISTANT] Parsed result from AI:', parsed);
-
-      // Check if parsing was successful (has at least service_type or crop_type)
-      if (!parsed.service_type && !parsed.crop_type && !parsed.treatment_type && !parsed.terrain_conditions) {
-        throw new Error('AI parsing returned empty results');
-      }
-
-    } catch (aiError) {
-      console.warn('⚠️ [VOICE ASSISTANT] AI parsing failed, using fallback parser:', aiError.message);
-
-      // Fallback to simple parser
-      parsed = parseVoiceTextSimple(text);
-      console.log('🔄 [VOICE ASSISTANT] Parsed result from fallback:', parsed);
-
-      rawResponse = `Fallback parser used: ${aiError.message}`;
-    }
-
-    // Generate suggestions based on what's missing
+    // No additional logic - pure AI only
     const suggestions: string[] = [];
     const unrecognized: string[] = [];
-
-    if (!parsed.service_type) {
-      suggestions.push('Specificare il tipo di servizio (trattamento, spandimento, mappatura)');
-    }
-    if (!parsed.crop_type && parsed.service_type) {
-      suggestions.push('Indicare il tipo di coltura');
-    }
-    if (!parsed.treatment_type && parsed.service_type) {
-      suggestions.push(`Specificare il tipo {parsed.service_type === 'MAPPING' ? 'mappatura' : parsed.service_type === 'SPREAD' ? 'spandimento' : 'trattamento'}`);
-    }
 
     const response: VoiceAssistantResponse = {
       parsed_fields: {
@@ -237,10 +198,8 @@ app.post('/parse-service-description', async (c) => {
         terrain_conditions: parsed.terrain_conditions,
         notes: parsed.notes
       },
-      confidence: parsed.confidence,
       suggestions,
-      unrecognized,
-      raw_response: rawResponse
+      unrecognized
     };
 
     console.log('✅ [VOICE ASSISTANT] Final response:', response);
