@@ -43,7 +43,7 @@ async function callGrokAPI(text: string, context: any) {
 Richiesta utente: "${text}"
 
 Opzioni disponibili per il modulo:
-• Tipo di servizio: irrorazione (SPRAY), spandimento (SPREAD), rilievo aereo (MAPPING)
+• Tipo di servizio: irrorazione (IRRORAZIONE), spandimento (SPANDIMENTO), rilievo aereo (RILIEVO_AEREO)
 • Tipo di coltivazione: vite (VINEYARD), olivo (OLIVE_GROVE), cereali (CEREAL), ortaggi (VEGETABLES), frutta (FRUIT), altro (OTHER)
 • Tipo di lavorazione: per irrorazione usa termini come fungicida (FUNGICIDE), insetticida (INSECTICIDE), erbicida (HERBICIDA), fertilizzante (FERTILIZER); per spandimento usa organico (ORGANIC_FERTILIZER), chimico (CHEMICAL_FERTILIZER), calce (LIME); per rilievo aereo usa NDVI (NDVI), termico (THERMAL), multispettrale (MULTISPECTRAL), ortofoto (ORTHOPHOTO)
 • Condizioni terreno: pianura (FLAT), collina (HILLY), montagna (MOUNTAINOUS)
@@ -126,7 +126,7 @@ Restituisci un oggetto JSON con le categorie identificate (usa SOLO i valori enu
 }
 
 // Schema validation for AI responses
-const VALID_SERVICE_TYPES = ['SPRAY', 'SPREAD', 'MAPPING'];
+const VALID_SERVICE_TYPES = ['IRRORAZIONE', 'SPANDIMENTO', 'RILIEVO_AEREO', 'SOLLEVAMENTO'];
 const VALID_CROP_TYPES = ['VINEYARD', 'OLIVE_GROVE', 'CEREAL', 'VEGETABLES', 'FRUIT', 'OTHER'];
 const VALID_TREATMENT_TYPES = {
   SPRAY: ['FUNGICIDE', 'INSECTICIDE', 'HERBICIDE', 'FERTILIZER'],

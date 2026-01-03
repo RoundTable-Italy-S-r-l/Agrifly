@@ -19,7 +19,7 @@ describe("API Validation Schemas", () => {
     it("should validate correct job data", () => {
       const validData = {
         field_name: "Campo Test",
-        service_type: "SPRAY",
+        service_type: "IRRORAZIONE",
         area_ha: 10.5,
         crop_type: "VINEYARD",
         treatment_type: "FUNGICIDE",
@@ -79,7 +79,7 @@ describe("API Validation Schemas", () => {
   describe("CertifiedQuotesRequestSchema", () => {
     it("should validate and transform Italian area format", () => {
       const italianArea = {
-        service_type: "SPRAY",
+        service_type: "IRRORAZIONE",
         area_ha: "10,5", // Italian decimal
       };
 

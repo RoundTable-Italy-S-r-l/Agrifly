@@ -75,7 +75,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type ServiceType = "SPRAY" | "SPREAD" | "MAPPING";
+type ServiceType = "IRRORAZIONE" | "SPANDIMENTO" | "RILIEVO_AEREO" | "SOLLEVAMENTO";
 
 const serviceTypeConfig: Record<
   ServiceType,

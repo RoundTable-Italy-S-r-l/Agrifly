@@ -36,7 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
-type ServiceType = "SPRAY" | "SPREAD" | "MAPPING";
+type ServiceType = "IRRORAZIONE" | "SPANDIMENTO" | "RILIEVO_AEREO" | "SOLLEVAMENTO";
 
 const serviceTypeConfig: Record<
   ServiceType,

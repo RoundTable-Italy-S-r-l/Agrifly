@@ -12,7 +12,7 @@ async function callVoiceAssistantAPI(text) {
 Richiesta utente: "${text}"
 
 Opzioni disponibili per il modulo:
-• Tipo di servizio: irrorazione (SPRAY), spandimento (SPREAD), rilievo aereo (MAPPING)
+• Tipo di servizio: irrorazione (IRRORAZIONE), spandimento (SPANDIMENTO), rilievo aereo (RILIEVO_AEREO)
 • Tipo di coltivazione: vite (VINEYARD), olivo (OLIVE_GROVE), cereali (CEREAL), ortaggi (VEGETABLES), frutta (FRUIT), altro (OTHER)
 • Tipo di lavorazione: per irrorazione usa termini come fungicida (FUNGICIDE), insetticida (INSECTICIDE), erbicida (HERBICIDA), fertilizzante (FERTILIZER); per spandimento usa organico (ORGANIC_FERTILIZER), chimico (CHEMICAL_FERTILIZER), calce (LIME); per rilievo aereo usa NDVI (NDVI), termico (THERMAL), multispettrale (MULTISPECTRAL), ortofoto (ORTHOPHOTO)
 • Condizioni terreno: pianura (FLAT), collina (HILLY), montagna (MOUNTAINOUS)
@@ -77,14 +77,14 @@ async function runE2ETests() {
   console.log('=====================================\n');
 
   const testCases = [
-    { text: "Tratta il vigneto con fungica in collina", expected: { service_type: "SPRAY", crop_type: "VINEYARD", treatment_type: "FUNGICIDE", terrain_conditions: "HILLY" }},
-    { text: "Devo concimare il frumento domani", expected: { service_type: "SPREAD", crop_type: "CEREAL", treatment_type: "CHEMICAL_FERTILIZER" }},
-    { text: "Diserbo nell'oliveto pianeggiante", expected: { service_type: "SPRAY", crop_type: "OLIVE_GROVE", treatment_type: "HERBICIDE", terrain_conditions: "FLAT" }},
+    { text: "Tratta il vigneto con fungica in collina", expected: { service_type: "IRRORAZIONE", crop_type: "VINEYARD", treatment_type: "FUNGICIDE", terrain_conditions: "HILLY" }},
+    { text: "Devo concimare il frumento domani", expected: { service_type: "SPANDIMENTO", crop_type: "CEREAL", treatment_type: "CHEMICAL_FERTILIZER" }},
+    { text: "Diserbo nell'oliveto pianeggiante", expected: { service_type: "IRRORAZIONE", crop_type: "OLIVE_GROVE", treatment_type: "HERBICIDE", terrain_conditions: "FLAT" }},
     { text: "Irrigazione goccia su pomodori in serra", expected: { service_type: null, crop_type: "VEGETABLES" }},
     { text: "Trinciatura erba tra i filari", expected: { service_type: null, crop_type: "VINEYARD" }},
     { text: "Raccolta olive zona scoscesa", expected: { service_type: null, crop_type: "OLIVE_GROVE", terrain_conditions: "MOUNTAINOUS" }},
     { text: "Semina mais appezzamento nord", expected: { service_type: null, crop_type: "CEREAL" }},
-    { text: "Trattamento rameico su vite", expected: { service_type: "SPRAY", crop_type: "VINEYARD" }},
+    { text: "Trattamento rameico su vite", expected: { service_type: "IRRORAZIONE", crop_type: "VINEYARD" }},
     { text: "Spandimento letame su prato", expected: { service_type: "SPREAD" }},
     { text: "Non so, devo fare un lavoro nel campo", expected: { service_type: null, crop_type: null } }
   ];

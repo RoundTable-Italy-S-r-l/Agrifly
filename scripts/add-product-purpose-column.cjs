@@ -31,7 +31,7 @@ const { Client } = require("pg");
       }
     }
 
-    // Aggiorna prodotti: tutti SPRAY e SPREAD tranne Mavic 3M che è MAPPING
+    // Aggiorna prodotti: tutti IRRORAZIONE e SPANDIMENTO tranne Mavic 3M che è RILIEVO_AEREO
     console.log("📋 Aggiorno purpose dei prodotti...");
 
     // Prodotti con SPRAY e SPREAD
@@ -42,7 +42,7 @@ const { Client } = require("pg");
       "prd_t50",
       "prd_t70p",
     ];
-    const spraySpreadPurpose = JSON.stringify(["SPRAY", "SPREAD"]);
+    const spraySpreadPurpose = JSON.stringify(["IRRORAZIONE", "SPANDIMENTO"]);
 
     for (const productId of spraySpreadProducts) {
       const result = await client.query(
@@ -50,20 +50,20 @@ const { Client } = require("pg");
         [spraySpreadPurpose, productId],
       );
       if (result.rowCount > 0) {
-        console.log(`  ✅ ${productId}: SPRAY, SPREAD`);
+        console.log(`  ✅ ${productId}: IRRORAZIONE, SPANDIMENTO`);
       } else {
         console.log(`  ⚠️  ${productId}: prodotto non trovato`);
       }
     }
 
-    // Mavic 3M con MAPPING
-    const mavicPurpose = JSON.stringify(["MAPPING"]);
+    // Mavic 3M con RILIEVO_AEREO
+    const mavicPurpose = JSON.stringify(["RILIEVO_AEREO"]);
     const mavicResult = await client.query(
       "UPDATE products SET purpose = $1 WHERE id = $2",
       [mavicPurpose, "prd_mavic3m"],
     );
     if (mavicResult.rowCount > 0) {
-      console.log(`  ✅ prd_mavic3m: MAPPING`);
+      console.log(`  ✅ prd_mavic3m: RILIEVO_AEREO`);
     } else {
       console.log(`  ⚠️  prd_mavic3m: prodotto non trovato`);
     }

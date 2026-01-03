@@ -46,7 +46,7 @@ async function main() {
   console.log("📋 Creazione Rate Cards...");
   const rateCards = [
     {
-      service_type: "SPRAY" as const,
+      service_type: "IRRORAZIONE" as const,
       base_rate_per_ha_cents: 1800, // €18/ha
       min_charge_cents: 25000, // €250 minimo
       travel_rate_per_km_cents: 120, // €1.20/km
@@ -64,7 +64,7 @@ async function main() {
       },
     },
     {
-      service_type: "SPREAD" as const,
+      service_type: "SPANDIMENTO" as const,
       base_rate_per_ha_cents: 1500, // €15/ha
       min_charge_cents: 20000, // €200 minimo
       travel_rate_per_km_cents: 100, // €1/km
@@ -82,7 +82,7 @@ async function main() {
       },
     },
     {
-      service_type: "MAPPING" as const,
+      service_type: "RILIEVO_AEREO" as const,
       base_rate_per_ha_cents: 800, // €8/ha
       min_charge_cents: 15000, // €150 minimo
       travel_rate_per_km_cents: 80, // €0.80/km
@@ -131,7 +131,7 @@ async function main() {
       operatorProfile: {
         max_hours_per_day: 8.0,
         max_ha_per_day: 50.0,
-        service_tags: ["SPRAY", "SPREAD"],
+        service_tags: ["IRRORAZIONE", "SPANDIMENTO"],
         status: "ACTIVE" as const,
       },
     },
@@ -145,7 +145,7 @@ async function main() {
       operatorProfile: {
         max_hours_per_day: 6.0,
         max_ha_per_day: 40.0,
-        service_tags: ["MAPPING", "SPRAY"],
+        service_tags: ["RILIEVO_AEREO", "IRRORAZIONE"],
         status: "ACTIVE" as const,
       },
     },
@@ -159,7 +159,7 @@ async function main() {
       operatorProfile: {
         max_hours_per_day: 7.0,
         max_ha_per_day: 45.0,
-        service_tags: ["SPREAD", "MAPPING"],
+        service_tags: ["SPANDIMENTO", "RILIEVO_AEREO"],
         status: "ACTIVE" as const,
       },
     },
@@ -353,10 +353,10 @@ async function main() {
     const site = createdSites[i % createdSites.length];
     const operator = createdOperators[i % createdOperators.length];
     const asset = assets[i % assets.length];
-    const serviceType = ["SPRAY", "SPREAD", "MAPPING"][i % 3] as
-      | "SPRAY"
-      | "SPREAD"
-      | "MAPPING";
+    const serviceType = ["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO"][i % 3] as
+      | "IRRORAZIONE"
+      | "SPANDIMENTO"
+      | "RILIEVO_AEREO";
 
     // Crea booking
     const booking = await prisma.booking.create({

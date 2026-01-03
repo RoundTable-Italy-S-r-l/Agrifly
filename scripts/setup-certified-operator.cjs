@@ -12,7 +12,7 @@ const client = new Client({
 
 // Parametri configurabili
 const ORG_ID = process.argv[2]; // Passa l'ID dell'organizzazione come argomento
-const SERVICE_TYPES = ["SPRAY", "SPREAD", "MAPPING"]; // Servizi da configurare
+const SERVICE_TYPES = ["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO", "SOLLEVAMENTO"]; // Servizi da configurare
 const BASE_LAT = 44.4949; // Bologna (esempio)
 const BASE_LNG = 11.3426;
 

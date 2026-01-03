@@ -118,19 +118,24 @@ export const PREVENTIVO_COLORS = {
 } as const;
 
 export const PREVENTIVO_SERVICE_TYPES = {
-  SPRAY: {
+  IRRORAZIONE: {
     label: "Irrorazione",
     icon: "💧",
     color: "bg-blue-50 text-blue-700",
   },
-  SPREAD: {
+  SPANDIMENTO: {
     label: "Spandimento",
     icon: "📦",
     color: "bg-purple-50 text-purple-700",
   },
-  MAPPING: {
-    label: "Mappatura",
+  RILIEVO_AEREO: {
+    label: "Rilievo aereo",
     icon: "🗺️",
     color: "bg-green-50 text-green-700",
+  },
+  SOLLEVAMENTO: {
+    label: "Sollevamento",
+    icon: "🚁",
+    color: "bg-orange-50 text-orange-700",
   },
 } as const;

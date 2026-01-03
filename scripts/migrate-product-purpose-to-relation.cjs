@@ -49,7 +49,7 @@ const { Client } = require("pg");
 
         for (const purpose of purposes) {
           // Verifica che il purpose sia valido
-          if (!["SPRAY", "SPREAD", "MAPPING"].includes(purpose)) {
+          if (!["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO", "SOLLEVAMENTO"].includes(purpose)) {
             console.log(`    ⚠️  Purpose non valido: ${purpose}, skip`);
             continue;
           }

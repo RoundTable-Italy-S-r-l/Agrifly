@@ -45,7 +45,7 @@ function calculateOperatorAvailability(
       (op) =>
         op.status === "ACTIVE" &&
         op.service_tags.includes(
-          serviceConfig.treatment?.type === "solid" ? "SPREAD" : "SPRAY",
+          serviceConfig.treatment?.type === "solid" ? "SPANDIMENTO" : "IRRORAZIONE",
         ),
     )
     .slice(0, 3) // Limit to 3 for demo

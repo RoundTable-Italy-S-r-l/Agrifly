@@ -91,7 +91,7 @@ describe("Integration Validation Tests", () => {
     it("should successfully create a job with Italian number format", async () => {
       const requestBody = {
         field_name: "Campo di Vino",
-        service_type: "SPRAY",
+        service_type: "IRRORAZIONE",
         area_ha: "25,5", // Italian format
         crop_type: "VINEYARD",
         treatment_type: "FUNGICIDE",
@@ -111,7 +111,7 @@ describe("Integration Validation Tests", () => {
       const result = await response.json();
       expect(result.success).toBe(true);
       expect(result.data.field_name).toBe("Campo di Vino");
-      expect(result.data.service_type).toBe("SPRAY");
+      expect(result.data.service_type).toBe("IRRORAZIONE");
       expect(result.data.area_ha).toBe(25.5);
       expect(result.data.crop_type).toBe("VINEYARD");
       expect(result.data.treatment_type).toBe("FUNGICIDE");
@@ -142,7 +142,7 @@ describe("Integration Validation Tests", () => {
     it("should handle minimal valid job data", async () => {
       const minimalRequestBody = {
         field_name: "Campo Minimo",
-        service_type: "SPRAY",
+        service_type: "IRRORAZIONE",
         area_ha: 10,
       };
 
@@ -156,7 +156,7 @@ describe("Integration Validation Tests", () => {
       const result = await response.json();
       expect(result.success).toBe(true);
       expect(result.data.field_name).toBe("Campo Minimo");
-      expect(result.data.service_type).toBe("SPRAY");
+      expect(result.data.service_type).toBe("IRRORAZIONE");
       expect(result.data.area_ha).toBe(10);
       expect(result.data.crop_type).toBeUndefined();
       expect(result.data.treatment_type).toBeUndefined();
@@ -397,7 +397,7 @@ describe("Integration Validation Tests", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           field_name: "Test Field",
-          service_type: "SPRAY",
+          service_type: "IRRORAZIONE",
           area_ha: 10,
         }),
       });
@@ -414,7 +414,7 @@ describe("Integration Validation Tests", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           field_name: "", // This should fail validation
-          service_type: "SPRAY",
+          service_type: "IRRORAZIONE",
           area_ha: 10,
         }),
       });

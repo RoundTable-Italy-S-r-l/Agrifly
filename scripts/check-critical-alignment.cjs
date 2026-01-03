@@ -52,7 +52,7 @@ async function checkCriticalAlignment() {
         description: "Tipo prodotto",
       },
       ServiceType: {
-        codeValues: ["SPRAY", "SPREAD", "MAPPING"],
+        codeValues: ["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO", "SOLLEVAMENTO"],
         description: "Tipo servizio",
       },
       OrgType: {

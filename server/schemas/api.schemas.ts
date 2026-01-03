@@ -11,7 +11,7 @@ const italianNumberTransform = z
   });
 
 // Enums
-export const ServiceTypeSchema = z.enum(["SPRAY", "SPREAD", "MAPPING"]);
+export const ServiceTypeSchema = z.enum(["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO", "SOLLEVAMENTO"]);
 export const CropTypeSchema = z.enum([
   "VINEYARD",
   "OLIVE_GROVE",

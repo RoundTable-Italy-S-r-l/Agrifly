@@ -233,7 +233,7 @@ describe("Validation Edge Cases", () => {
 
   describe("Enum Validation", () => {
     it("should accept valid enum values", () => {
-      const validServiceTypes = ["SPRAY", "SPREAD", "MAPPING"];
+      const validServiceTypes = ["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO", "SOLLEVAMENTO"];
       const validAccountTypes = ["buyer", "vendor", "operator"];
       const validCropTypes = [
         "VINEYARD",
@@ -283,7 +283,7 @@ describe("Validation Edge Cases", () => {
     });
 
     it("should reject invalid enum values", () => {
-      const invalidServiceTypes = ["INVALID", "spray", "SPRAYING", ""];
+      const invalidServiceTypes = ["INVALID", "irrorazione", "IRRORAZIONE_INVALID", ""];
       const invalidAccountTypes = ["admin", "customer", "INVALID"];
       const invalidCropTypes = ["GRAPES", "invalid", ""];
 
@@ -432,7 +432,7 @@ describe("Validation Edge Cases", () => {
     it("should handle all optional fields being undefined", () => {
       const minimalData = {
         field_name: "Test Field",
-        service_type: "SPRAY",
+        service_type: "IRRORAZIONE",
         area_ha: 10,
       };
 
@@ -446,7 +446,7 @@ describe("Validation Edge Cases", () => {
     it("should handle partial optional fields", () => {
       const partialData = {
         field_name: "Test Field",
-        service_type: "SPRAY",
+        service_type: "IRRORAZIONE",
         area_ha: 10,
         crop_type: "VINEYARD",
         // treatment_type and terrain_conditions omitted
@@ -479,7 +479,7 @@ describe("Validation Edge Cases", () => {
     });
 
     it("should validate service types consistently", () => {
-      const serviceTypes = ["SPRAY", "SPREAD", "MAPPING"];
+      const serviceTypes = ["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO", "SOLLEVAMENTO"];
 
       serviceTypes.forEach((serviceType) => {
         const jobResult = CreateJobSchema.safeParse({

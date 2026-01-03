@@ -1002,7 +1002,7 @@ export const updateServiceConfig = (
 export interface MissionHistory {
   id: string;
   booking_id: string;
-  service_type: "SPRAY" | "SPREAD" | "MAPPING";
+  service_type: "IRRORAZIONE" | "SPANDIMENTO" | "RILIEVO_AEREO" | "SOLLEVAMENTO";
   executed_start_at: string;
   executed_end_at: string | null;
   actual_area_ha: number | null;
@@ -1578,7 +1578,7 @@ export interface Operator {
 // Bookings API
 export interface Booking {
   id: string;
-  service_type: "SPRAY" | "SPREAD" | "MAPPING";
+  service_type: "IRRORAZIONE" | "SPANDIMENTO" | "RILIEVO_AEREO" | "SOLLEVAMENTO";
   status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "DONE" | "CANCELLED";
   buyer_org_name: string;
   location: string;

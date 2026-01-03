@@ -14,7 +14,7 @@ const app = new Hono();
  * Get immediate quotes from certified operators for a job
  *
  * Query params:
- * - service_type: 'SPRAY' | 'SPREAD' | 'MAPPING'
+ * - service_type: 'IRRORAZIONE' | 'SPANDIMENTO' | 'RILIEVO_AEREO' | 'SOLLEVAMENTO'
  * - area_ha: number
  * - location_lat: number (job location latitude)
  * - location_lng: number (job location longitude)

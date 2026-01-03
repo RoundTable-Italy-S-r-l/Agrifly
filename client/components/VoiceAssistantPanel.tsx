@@ -34,9 +34,10 @@ interface VoiceAssistantPanelProps {
 }
 
 const SERVICE_TYPES = [
-  { value: 'SPRAY', label: 'Irrorazione' },
-  { value: 'SPREAD', label: 'Spandimento' },
-  { value: 'MAPPING', label: 'Rilievo aereo' }
+  { value: 'IRRORAZIONE', label: 'Irrorazione' },
+  { value: 'SPANDIMENTO', label: 'Spandimento' },
+  { value: 'RILIEVO_AEREO', label: 'Rilievo aereo' },
+  { value: 'SOLLEVAMENTO', label: 'Sollevamento' }
 ];
 
 const CROP_TYPES = [
@@ -49,19 +50,19 @@ const CROP_TYPES = [
 ];
 
 const TREATMENT_TYPES = {
-  SPRAY: [
+  IRRORAZIONE: [
     { value: 'FUNGICIDE', label: 'Fungicida' },
     { value: 'INSECTICIDE', label: 'Insetticida' },
     { value: 'HERBICIDE', label: 'Erbicida' },
     { value: 'FERTILIZER', label: 'Fertilizzante' }
   ],
-  SPREAD: [
+  SPANDIMENTO: [
     { value: 'ORGANIC_FERTILIZER', label: 'Organico' },
     { value: 'CHEMICAL_FERTILIZER', label: 'Chimico' },
     { value: 'LIME', label: 'Calce' },
     { value: 'OTHER', label: 'Altro' }
   ],
-  MAPPING: [
+  RILIEVO_AEREO: [
     { value: 'NDVI', label: 'NDVI' },
     { value: 'THERMAL', label: 'Termico' },
     { value: 'MULTISPECTRAL', label: 'Multispettrale' },

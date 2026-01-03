@@ -23,9 +23,10 @@ interface JobFormData {
 }
 
 const SERVICE_TYPES = [
-  { value: "SPRAY", label: "Irrorazione", icon: "🌿" },
-  { value: "SPREAD", label: "Spandimento", icon: "🌱" },
-  { value: "MAPPING", label: "Rilievo aereo", icon: "🗺️" },
+  { value: "IRRORAZIONE", label: "Irrorazione", icon: "🌿" },
+  { value: "SPANDIMENTO", label: "Spandimento", icon: "🌱" },
+  { value: "RILIEVO_AEREO", label: "Rilievo aereo", icon: "🗺️" },
+  { value: "SOLLEVAMENTO", label: "Sollevamento", icon: "🚁" },
 ];
 
 const CROP_TYPES = [
@@ -38,19 +39,19 @@ const CROP_TYPES = [
 ];
 
 const TREATMENT_TYPES = {
-  SPRAY: [
+  IRRORAZIONE: [
     { value: "FUNGICIDE", label: "Trattamento fungicida" },
     { value: "INSECTICIDE", label: "Trattamento insetticida" },
     { value: "HERBICIDE", label: "Trattamento erbicida" },
     { value: "FERTILIZER", label: "Concimazione fogliare" },
   ],
-  SPREAD: [
+  SPANDIMENTO: [
     { value: "ORGANIC_FERTILIZER", label: "Concime organico" },
     { value: "CHEMICAL_FERTILIZER", label: "Concime chimico" },
     { value: "LIME", label: "Spandimento calce" },
     { value: "OTHER", label: "Altro" },
   ],
-  MAPPING: [
+  RILIEVO_AEREO: [
     { value: "NDVI", label: "Mappatura NDVI" },
     { value: "THERMAL", label: "Termografia" },
     { value: "MULTISPECTRAL", label: "Multispettrale" },
@@ -73,7 +74,7 @@ export default function NuovoPreventivoBuyer() {
   const [loadingCertifiedQuotes, setLoadingCertifiedQuotes] = useState(false);
 
   const [jobData, setJobData] = useState<Partial<JobFormData>>({
-    service_type: "SPRAY",
+    service_type: "IRRORAZIONE",
   });
 
   // Check for pending field data from preventivo flow
@@ -525,11 +526,13 @@ export default function NuovoPreventivoBuyer() {
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-3">
                     Tipo di{" "}
-                    {jobData.service_type === "SPRAY"
+                    {jobData.service_type === "IRRORAZIONE"
                       ? "Trattamento"
-                      : jobData.service_type === "SPREAD"
+                      : jobData.service_type === "SPANDIMENTO"
                         ? "Spandimento"
-                        : "Mappatura"}{" "}
+                        : jobData.service_type === "RILIEVO_AEREO"
+                          ? "Mappatura"
+                          : "Servizio"}{" "}
                     *
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

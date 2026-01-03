@@ -13,7 +13,7 @@ const app = new Hono();
  * Request body:
  * {
  *   seller_org_id: string,
- *   service_type: 'SPRAY' | 'SPREAD' | 'MAPPING',
+ *   service_type: 'IRRORAZIONE' | 'SPANDIMENTO' | 'RILIEVO_AEREO' | 'SOLLEVAMENTO',
  *   area_ha: number,
  *   distance_km: number,
  *   is_hilly_terrain?: boolean,

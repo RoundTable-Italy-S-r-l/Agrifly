@@ -66,8 +66,8 @@ app.get("/:orgId", async (c) => {
       // Se l'azienda non vuole mostrare operatori individuali,
       // restituisci un operatore "virtuale" che rappresenta l'azienda
       const serviceTagsArray = isPostgreSQL
-        ? "ARRAY['SPRAY', 'SPREAD', 'MAPPING']::text[]"
-        : '\'["SPRAY", "SPREAD", "MAPPING"]\'';
+        ? "ARRAY['IRRORAZIONE', 'SPANDIMENTO', 'RILIEVO_AEREO', 'SOLLEVAMENTO']::text[]"
+        : '\'["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO", "SOLLEVAMENTO"]\'';
       operatorsQuery = `
         SELECT
           'company_' || o.id as id,
@@ -187,8 +187,8 @@ app.get("/:orgId/:operatorId", async (c) => {
     if (operatorId.startsWith("company_")) {
       // È l'operatore "company" (rappresenta l'azienda)
       const serviceTagsArray = isPostgreSQL
-        ? "ARRAY['SPRAY', 'SPREAD', 'MAPPING']::text[]"
-        : '\'["SPRAY", "SPREAD", "MAPPING"]\'';
+        ? "ARRAY['IRRORAZIONE', 'SPANDIMENTO', 'RILIEVO_AEREO', 'SOLLEVAMENTO']::text[]"
+        : '\'["IRRORAZIONE", "SPANDIMENTO", "RILIEVO_AEREO", "SOLLEVAMENTO"]\'';
       operatorQuery = `
         SELECT
           'company_' || o.id as id,

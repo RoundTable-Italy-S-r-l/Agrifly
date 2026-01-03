@@ -86,7 +86,7 @@ export function usePreventivoState() {
     try {
       // Determine service type
       const service_type =
-        state.serviceConfig.treatment.type === "solid" ? "SPREAD" : "SPRAY";
+        state.serviceConfig.treatment.type === "solid" ? "SPANDIMENTO" : "IRRORAZIONE";
 
       // Determine risk multiplier
       let risk_key: string | undefined;
