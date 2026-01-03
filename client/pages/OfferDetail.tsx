@@ -232,13 +232,13 @@ export default function OfferDetail() {
   const jobFromId = operatorJobsData.jobs?.find((j: any) => j.id === offerId);
 
   // Se abbiamo trovato un job ma non un'offerta, cerca se esiste già un'offerta per questo job
-  const existingOfferForJob = jobFromId && !offer
+  const existingOffer = jobFromId && !offer
     ? jobOffers.made?.find((o: JobOffer) => o.job_id === jobFromId.id && o.status === "OFFERED")
     : null;
 
   // Check if this offer is in the "made" list (user is the operator)
   const isMadeOffer = jobOffers.made?.some((o) => o.id === offerId) ||
-                     (existingOfferForJob ? true : false) || false;
+                     (existingOffer ? true : false) || false;
 
   // Debug: log dell'offerta trovata
   useEffect(() => {
@@ -276,8 +276,8 @@ export default function OfferDetail() {
     // Se abbiamo trovato un job per ID diretto
     job = jobFromId;
     // Se esiste già un'offerta per questo job, usala
-    if (existingOfferForJob) {
-      effectiveOffer = existingOfferForJob;
+    if (existingOffer) {
+      effectiveOffer = existingOffer;
     }
   }
 
@@ -286,7 +286,7 @@ export default function OfferDetail() {
     offerId,
     foundOffer: !!offer,
     foundJobFromId: !!jobFromId,
-    existingOfferForJob: !!existingOfferForJob,
+    existingOffer: !!existingOffer,
     finalJob: !!job,
     finalOffer: !!effectiveOffer,
     jobId: job?.id,

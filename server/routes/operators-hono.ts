@@ -356,6 +356,9 @@ app.post(
         user_id, // Opzionale - collega a user esistente
       } = validatedBody;
 
+      // Converti max_ha_per_day in numero se presente
+      const maxHaPerDay = max_ha_per_day !== undefined ? parseFloat(max_ha_per_day) || null : null;
+
       console.log("➕ Creazione operatore interno per org:", orgId);
 
       // Verifica che l'organizzazione esista
