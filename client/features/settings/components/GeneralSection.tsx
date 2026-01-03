@@ -117,6 +117,7 @@ export function GeneralSection() {
       setSelectedRegion(region)
       setSelectedProvince(province)
       setSelectedCity(city)
+      setCityInputValue(city || '')
     }
   }, [organization, form])
   
@@ -134,7 +135,13 @@ export function GeneralSection() {
   useEffect(() => {
     if (!selectedProvince) {
       setSelectedCity('')
+      setCityInputValue('')
       form.setValue('city', '')
+      setShowCitySuggestions(false)
+    } else {
+      // Reset input quando cambia provincia
+      setCityInputValue('')
+      setShowCitySuggestions(false)
     }
   }, [selectedProvince, form])
 
@@ -431,42 +438,58 @@ export function GeneralSection() {
               </Select>
             </div>
 
-            {/* Città */}
+            {/* Città - Input con autocomplete */}
             <div className="space-y-2">
               <Label htmlFor="city">Città</Label>
-              <Select
-                value={selectedCity}
-                onValueChange={(value) => {
-                  setSelectedCity(value)
-                  form.setValue('city', value)
-                }}
-                disabled={!selectedProvince}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={selectedProvince ? "Seleziona città" : "Prima seleziona provincia"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCities.length > 0 ? (
-                    filteredCities
-                      .filter(city => city && city.trim() !== '') // Filtra città vuote
-                      .map((city) => (
-                        <SelectItem key={city} value={city}>
-                          {city}
-                        </SelectItem>
-                      ))
-                  ) : null}
-                </SelectContent>
-              </Select>
-              {selectedProvince && filteredCities.length === 0 && (
+              <div className="relative">
                 <Input
                   id="city"
                   {...form.register('city')}
-                  placeholder="Inserisci città manualmente"
+                  value={cityInputValue || form.watch('city') || ''}
+                  placeholder={selectedProvince ? "Inserisci città (con suggerimenti)" : "Prima seleziona provincia"}
+                  disabled={!selectedProvince}
                   onChange={(e) => {
-                    setSelectedCity(e.target.value)
-                    form.setValue('city', e.target.value)
+                    const value = e.target.value
+                    setCityInputValue(value)
+                    setSelectedCity(value)
+                    form.setValue('city', value)
+                    setShowCitySuggestions(value.length > 0 && filteredCitySuggestions.length > 0)
+                  }}
+                  onFocus={() => {
+                    if (cityInputValue && filteredCitySuggestions.length > 0) {
+                      setShowCitySuggestions(true)
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay per permettere click su suggerimento
+                    setTimeout(() => setShowCitySuggestions(false), 200)
                   }}
                 />
+                {/* Suggerimenti autocomplete */}
+                {showCitySuggestions && selectedProvince && filteredCitySuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {filteredCitySuggestions.slice(0, 10).map((city) => (
+                      <button
+                        key={city}
+                        type="button"
+                        className="w-full text-left px-4 py-2 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                        onClick={() => {
+                          setCityInputValue(city)
+                          setSelectedCity(city)
+                          form.setValue('city', city)
+                          setShowCitySuggestions(false)
+                        }}
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedProvince && citySuggestions.length > 0 && (
+                <p className="text-xs text-slate-500">
+                  {citySuggestions.length} città disponibili come suggerimenti. Puoi anche inserire una città non in lista.
+                </p>
               )}
             </div>
 
