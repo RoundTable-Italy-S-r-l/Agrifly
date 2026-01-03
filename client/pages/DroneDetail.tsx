@@ -613,18 +613,12 @@ const DroneDetail = () => {
                 {coreSpecs.length > 0 && (
                   <div>
                     <div className="space-y-6">
-                      {(() => {
-                        const orderedSections = getOrderedSections(coreSpecsGrouped);
-                        console.log('Ordered sections:', orderedSections);
-                        console.log('Core specs grouped:', coreSpecsGrouped);
-                        return orderedSections.map((section) => {
-                          const sectionSpecs = coreSpecsGrouped[section] || [];
-                          console.log(`Section ${section}:`, sectionSpecs.length, 'specs');
-                          if (sectionSpecs.length === 0) {
-                            console.log(`Skipping empty section: ${section}`);
-                            return null;
-                          }
-                          return (
+                      {getOrderedSections(coreSpecsGrouped).map((section) => {
+                        const sectionSpecs = coreSpecsGrouped[section] || [];
+                        if (sectionSpecs.length === 0) {
+                          return null;
+                        }
+                        return (
                           <div
                             key={section}
                             className="bg-white rounded-lg border border-slate-200 p-6"
@@ -633,9 +627,8 @@ const DroneDetail = () => {
                               <span className="w-1 h-6 bg-emerald-600 rounded"></span>
                               {translateSection(section)}
                             </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {coreSpecsGrouped[section].map(
-                              (spec: any, idx: number) => (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {sectionSpecs.map((spec: any, idx: number) => (
                                 <div
                                   key={idx}
                                   className="bg-slate-50 rounded-lg p-4 border border-slate-200"
@@ -652,13 +645,11 @@ const DroneDetail = () => {
                                     </p>
                                   )}
                                 </div>
-                              ),
-                            )}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                          );
-                        });
-                      })()}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
