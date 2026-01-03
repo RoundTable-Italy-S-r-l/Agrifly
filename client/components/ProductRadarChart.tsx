@@ -112,24 +112,51 @@ export function ProductRadarChart({ metrics }: ProductRadarChartProps) {
     Radar: "#ec4899", // pink
   };
 
+  // Formattazione testi per assi
+  const formatAxisLabel = (metric: string) => {
+    switch (metric) {
+      case "Sistema Irrorazione":
+        return ["Sistema", "Irrorazione"];
+      case "Generatore":
+        return ["Generatore"];
+      default:
+        return [metric];
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Confronto prodotti</CardTitle>
-        <p className="text-xs text-slate-500 mt-1">
-          Posizionamento rispetto ad altri prodotti con purpose:{" "}
-          {metrics.purposes.join(", ")}
-        </p>
       </CardHeader>
       <CardContent>
-        <div className="w-full h-[400px]">
+        <div className="w-full h-[500px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={chartData}>
               <PolarGrid stroke="#e5e7eb" />
               <PolarAngleAxis
                 dataKey="metric"
-                tick={{ fill: "#64748b", fontSize: 11 }}
-                style={{ fontSize: "11px" }}
+                tick={(props) => {
+                  const { payload, x, y } = props;
+                  const lines = formatAxisLabel(payload.value);
+                  return (
+                    <g>
+                      {lines.map((line, index) => (
+                        <text
+                          key={index}
+                          x={x}
+                          y={y + (index * 10)}
+                          textAnchor="middle"
+                          fill="#64748b"
+                          fontSize={10}
+                          style={{ fontSize: "10px" }}
+                        >
+                          {line}
+                        </text>
+                      ))}
+                    </g>
+                  );
+                }}
               />
               <PolarRadiusAxis
                 angle={90}
