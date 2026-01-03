@@ -327,8 +327,8 @@ app.post(
       return {
         sku_id: item.sku_id,
         quantity: quantity,
-        unit_price_cents: unitPrice,
-        line_total_cents: lineTotal,
+        unit_price_cents: unitPrice || 0,
+        line_total_cents: lineTotal || 0,
       };
       });
 
@@ -387,15 +387,15 @@ app.post(
       for (const line of orderLines) {
         const lineId = `ol_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         await query(
-          `INSERT INTO order_lines (id, order_id, sku_id, qty, unit_price_cents, line_total_cents)
+          `INSERT INTO order_lines (id, order_id, sku_id, quantity, unit_price_cents, line_total_cents)
          VALUES ($1, $2, $3, $4, $5, $6)`,
           [
             lineId,
             order.id,
             line.sku_id,
-            line.quantity,
-            line.unit_price_cents,
-            line.line_total_cents,
+            quantity,
+            line.unit_price_cents || 0,
+            line.line_total_cents || 0,
           ],
         );
       }

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { GisMapSelector } from "../landing-preventivo/components/GisMapSelector";
 import { fetchCertifiedQuotes, CertifiedQuote } from "@/lib/api";
 import { CheckCircle } from "lucide-react";
+import { VoiceAssistantModal } from "@/components/VoiceAssistantModal";
 
 interface JobFormData {
   field_name: string;
@@ -416,9 +417,22 @@ export default function NuovoPreventivoBuyer() {
           <form onSubmit={handleServiceSubmit} className="space-y-6">
             {/* Campo selezionato info */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-              <h3 className="font-medium text-emerald-900 mb-2">
-                Campo Selezionato
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-emerald-900">
+                  Campo Selezionato
+                </h3>
+                <VoiceAssistantModal
+                  onParsedFields={(fields) => {
+                    console.log("🎤 Campi parsati dall'assistente vocale:", fields);
+                    setJobData((prev) => {
+                      const newData = { ...prev, ...fields };
+                      console.log("📝 Nuovo stato jobData dopo assistente vocale:", newData);
+                      return newData;
+                    });
+                    toast.success("Campi compilati con l'assistente vocale! 🎤");
+                  }}
+                />
+              </div>
               <div className="text-sm text-emerald-700">
                 <div>Area: {gisData?.area_ha?.toFixed(2)} ha</div>
                 {gisData?.location && (

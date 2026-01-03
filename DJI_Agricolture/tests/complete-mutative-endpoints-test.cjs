@@ -648,10 +648,12 @@ const mutativeEndpoints = [
       const orgId = me.organization?.id || me.organizationId;
 
       // Usa factory per creare operator (più affidabile)
+      console.log('DEBUG: Creating operator for org:', orgId);
       const operator = await factory.createOperator(orgId, {
         service_tags: ["SPRAY"],
         max_ha_per_day: 40.0,
       });
+      console.log('DEBUG: Created operator:', operator.id);
 
       return { orgId, operatorId: operator.id };
     },

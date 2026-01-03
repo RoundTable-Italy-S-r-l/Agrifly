@@ -26,6 +26,7 @@ import jobsRoutes from "./routes/jobs-hono";
 import savedFieldsRoutes from "./routes/saved-fields-hono";
 import quoteEstimateRoutes from "./routes/quote-estimate-hono";
 import certifiedQuotesRoutes from "./routes/certified-quotes-hono";
+import voiceAssistantRoutes from "./routes/voice-assistant-hono";
 
 // Import utilities for offers alias route
 import { authMiddleware } from "./middleware/auth";
@@ -75,6 +76,7 @@ app.route("/api/bookings", bookingsRoutes);
 app.route("/api/jobs", jobsRoutes);
 app.route("/api/quote-estimate", quoteEstimateRoutes);
 app.route("/api/certified-quotes", certifiedQuotesRoutes);
+app.route("/api/voice-assistant", voiceAssistantRoutes);
 
 // Saved fields routes
 app.route("/api/saved-fields", savedFieldsRoutes);
