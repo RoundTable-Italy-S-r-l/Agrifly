@@ -761,33 +761,38 @@ export default function NuovoPreventivoBuyer() {
           </form>
         </div>
 
-        {/* Info */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-medium text-blue-900 mb-2">Come funziona?</h3>
-          <ul className="text-sm text-blue-700 space-y-1">
-            <li>• Pubblichi la tua richiesta senza specificare un prezzo</li>
-            <li>• Gli operatori qualificati ricevono una notifica</li>
-            <li>• Ricevi offerte competitive con prezzi e tempi</li>
-            <li>• Confronti le offerte e scegli quella migliore</li>
-            <li>• Paghi solo quando accetti un'offerta</li>
-          </ul>
-        </div>
+            {/* Info */}
+            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h3 className="font-medium text-blue-900 mb-2">Come funziona?</h3>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Pubblichi la tua richiesta senza specificare un prezzo</li>
+                <li>• Gli operatori qualificati ricevono una notifica</li>
+                <li>• Ricevi offerte competitive con prezzi e tempi</li>
+                <li>• Confronti le offerte e scegli quella migliore</li>
+                <li>• Paghi solo quando accetti un'offerta</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Colonna AI Assistant */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8 mt-20">
+              <VoiceAssistantPanel
+                onParsedFields={(fields) => {
+                  console.log("🤖 Campi parsati dall'assistente AI:", fields);
+                  setJobData((prev) => {
+                    const newData = { ...prev, ...fields };
+                    console.log("📝 Nuovo stato jobData dopo assistente AI:", newData);
+                    return newData;
+                  });
+                  toast.success("Campi compilati automaticamente dall'AI! 🤖");
+                }}
+                currentJobData={jobData}
+              />
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Pannello assistente AI fisso a destra */}
-      <VoiceAssistantPanel
-        onParsedFields={(fields) => {
-          console.log("🤖 Campi parsati dall'assistente AI:", fields);
-          setJobData((prev) => {
-            const newData = { ...prev, ...fields };
-            console.log("📝 Nuovo stato jobData dopo assistente AI:", newData);
-            return newData;
-          });
-          toast.success("Campi compilati automaticamente dall'AI! 🤖");
-        }}
-        currentJobData={jobData}
-      />
     </BuyerLayout>
   );
 }

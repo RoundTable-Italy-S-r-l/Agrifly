@@ -221,7 +221,7 @@ export function VoiceAssistantPanel({ onParsedFields, currentJobData }: VoiceAss
 
   if (isMinimized) {
     return (
-      <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-40">
+      <div className="flex justify-center">
         <Button
           onClick={() => setIsMinimized(false)}
           className="rounded-full w-12 h-12 shadow-lg bg-emerald-600 hover:bg-emerald-700"
@@ -234,8 +234,8 @@ export function VoiceAssistantPanel({ onParsedFields, currentJobData }: VoiceAss
   }
 
   return (
-    <div className="fixed right-4 top-20 bottom-4 w-96 z-30">
-      <Card className="h-full flex flex-col shadow-xl border-2 border-emerald-200">
+    <div className="h-fit">
+      <Card className="flex flex-col shadow-xl border-2 border-emerald-200">
         <CardHeader className="pb-3 border-b bg-gradient-to-r from-emerald-50 to-emerald-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
