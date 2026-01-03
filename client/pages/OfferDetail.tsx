@@ -179,6 +179,7 @@ export default function OfferDetail() {
     terrain: 1.0,
   });
 
+
   // Inizializza i moltiplicatori quando arriva il preventivo
   useEffect(() => {
     if (quoteEstimate) {
@@ -1273,20 +1274,29 @@ export default function OfferDetail() {
                       </span>
                     </div>
 
-                    {quoteEstimate.breakdown.seasonalMult !== 1 && (
-                      <div className="flex justify-between text-slate-600">
-                        <span>
-                          Moltiplicatore stagionale (×
-                          {quoteEstimate.breakdown.seasonalMult.toFixed(2)})
-                        </span>
-                        <span className="font-mono">
-                          €
-                          {(
-                            quoteEstimate.breakdown.seasonalAdjustedCents / 100
-                          ).toFixed(2)}
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span>Moltiplicatore stagionale</span>
+                      <div className="flex items-center gap-2">
+                        <span>×</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.5"
+                          max="3.0"
+                          value={customMultipliers.seasonal}
+                          onChange={(e) =>
+                            setCustomMultipliers(prev => ({
+                              ...prev,
+                              seasonal: parseFloat(e.target.value) || 1.0
+                            }))
+                          }
+                          className="w-16 px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <span className="font-mono text-xs">
+                          €{calculateModifiedTotal?.seasonalAdjusted.toFixed(2)}
                         </span>
                       </div>
-                    )}
+                    </div>
 
                     {quoteEstimate.breakdown.terrainMult !== 1 && (
                       <div className="flex justify-between text-slate-600">
@@ -1334,9 +1344,9 @@ export default function OfferDetail() {
                     )}
 
                     <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between font-semibold text-slate-900">
-                      <span>Totale</span>
-                      <span className="font-mono">
-                        €{(quoteEstimate.breakdown.totalCents / 100).toFixed(2)}
+                      <span>Totale Modificato</span>
+                      <span className="font-mono text-lg">
+                        €{calculateModifiedTotal?.total.toFixed(2)}
                       </span>
                     </div>
 
@@ -1480,247 +1490,6 @@ export default function OfferDetail() {
                 </Button>
               </div>
             </div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-slate-600" />
-                {existingOffer ? "Modifica Offerta" : "Crea Offerta"}
-              </h2>
-
-              {existingOffer && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <p className="text-blue-800 text-sm">
-                    Hai già un'offerta per questo job. Puoi modificarla qui
-                    sotto.
-                  </p>
-                </div>
-              )}
-
-              {/* Quote Estimate Breakdown - Scontrino */}
-              {!existingOffer && quoteEstimate && !loadingQuote && (
-                <div className="bg-white border border-slate-200 rounded-lg p-4 mb-4">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3">
-                    Preventivo Consigliato
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between text-slate-600">
-                      <span>
-                        Servizio base (
-                        {quoteEstimate.breakdown.areaHa.toFixed(2)} ha × €
-                        {(
-                          quoteEstimate.breakdown.baseRatePerHaCents / 100
-                        ).toFixed(2)}
-                        /ha)
-                      </span>
-                      <span className="font-mono">
-                        €{(quoteEstimate.breakdown.baseCents / 100).toFixed(2)}
-                      </span>
-                    </div>
-
-                    {quoteEstimate.breakdown.seasonalMult !== 1 && (
-                      <div className="flex justify-between text-slate-600">
-                        <span>
-                          Moltiplicatore stagionale (×
-                          {quoteEstimate.breakdown.seasonalMult.toFixed(2)})
-                        </span>
-                        <span className="font-mono">
-                          €
-                          {(
-                            quoteEstimate.breakdown.seasonalAdjustedCents / 100
-                          ).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-
-                    {quoteEstimate.breakdown.terrainMult !== 1 && (
-                      <div className="flex justify-between text-slate-600">
-                        <span>
-                          Moltiplicatore terreno (×
-                          {quoteEstimate.breakdown.terrainMult.toFixed(2)})
-                        </span>
-                        <span className="font-mono">
-                          €
-                          {(
-                            quoteEstimate.breakdown.multipliedCents / 100
-                          ).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between text-slate-600">
-                      <span>
-                        Trasporto (fisso: €
-                        {(
-                          quoteEstimate.breakdown.travelFixedCents / 100
-                        ).toFixed(2)}{" "}
-                        + variabile: €
-                        {(
-                          quoteEstimate.breakdown.travelVariableCents / 100
-                        ).toFixed(2)}
-                        )
-                      </span>
-                      <span className="font-mono">
-                        €
-                        {(quoteEstimate.breakdown.travelCents / 100).toFixed(2)}
-                      </span>
-                    </div>
-
-                    {quoteEstimate.breakdown.surchargesCents > 0 && (
-                      <div className="flex justify-between text-slate-600">
-                        <span>Maggiorazioni</span>
-                        <span className="font-mono">
-                          €
-                          {(
-                            quoteEstimate.breakdown.surchargesCents / 100
-                          ).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between font-semibold text-slate-900">
-                      <span>Totale</span>
-                      <span className="font-mono">
-                        €{(quoteEstimate.breakdown.totalCents / 100).toFixed(2)}
-                      </span>
-                    </div>
-
-                    {quoteEstimate.breakdown.totalCents ===
-                      quoteEstimate.breakdown.minChargeCents && (
-                      <p className="text-xs text-amber-600 mt-1">
-                        * Applicato minimo intervento
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {!existingOffer && loadingQuote && (
-                <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 mb-4 text-center">
-                  <p className="text-sm text-slate-600">
-                    Calcolo preventivo in corso...
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label
-                      htmlFor="total_cents"
-                      className="text-sm font-medium text-slate-700"
-                    >
-                      Prezzo Totale (€) *
-                    </Label>
-                    {quoteEstimate && !manualPriceOverride && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setManualPriceOverride(true);
-                          setOfferFormData((prev) => ({
-                            ...prev,
-                            total_cents: "",
-                          }));
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-700 underline"
-                      >
-                        Modifica manuale
-                      </button>
-                    )}
-                  </div>
-                  <Input
-                    id="total_cents"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={offerFormData.total_cents}
-                    onChange={(e) => handlePriceChange(e.target.value)}
-                    placeholder={loadingQuote ? "Calcolo..." : "0.00"}
-                    className="w-full"
-                  />
-                  {quoteEstimate && !manualPriceOverride && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      Prezzo calcolato automaticamente basato sulla tua
-                      configurazione
-                    </p>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label
-                      htmlFor="proposed_start"
-                      className="text-sm font-medium text-slate-700 mb-2 block"
-                    >
-                      Data Inizio Proposta
-                    </Label>
-                    <Input
-                      id="proposed_start"
-                      type="date"
-                      value={offerFormData.proposed_start}
-                      onChange={(e) =>
-                        setOfferFormData({
-                          ...offerFormData,
-                          proposed_start: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="proposed_end"
-                      className="text-sm font-medium text-slate-700 mb-2 block"
-                    >
-                      Data Fine Proposta
-                    </Label>
-                    <Input
-                      id="proposed_end"
-                      type="date"
-                      value={offerFormData.proposed_end}
-                      onChange={(e) =>
-                        setOfferFormData({
-                          ...offerFormData,
-                          proposed_end: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label
-                    htmlFor="provider_note"
-                    className="text-sm font-medium text-slate-700 mb-2 block"
-                  >
-                    Note Aggiuntive
-                  </Label>
-                  <textarea
-                    id="provider_note"
-                    value={offerFormData.provider_note}
-                    onChange={(e) =>
-                      setOfferFormData({
-                        ...offerFormData,
-                        provider_note: e.target.value,
-                      })
-                    }
-                    placeholder="Aggiungi note o informazioni aggiuntive..."
-                    className="w-full min-h-[100px] px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <Button
-                  onClick={handleCreateOffer}
-                  disabled={
-                    isCreatingOffer ||
-                    !offerFormData.total_cents ||
-                    offerFormData.total_cents === "" ||
-                    parseFloat(offerFormData.total_cents) <= 0
-                  }
-                  className="w-full bg-emerald-600 hover:bg-emerald-700"
-                >
-                  {isCreatingOffer
-                    ? existingOffer
-                      ? "Aggiornamento offerta..."
-                      : "Creazione offerta..."
-                    : existingOffer
-                      ? "Aggiorna Offerta"
-                      : "Crea Offerta"}
-                </Button>
-              </div>
             </div>
           </div>
 
