@@ -903,7 +903,7 @@ app.get("/:id/metrics", async (c) => {
           p.specs_core_json
         FROM products p
         JOIN product_purposes pp ON p.id = pp.product_id
-        WHERE pp.purpose = $1::"ServiceType"
+        WHERE pp.purpose = $1
           AND p.status = 'ACTIVE'
           AND p.specs_core_json IS NOT NULL
           AND jsonb_array_length(p.specs_core_json::jsonb) > 0
