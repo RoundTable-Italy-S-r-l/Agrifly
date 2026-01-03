@@ -1,7 +1,7 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
   children: ReactNode;
@@ -33,9 +33,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('❌ Error caught by ErrorBoundary:', error);
-    console.error('❌ Error info:', errorInfo);
-    
+    console.error("❌ Error caught by ErrorBoundary:", error);
+    console.error("❌ Error info:", errorInfo);
+
     this.setState({
       error,
       errorInfo,
@@ -73,31 +73,29 @@ export class ErrorBoundary extends Component<Props, State> {
             <CardContent className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-sm font-medium text-red-900 mb-2">
-                  {this.state.error?.message || 'Errore sconosciuto'}
+                  {this.state.error?.message || "Errore sconosciuto"}
                 </p>
-                {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
-                  <details className="mt-2">
-                    <summary className="text-xs text-red-700 cursor-pointer">
-                      Dettagli tecnici (solo in sviluppo)
-                    </summary>
-                    <pre className="mt-2 text-xs text-red-600 overflow-auto max-h-60 bg-red-100 p-2 rounded">
-                      {this.state.error?.stack}
-                      {'\n\n'}
-                      {this.state.errorInfo.componentStack}
-                    </pre>
-                  </details>
-                )}
+                {process.env.NODE_ENV === "development" &&
+                  this.state.errorInfo && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-red-700 cursor-pointer">
+                        Dettagli tecnici (solo in sviluppo)
+                      </summary>
+                      <pre className="mt-2 text-xs text-red-600 overflow-auto max-h-60 bg-red-100 p-2 rounded">
+                        {this.state.error?.stack}
+                        {"\n\n"}
+                        {this.state.errorInfo.componentStack}
+                      </pre>
+                    </details>
+                  )}
               </div>
-              
+
               <div className="flex gap-3">
-                <Button
-                  onClick={this.handleReset}
-                  variant="default"
-                >
+                <Button onClick={this.handleReset} variant="default">
                   Riprova
                 </Button>
                 <Button
-                  onClick={() => window.location.href = '/'}
+                  onClick={() => (window.location.href = "/")}
                   variant="outline"
                 >
                   Torna alla Home
@@ -112,4 +110,3 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
-

@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import RequireAuth from "@/components/RequireAuth";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 import Index from "./pages/Index";
 import Catalogo from "./pages/Catalogo";
@@ -53,174 +54,173 @@ const App = () => {
           <Sonner />
 
           <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/catalogo" element={<Catalogo />} />
-            <Route
-              path="/buyer/carrello"
-              element={
-                <RequireAuth>
-                  <Carrello />
-                </RequireAuth>
-              }
-            />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/servizi" element={<ServiziGIS />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/accept-invite" element={<AcceptInvite />} />
-            <Route
-              path="/verify-email"
-              element={
-                <RequireAuth>
-                  <VerifyEmail />
-                </RequireAuth>
-              }
-            />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/catalogo" element={<Catalogo />} />
+              <Route
+                path="/buyer/carrello"
+                element={
+                  <RequireAuth>
+                    <Carrello />
+                  </RequireAuth>
+                }
+              />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/servizi" element={<ServiziGIS />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/accept-invite" element={<AcceptInvite />} />
+              <Route
+                path="/verify-email"
+                element={
+                  <RequireAuth>
+                    <VerifyEmail />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/dashboard"
-              element={
-                <RequireAuth>
-                  <Dashboard />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/dashboard"
+                element={
+                  <RequireAuth>
+                    <Dashboard />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin"
-              element={
-                <RequireAuth>
-                  <DashboardAdmin />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/admin"
+                element={
+                  <RequireAuth>
+                    <DashboardAdmin />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin/catalogo"
-              element={
-                <RequireAuth>
-                  <AdminCatalog />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/admin/catalogo"
+                element={
+                  <RequireAuth>
+                    <AdminCatalog />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin/ordini"
-              element={
-                <RequireAuth>
-                  <Orders />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/admin/ordini"
+                element={
+                  <RequireAuth>
+                    <Orders />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin/servizi"
-              element={
-                <RequireAuth>
-                  <Servizi />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/admin/servizi"
+                element={
+                  <RequireAuth>
+                    <Servizi />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin/servizi/:serviceType"
-              element={
-                <RequireAuth>
-                  <ServiceDetail />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/admin/servizi/:serviceType"
+                element={
+                  <RequireAuth>
+                    <ServiceDetail />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin/offer/:offerId"
-              element={
-                <RequireAuth>
-                  <OfferDetail />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/admin/offer/:offerId"
+                element={
+                  <RequireAuth>
+                    <OfferDetail />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin/prenotazioni"
-              element={
-                <RequireAuth>
-                  <Missioni />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/admin/prenotazioni"
+                element={
+                  <RequireAuth>
+                    <Missioni />
+                  </RequireAuth>
+                }
+              />
 
+              <Route
+                path="/admin/impostazioni"
+                element={
+                  <RequireAuth>
+                    <AdminSettingsPage />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin/impostazioni"
-              element={
-                <RequireAuth>
-                  <AdminSettingsPage />
-                </RequireAuth>
-              }
-            />
+              {/* Buyer Routes */}
+              <Route
+                path="/buyer"
+                element={
+                  <RequireAuth>
+                    <DashboardBuyer />
+                  </RequireAuth>
+                }
+              />
 
-            {/* Buyer Routes */}
-            <Route
-              path="/buyer"
-              element={
-                <RequireAuth>
-                  <DashboardBuyer />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/buyer/carrello"
+                element={
+                  <RequireAuth>
+                    <CartBuyer />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/buyer/carrello"
-              element={
-                <RequireAuth>
-                  <CartBuyer />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/buyer/nuovo-preventivo"
+                element={
+                  <RequireAuth>
+                    <NuovoPreventivoBuyer />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/buyer/nuovo-preventivo"
-              element={
-                <RequireAuth>
-                  <NuovoPreventivoBuyer />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/buyer/servizi"
+                element={
+                  <RequireAuth>
+                    <StoricoBuyer />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/buyer/servizi"
-              element={
-                <RequireAuth>
-                  <StoricoBuyer />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/buyer/impostazioni"
+                element={
+                  <RequireAuth>
+                    <ImpostazioniBuyer />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/buyer/impostazioni"
-              element={
-                <RequireAuth>
-                  <ImpostazioniBuyer />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/buyer/job/:jobId"
+                element={
+                  <RequireAuth>
+                    <DettagliJobBuyer />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/buyer/job/:jobId"
-              element={
-                <RequireAuth>
-                  <DettagliJobBuyer />
-                </RequireAuth>
-              }
-            />
-
-            <Route path="/prodotti/:id" element={<DroneDetail />} />
-            <Route path="/ordini/:orderId" element={<OrderDetail />} />
-            <Route path="/operators/:orgId" element={<OperatorProfile />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+              <Route path="/prodotti/:id" element={<DroneDetail />} />
+              <Route path="/ordini/:orderId" element={<OrderDetail />} />
+              <Route path="/operators/:orgId" element={<OperatorProfile />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>
