@@ -31,7 +31,7 @@ const DroneDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'overview' | 'specs' | 'gallery' | 'manuals' | 'faq'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'specs' | 'gallery' | 'manuals' | 'faq' | 'reviews'>('overview');
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -506,7 +506,8 @@ const DroneDetail = () => {
               { id: 'specs', label: 'Specifiche', icon: BookOpen },
               { id: 'gallery', label: 'Gallery', icon: ImageIcon },
               { id: 'manuals', label: 'Manuali', icon: Download },
-              { id: 'faq', label: 'FAQ', icon: CheckCircle }
+              { id: 'faq', label: 'FAQ', icon: CheckCircle },
+              { id: 'reviews', label: 'Recensioni', icon: TrendingUp }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -757,6 +758,22 @@ const DroneDetail = () => {
                     <p>Nessun manuale disponibile</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'reviews' && (
+              <div className="space-y-6">
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Recensioni Prodotto</h2>
+                  <p className="text-slate-600">
+                    Le recensioni verranno implementate a breve. Qui verranno mostrati i punteggi per categoria e i commenti degli acquirenti.
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-8 border border-slate-200">
+                  <p className="text-slate-600 text-center">
+                    Funzionalità in arrivo: sistema di recensioni con punteggi per categoria e commenti.
+                  </p>
+                </div>
               </div>
             )}
 
