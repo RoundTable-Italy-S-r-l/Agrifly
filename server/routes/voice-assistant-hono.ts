@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { parseVoiceTextSimple } from "../utils/voice-parser.js";
 
 const app = new Hono();
 
@@ -37,36 +38,26 @@ async function callGrokAPI(text: string, context: any) {
     throw new Error("GROK_API_KEY not configured");
   }
 
-  const prompt = `Analizza questa descrizione di servizio agricolo e estrai i campi strutturati per un form di richiesta preventivo drone.
+  const prompt = `Sei un assistente intelligente per compilare moduli online. Analizza questa richiesta dell'utente e identifica le informazioni chiave per un servizio.
 
-Testo da analizzare: "${text}"
+Richiesta utente: "${text}"
 
-Contesto disponibile:
-- Servizi: ${context.available_services?.map(s => `${s.value} (${s.label})`).join(', ') || 'SPRAY, SPREAD, MAPPING'}
-- Colture: ${context.available_crops?.map(c => `${c.value} (${c.label})`).join(', ') || 'VINEYARD, OLIVE_GROVE, CEREAL, VEGETABLES, FRUIT, OTHER'}
-- Trattamenti SPRAY: ${context.available_treatments?.SPRAY?.map(t => `${t.value} (${t.label})`).join(', ') || 'FUNGICIDE, INSECTICIDE, HERBICIDE, FERTILIZER'}
-- Trattamenti SPREAD: ${context.available_treatments?.SPREAD?.map(t => `${t.value} (${t.label})`).join(', ') || 'ORGANIC_FERTILIZER, CHEMICAL_FERTILIZER, LIME, OTHER'}
-- Trattamenti MAPPING: ${context.available_treatments?.MAPPING?.map(t => `${t.value} (${t.label})`).join(', ') || 'NDVI, THERMAL, MULTISPECTRAL, ORTHOPHOTO'}
-- Terreno: ${context.available_terrain?.map(t => `${t.value} (${t.label})`).join(', ') || 'FLAT, HILLY, MOUNTAINOUS'}
+Opzioni disponibili per il modulo:
+• Tipo di servizio: irrorazione (SPRAY), distribuzione (SPREAD), mappatura (MAPPING)
+• Tipo di coltivazione: vite (VINEYARD), olivo (OLIVE_GROVE), cereali (CEREAL), ortaggi (VEGETABLES), frutta (FRUIT), altro (OTHER)
+• Tipo di lavorazione: per irrorazione usa termini come protezione (FUNGICIDE), insetti (INSECTICIDE), erbe (HERBICIDE), nutrienti (FERTILIZER); per distribuzione usa organico (ORGANIC_FERTILIZER), chimico (CHEMICAL_FERTILIZER), calce (LIME); per mappatura usa vegetazione (NDVI), termico (THERMAL), spettri (MULTISPECTRAL), foto (ORTHOPHOTO)
+• Condizioni terreno: pianura (FLAT), collina (HILLY), montagna (MOUNTAINOUS)
 
-Istruzioni:
-1. Identifica il tipo di servizio (service_type) dal testo
-2. Identifica la coltura (crop_type) se menzionata
-3. Identifica il tipo di trattamento/mappatura (treatment_type) in base al servizio scelto
-4. Identifica le condizioni del terreno (terrain_conditions) se menzionate
-5. Estrai un nome per il campo (field_name) se presente
-6. Estrai eventuali note aggiuntive
-
-Rispondi SOLO con un oggetto JSON valido, senza commenti aggiuntivi:
+Restituisci un oggetto JSON con le categorie identificate:
 {
-  "field_name": "nome estratto o null",
   "service_type": "SPRAY/SPREAD/MAPPING o null",
-  "crop_type": "valore estratto o null", 
-  "treatment_type": "valore estratto o null",
+  "crop_type": "VINEYARD/OLIVE_GROVE/CEREAL/VEGETABLES/FRUIT/OTHER o null",
+  "treatment_type": "valore appropriato o null",
   "terrain_conditions": "FLAT/HILLY/MOUNTAINOUS o null",
-  "notes": "note estratte o null",
+  "field_name": "nome del campo se presente, altrimenti null",
+  "notes": "qualsiasi altra informazione rilevante",
   "confidence": 0.0-1.0,
-  "explanation": "breve spiegazione della scelta"
+  "explanation": "perché hai scelto questi valori"
 }`;
 
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -75,8 +66,8 @@ Rispondi SOLO con un oggetto JSON valido, senza commenti aggiuntivi:
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${GROK_API_KEY}`
     },
-    body: JSON.stringify({
-      model: 'grok-beta',
+      body: JSON.stringify({
+        model: 'grok-beta',
       messages: [{
         role: 'user',
         content: prompt
@@ -195,13 +186,33 @@ app.post('/parse-service-description', async (c) => {
 
     const finalContext = { ...defaultContext, ...context };
 
-    // Call Grok API
-    const grokResponse = await callGrokAPI(text, finalContext);
-    console.log('🤖 [VOICE ASSISTANT] Grok response:', grokResponse);
+    // Try Grok API first
+    let parsed;
+    let rawResponse = null;
 
-    // Parse the response
-    const parsed = parseGrokResponse(grokResponse);
-    console.log('📝 [VOICE ASSISTANT] Parsed result:', parsed);
+    try {
+      const grokResponse = await callGrokAPI(text, finalContext);
+      console.log('🤖 [VOICE ASSISTANT] Grok response:', grokResponse);
+      rawResponse = grokResponse;
+
+      // Parse the response
+      parsed = parseGrokResponse(grokResponse);
+      console.log('📝 [VOICE ASSISTANT] Parsed result from AI:', parsed);
+
+      // Check if parsing was successful (has at least service_type or crop_type)
+      if (!parsed.service_type && !parsed.crop_type && !parsed.treatment_type && !parsed.terrain_conditions) {
+        throw new Error('AI parsing returned empty results');
+      }
+
+    } catch (aiError) {
+      console.warn('⚠️ [VOICE ASSISTANT] AI parsing failed, using fallback parser:', aiError.message);
+
+      // Fallback to simple parser
+      parsed = parseVoiceTextSimple(text);
+      console.log('🔄 [VOICE ASSISTANT] Parsed result from fallback:', parsed);
+
+      rawResponse = `Fallback parser used: ${aiError.message}`;
+    }
 
     // Generate suggestions based on what's missing
     const suggestions: string[] = [];
@@ -229,7 +240,7 @@ app.post('/parse-service-description', async (c) => {
       confidence: parsed.confidence,
       suggestions,
       unrecognized,
-      raw_response: grokResponse
+      raw_response: rawResponse
     };
 
     console.log('✅ [VOICE ASSISTANT] Final response:', response);
