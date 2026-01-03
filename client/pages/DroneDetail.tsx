@@ -291,7 +291,7 @@ const DroneDetail = () => {
   return (
     <Layout>
       {/* Breadcrumb */}
-      <div className="mb-6">
+      <div className="mb-6 animate-in fade-in duration-500">
         <button
           onClick={() => navigate("/catalogo")}
           className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-2"
@@ -361,43 +361,6 @@ const DroneDetail = () => {
             <p className="text-sm text-slate-600">IVA esclusa • Kit completo</p>
           </div>
 
-          {/* Core Specs Quick View */}
-          {coreSpecs.length > 0 && (
-            <div className="bg-white rounded-xl p-6 border border-slate-200">
-              <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Settings size={18} />
-                Specifiche Principali
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {coreSpecs.slice(0, 6).map((spec: any, idx: number) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
-                      {spec.section === "spray_system" && (
-                        <Droplet size={16} className="text-emerald-600" />
-                      )}
-                      {spec.section === "battery" && (
-                        <Battery size={16} className="text-emerald-600" />
-                      )}
-                      {spec.section === "aircraft" && (
-                        <Wind size={16} className="text-emerald-600" />
-                      )}
-                      {!["spray_system", "battery", "aircraft"].includes(
-                        spec.section,
-                      ) && <Zap size={16} className="text-emerald-600" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-slate-500">
-                        {translateSpecKey(spec.key)}
-                      </p>
-                      <p className="text-sm font-bold text-slate-900">
-                        {spec.value} {spec.unit}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Venditori che vendono questo prodotto */}
           {vendorsLoading ? (
@@ -653,7 +616,11 @@ const DroneDetail = () => {
                       Specifiche Principali
                     </h3>
                     <div className="space-y-6">
-                      {getOrderedSections(coreSpecsGrouped).map((section) => (
+                      {(() => {
+                        const orderedSections = getOrderedSections(coreSpecsGrouped);
+                        console.log('Ordered sections:', orderedSections);
+                        console.log('Core specs grouped:', coreSpecsGrouped);
+                        return orderedSections.map((section) => (
                         <div
                           key={section}
                           className="bg-white rounded-lg border border-slate-200 p-6"
@@ -685,7 +652,8 @@ const DroneDetail = () => {
                             )}
                           </div>
                         </div>
-                      ))}
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
